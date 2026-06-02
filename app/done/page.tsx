@@ -6,8 +6,7 @@ import { SiembraCTA } from "@/components/Siembra";
 import { Button, LinkButton } from "@/components/ui";
 import { db } from "@/lib/db";
 import { env } from "@/lib/env";
-import { playerName } from "@/lib/players";
-import { teamFlag, teamName } from "@/lib/teams";
+import { teamName } from "@/lib/teams";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "You're in! · La Copa de LaFamilia 2026" };
@@ -31,15 +30,7 @@ export default async function DonePage({
   const shareText = `I just made my La Copa de LaFamilia 2026 predictions ⚽🌎\n\nCan your bracket beat mine?\n\nSubmit yours here:`;
   const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(`${shareText} ${referralUrl}`)}`;
   const cardFile = `la-copa-lafamilia-${me.name.split(" ")[0].toLowerCase()}.png`;
-
-  const summary = [
-    { label: "Rooting for", value: `${teamFlag(me.rootingCountry)} ${teamName(me.rootingCountry)}` },
-    { label: "Predicting to win", value: `${teamFlag(me.predictions.champion)} ${teamName(me.predictions.champion)}` },
-    { label: "Runner-up", value: `${teamFlag(me.predictions.runnerUp)} ${teamName(me.predictions.runnerUp)}` },
-    { label: "Golden Boot", value: playerName(me.predictions.goldenBoot) },
-    { label: "Dark horse", value: `${teamFlag(me.predictions.darkHorse)} ${teamName(me.predictions.darkHorse)}` },
-    { label: "LatAm furthest", value: `${teamFlag(me.predictions.latamFurthest)} ${teamName(me.predictions.latamFurthest)}` },
-  ];
+  const cardAlt = `${me.name}'s bracket — rooting for ${teamName(me.rootingCountry)}, predicting ${teamName(me.predictions.champion)} to win`;
 
   return (
     <main className="flex flex-1 flex-col">
@@ -55,26 +46,14 @@ export default async function DonePage({
         </div>
       </section>
 
-      <section className="mx-auto -mt-6 w-full max-w-md px-4 pb-24">
-        {/* Bracket preview (mirrors the saved card) */}
-        <div className="card overflow-hidden">
-          <div className="bg-[var(--color-navy)] p-5 text-white">
-            <p className="text-xs font-semibold uppercase tracking-wider text-white/60">
-              La Copa de LaFamilia 2026
-            </p>
-            <p className="mt-3 text-sm text-white/80">{me.name}&apos;s pick to win it all</p>
-            <p className="mt-1 text-4xl font-black">
-              {teamFlag(me.predictions.champion)} {teamName(me.predictions.champion)}
-            </p>
-          </div>
-          <div className="divide-y divide-[var(--color-line)]">
-            {summary.map((row) => (
-              <div key={row.label} className="flex items-center justify-between px-4 py-3">
-                <span className="text-sm text-[var(--color-muted)]">{row.label}</span>
-                <span className="font-semibold">{row.value}</span>
-              </div>
-            ))}
-          </div>
+      <section className="mx-auto w-full max-w-md px-4 pb-24 pt-6">
+        {/* The actual shareable card — this is exactly what your crew will see */}
+        <p className="mb-3 text-center text-sm font-semibold text-[var(--color-muted)]">
+          Here&apos;s your card 👇 Save it and challenge the Familia.
+        </p>
+        <div className="overflow-hidden rounded-3xl shadow-xl ring-1 ring-black/5">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={cardUrl} alt={cardAlt} width={1080} height={1350} className="w-full" />
         </div>
 
         {/* Action hierarchy: Save Card → WhatsApp → Leaderboard / Edit */}
