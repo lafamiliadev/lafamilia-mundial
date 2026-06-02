@@ -1,3 +1,4 @@
+import { SiembraBanner } from "@/components/Siembra";
 import { LinkButton, PageShell, SectionTitle, TopNav } from "@/components/ui";
 import { getLeaderboardData } from "@/lib/services";
 import { teamFlag } from "@/lib/teams";
@@ -51,6 +52,11 @@ export default async function LeaderboardPage({
             {total} {total === 1 ? "predictor" : "predictors"} in the running. Points grow as the
             tournament unfolds.
           </p>
+        </div>
+
+        {/* Non-intrusive mission banner — never blocks the game */}
+        <div className="mb-5">
+          <SiembraBanner />
         </div>
 
         {total === 0 ? (

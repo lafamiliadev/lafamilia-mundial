@@ -14,6 +14,9 @@
   --color-gold-soft: #ffeab0;
   --color-coral: #ff5a5f; /* warm accent */
   --color-sky: #2b6cff;
+  --color-navy: #051d40; /* LaFamilia brand navy (logo) */
+  --color-cream: #fdf6e8;
+  --color-siembra: #1f7a4d; /* growth green for Siembra */
 
   --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
 

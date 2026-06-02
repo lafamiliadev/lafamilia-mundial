@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ShareActions } from "@/components/ShareActions";
-import { LinkButton } from "@/components/ui";
+import { ResumeLink } from "@/components/ResumeLink";
+import { SavePredictionCard } from "@/components/SavePredictionCard";
+import { SiembraCTA } from "@/components/Siembra";
+import { Button, LinkButton } from "@/components/ui";
 import { db } from "@/lib/db";
 import { env } from "@/lib/env";
 import { playerName } from "@/lib/players";
@@ -23,9 +25,12 @@ export default async function DonePage({
   if (!me) notFound();
 
   const resumeUrl = `${env.NEXT_PUBLIC_APP_URL}/r/${me.resumeToken}`;
-  const shareText = `I just made my LaFamilia Mundial 2026 predictions — I've got ${teamFlag(
-    me.predictions.champion,
-  )} ${teamName(me.predictions.champion)} winning it all. Beat my bracket! ⚽🌎`;
+  const cardUrl = `/api/card/${me.resumeToken}`;
+  // Share the public app link (so friends make THEIR OWN bracket), not the private edit link.
+  const referralUrl = env.NEXT_PUBLIC_APP_URL;
+  const shareText = `I just made my LaFamilia Mundial 2026 predictions ⚽🌎\n\nCan your bracket beat mine?\n\nSubmit yours here:`;
+  const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(`${shareText} ${referralUrl}`)}`;
+  const cardFile = `lafamilia-mundial-${me.name.split(" ")[0].toLowerCase()}.png`;
 
   const summary = [
     { label: "Champion", value: `${teamFlag(me.predictions.champion)} ${teamName(me.predictions.champion)}` },
@@ -37,24 +42,23 @@ export default async function DonePage({
 
   return (
     <main className="flex flex-1 flex-col">
-      <section className="bg-stadium px-5 pb-8 pt-14 text-center text-white">
+      <section className="bg-stadium px-5 pb-8 pt-12 text-center text-white">
         <div className="mx-auto max-w-md">
-          <div className="text-5xl">🎉</div>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/lafamilia-logo-white.svg" alt="LaFamilia" className="mx-auto h-10 w-auto" />
+          <div className="mt-5 text-5xl">🎉</div>
           <h1 className="mt-3 text-3xl font-black tracking-tight">You&apos;re in, {me.name.split(" ")[0]}!</h1>
           <p className="mt-2 text-white/85">
-            Your bracket is locked in. Now bring the Familia — challenge your crew to beat it.
+            Your bracket is locked in. Now bring the Familia — share your card and challenge your crew.
           </p>
         </div>
       </section>
 
       <section className="mx-auto -mt-6 w-full max-w-md px-4 pb-24">
-        {/* Share card preview (matches the OG image) */}
+        {/* Bracket preview (mirrors the saved card) */}
         <div className="card overflow-hidden">
-          <div
-            className="bg-stadium p-5 text-white"
-            style={{ backgroundColor: "var(--color-pitch)" }}
-          >
-            <p className="text-xs font-semibold uppercase tracking-wider text-white/70">
+          <div className="bg-[var(--color-navy)] p-5 text-white">
+            <p className="text-xs font-semibold uppercase tracking-wider text-white/60">
               LaFamilia Mundial 2026
             </p>
             <p className="mt-3 text-sm text-white/80">{me.name}&apos;s pick to win it all</p>
@@ -72,25 +76,39 @@ export default async function DonePage({
           </div>
         </div>
 
+        {/* Action hierarchy: Save Card → WhatsApp → Leaderboard / Edit */}
+        <div className="mt-6 space-y-3">
+          <SavePredictionCard
+            cardUrl={cardUrl}
+            fileName={cardFile}
+            shareText={`I just made my LaFamilia Mundial 2026 predictions ⚽🌎 Can your bracket beat mine?`}
+            shareUrl={referralUrl}
+          />
+
+          <a href={whatsappUrl} target="_blank" rel="noreferrer" className="block">
+            <Button variant="primary" className="w-full">
+              📲 Share on WhatsApp
+            </Button>
+          </a>
+
+          <div className="grid grid-cols-2 gap-3">
+            <LinkButton href={`/leaderboard?me=${me.resumeToken}`} variant="outline" className="w-full">
+              🏆 Leaderboard
+            </LinkButton>
+            <LinkButton href={`/r/${me.resumeToken}`} variant="outline" className="w-full">
+              ✏️ Edit picks
+            </LinkButton>
+          </div>
+        </div>
+
+        {/* Siembra mission CTA — below the summary + share actions */}
+        <div className="mt-8">
+          <SiembraCTA />
+        </div>
+
+        {/* Private return link — available, but no longer a primary CTA */}
         <div className="mt-6">
-          <ShareActions resumeUrl={resumeUrl} shareText={shareText} />
-        </div>
-
-        <div className="mt-4 rounded-2xl bg-[var(--color-gold-soft)]/50 px-4 py-3 text-sm">
-          <p className="font-semibold">🔖 Save your private link</p>
-          <p className="mt-0.5 text-[var(--color-muted)]">
-            Bookmark it to return, edit your picks before kickoff, and track your rank:
-          </p>
-          <p className="mt-1 break-all font-mono text-xs text-[var(--color-pitch)]">{resumeUrl}</p>
-        </div>
-
-        <div className="mt-6 grid grid-cols-2 gap-3">
-          <LinkButton href="/leaderboard" variant="primary" className="w-full">
-            🏆 Leaderboard
-          </LinkButton>
-          <LinkButton href={`/r/${me.resumeToken}`} variant="outline" className="w-full">
-            ✏️ Edit picks
-          </LinkButton>
+          <ResumeLink url={resumeUrl} />
         </div>
 
         <p className="mt-6 text-center text-sm text-[var(--color-muted)]">

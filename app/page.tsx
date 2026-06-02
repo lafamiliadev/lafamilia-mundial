@@ -20,6 +20,8 @@ export default async function Home() {
       {/* Hero */}
       <section className="bg-stadium px-5 pb-10 pt-14 text-white">
         <div className="mx-auto max-w-md">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/lafamilia-logo-white.svg" alt="LaFamilia" className="mb-6 h-9 w-auto" />
           <div className="mb-5 inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs font-semibold backdrop-blur">
             🌎 Canada · México · USA 2026
           </div>
