@@ -34,8 +34,8 @@ export default async function Home() {
             Predict. Compete. Brag forever.
           </p>
           <p className="mt-3 max-w-sm text-lg text-white/85">
-            Predict the tournament. Compete with the community. See who becomes
-            LaFamilia&apos;s top predictor.
+            Challenge fellow Familia members across the Latine venture community
+            and see whose soccer instincts survive the tournament.
           </p>
 
           <div className="mt-7">
