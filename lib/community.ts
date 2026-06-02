@@ -21,7 +21,7 @@ export async function generateCommunityUpdates(): Promise<GeneratedUpdate[]> {
       {
         type: "kickoff",
         title: "🌎 Predictions are open!",
-        body: "LaFamilia Mundial 2026 is live. Make your picks in under 2 minutes and claim your spot on the leaderboard. ⚽",
+        body: "La Copa de LaFamilia 2026 is live. Make your picks in under 2 minutes and claim your spot on the leaderboard. ⚽",
       },
     ];
   }

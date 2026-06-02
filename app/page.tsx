@@ -26,11 +26,14 @@ export default async function Home() {
             🌎 Canada · México · USA 2026
           </div>
           <h1 className="text-[2.6rem] font-black leading-[1.05] tracking-tight">
-            LaFamilia
+            La Copa de
             <br />
-            Mundial <span className="text-[var(--color-gold)]">2026</span> ⚽
+            LaFamilia <span className="text-[var(--color-gold)]">2026</span> ⚽
           </h1>
-          <p className="mt-4 max-w-sm text-lg text-white/85">
+          <p className="mt-3 text-base font-extrabold uppercase tracking-wide text-[var(--color-gold-soft)]">
+            Predict. Compete. Brag forever.
+          </p>
+          <p className="mt-3 max-w-sm text-lg text-white/85">
             Predict the tournament. Compete with the community. See who becomes
             LaFamilia&apos;s top predictor.
           </p>

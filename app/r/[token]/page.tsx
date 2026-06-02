@@ -15,8 +15,8 @@ export async function generateMetadata({
   const repo = await db();
   const me = await repo.getByToken(token);
   const title = me
-    ? `${me.name} picked ${teamName(me.predictions.champion)} to win · LaFamilia Mundial 2026`
-    : "Edit your predictions · LaFamilia Mundial 2026";
+    ? `${me.name} picked ${teamName(me.predictions.champion)} to win · La Copa de LaFamilia 2026`
+    : "Edit your predictions · La Copa de LaFamilia 2026";
   const ogImage = `/api/og/${token}`;
   return {
     title,

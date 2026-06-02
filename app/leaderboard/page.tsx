@@ -5,7 +5,7 @@ import { teamFlag } from "@/lib/teams";
 import type { LeaderboardRow } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Leaderboard · LaFamilia Mundial 2026" };
+export const metadata = { title: "Leaderboard · La Copa de LaFamilia 2026" };
 
 const medal = (rank: number) =>
   rank === 1 ? "🥇" : rank === 2 ? "🥈" : rank === 3 ? "🥉" : null;

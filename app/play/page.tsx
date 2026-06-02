@@ -1,6 +1,6 @@
 import { Wizard } from "@/components/Wizard";
 
-export const metadata = { title: "Make your predictions · LaFamilia Mundial 2026" };
+export const metadata = { title: "Make your predictions · La Copa de LaFamilia 2026" };
 
 export default function PlayPage() {
   return (

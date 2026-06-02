@@ -10,7 +10,7 @@ import { playerName } from "@/lib/players";
 import { teamFlag, teamName } from "@/lib/teams";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "You're in! · LaFamilia Mundial 2026" };
+export const metadata = { title: "You're in! · La Copa de LaFamilia 2026" };
 
 export default async function DonePage({
   searchParams,
@@ -28,12 +28,13 @@ export default async function DonePage({
   const cardUrl = `/api/card/${me.resumeToken}`;
   // Share the public app link (so friends make THEIR OWN bracket), not the private edit link.
   const referralUrl = env.NEXT_PUBLIC_APP_URL;
-  const shareText = `I just made my LaFamilia Mundial 2026 predictions ⚽🌎\n\nCan your bracket beat mine?\n\nSubmit yours here:`;
+  const shareText = `I just made my La Copa de LaFamilia 2026 predictions ⚽🌎\n\nCan your bracket beat mine?\n\nSubmit yours here:`;
   const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(`${shareText} ${referralUrl}`)}`;
-  const cardFile = `lafamilia-mundial-${me.name.split(" ")[0].toLowerCase()}.png`;
+  const cardFile = `la-copa-lafamilia-${me.name.split(" ")[0].toLowerCase()}.png`;
 
   const summary = [
-    { label: "Champion", value: `${teamFlag(me.predictions.champion)} ${teamName(me.predictions.champion)}` },
+    { label: "Rooting for", value: `${teamFlag(me.rootingCountry)} ${teamName(me.rootingCountry)}` },
+    { label: "Predicting to win", value: `${teamFlag(me.predictions.champion)} ${teamName(me.predictions.champion)}` },
     { label: "Runner-up", value: `${teamFlag(me.predictions.runnerUp)} ${teamName(me.predictions.runnerUp)}` },
     { label: "Golden Boot", value: playerName(me.predictions.goldenBoot) },
     { label: "Dark horse", value: `${teamFlag(me.predictions.darkHorse)} ${teamName(me.predictions.darkHorse)}` },
@@ -59,7 +60,7 @@ export default async function DonePage({
         <div className="card overflow-hidden">
           <div className="bg-[var(--color-navy)] p-5 text-white">
             <p className="text-xs font-semibold uppercase tracking-wider text-white/60">
-              LaFamilia Mundial 2026
+              La Copa de LaFamilia 2026
             </p>
             <p className="mt-3 text-sm text-white/80">{me.name}&apos;s pick to win it all</p>
             <p className="mt-1 text-4xl font-black">
@@ -81,7 +82,7 @@ export default async function DonePage({
           <SavePredictionCard
             cardUrl={cardUrl}
             fileName={cardFile}
-            shareText={`I just made my LaFamilia Mundial 2026 predictions ⚽🌎 Can your bracket beat mine?`}
+            shareText={`I just made my La Copa de LaFamilia 2026 predictions ⚽🌎 Can your bracket beat mine?`}
             shareUrl={referralUrl}
           />
 

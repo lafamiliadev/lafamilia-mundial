@@ -37,7 +37,7 @@ export function SavePredictionCard({
         await nav.share({
           files: [file],
           text: `${shareText}\n\n${shareUrl}`,
-          title: "LaFamilia Mundial 2026",
+          title: "La Copa de LaFamilia 2026",
         });
         setDone("shared");
         return;

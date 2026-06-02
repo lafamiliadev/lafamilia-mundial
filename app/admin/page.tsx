@@ -16,7 +16,7 @@ import { teamFlag, teamName } from "@/lib/teams";
 import type { ProviderStatus } from "@/lib/football";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Admin dashboard · LaFamilia Mundial 2026" };
+export const metadata = { title: "Admin dashboard · La Copa de LaFamilia 2026" };
 
 export default async function AdminDashboard() {
   if (!(await isAdmin())) redirect("/admin/login");
@@ -51,7 +51,7 @@ export default async function AdminDashboard() {
       <header className="flex items-center justify-between py-6">
         <div>
           <h1 className="text-2xl font-black tracking-tight">Control room ⚙️</h1>
-          <p className="text-sm text-[var(--color-muted)]">LaFamilia Mundial 2026</p>
+          <p className="text-sm text-[var(--color-muted)]">La Copa de LaFamilia 2026</p>
         </div>
         <form action={adminLogout}>
           <Button variant="ghost" type="submit" className="min-h-0 px-4 py-2 text-sm">

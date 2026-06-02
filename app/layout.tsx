@@ -10,13 +10,12 @@ const geistSans = Geist({
 
 export const metadata: Metadata = {
   metadataBase: new URL(env.NEXT_PUBLIC_APP_URL),
-  title: "LaFamilia Mundial 2026 ⚽🌎",
+  title: "La Copa de LaFamilia 2026 ⚽🌎",
   description:
-    "Predict the World Cup. Compete with the community. See who becomes LaFamilia's top predictor.",
+    "Predict. Compete. Brag forever. The World Cup prediction game for the LaFamilia community.",
   openGraph: {
-    title: "LaFamilia Mundial 2026 ⚽🌎",
-    description:
-      "Predict the tournament. Compete with the community. Takes under 2 minutes.",
+    title: "La Copa de LaFamilia 2026 ⚽🌎",
+    description: "Predict. Compete. Brag forever. Takes under 2 minutes.",
     type: "website",
   },
   twitter: { card: "summary_large_image" },

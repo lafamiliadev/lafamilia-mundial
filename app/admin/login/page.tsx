@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui";
 import { adminLogin } from "@/app/actions/admin";
 
-export const metadata = { title: "Admin · LaFamilia Mundial 2026" };
+export const metadata = { title: "Admin · La Copa de LaFamilia 2026" };
 
 export default async function AdminLogin({
   searchParams,
@@ -18,7 +18,7 @@ export default async function AdminLogin({
         <div>
           <h1 className="text-xl font-extrabold">Admin access 🔐</h1>
           <p className="mt-1 text-sm text-[var(--color-muted)]">
-            LaFamilia Mundial 2026 control room.
+            La Copa de LaFamilia 2026 control room.
           </p>
         </div>
         <input type="hidden" name="next" value={next ?? "/admin"} />

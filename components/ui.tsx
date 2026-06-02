@@ -82,7 +82,7 @@ export function TopNav({ active }: { active?: "play" | "leaderboard" | "insights
       <div className="mx-auto flex max-w-md items-center justify-between px-4 py-3">
         <Link href="/" className="flex items-center gap-1.5 font-extrabold tracking-tight">
           <span className="text-lg">⚽</span>
-          <span>Mundial<span className="text-[var(--color-pitch)]">26</span></span>
+          <span>La&nbsp;Copa<span className="text-[var(--color-pitch)]">&nbsp;’26</span></span>
         </Link>
         <nav className="flex items-center gap-1 text-sm font-semibold">
           {items.map((i) => (

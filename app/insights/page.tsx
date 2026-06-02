@@ -3,7 +3,7 @@ import { computeInsights, type InsightBlock } from "@/lib/insights";
 import { listPublicParticipants } from "@/lib/services";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Community insights · LaFamilia Mundial 2026" };
+export const metadata = { title: "Community insights · La Copa de LaFamilia 2026" };
 
 function Block({ block }: { block: InsightBlock }) {
   const max = Math.max(...block.bars.map((b) => b.pct), 1);

@@ -35,7 +35,7 @@ export async function GET(
       >
         <div style={{ display: "flex", alignItems: "center", gap: "16px", fontSize: "32px", fontWeight: 700 }}>
           <span>⚽</span>
-          <span style={{ opacity: 0.85 }}>LaFamilia Mundial 2026</span>
+          <span style={{ opacity: 0.85 }}>La Copa de LaFamilia 2026</span>
         </div>
 
         <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
