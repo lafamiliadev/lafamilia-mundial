@@ -30,8 +30,8 @@ export default async function Home() {
             <br />
             LaFamilia <span className="text-[var(--color-gold)]">2026</span> ⚽
           </h1>
-          <p className="mt-3 text-base font-extrabold uppercase tracking-wide text-[var(--color-gold-soft)]">
-            Predict. Compete. Brag forever.
+          <p className="mt-3 text-base font-bold tracking-wide text-[var(--color-gold-soft)]">
+            A World Cup challenge for the Latine venture community.
           </p>
           <p className="mt-3 max-w-sm text-lg text-white/85">
             Challenge fellow Familia members across the Latine venture community
