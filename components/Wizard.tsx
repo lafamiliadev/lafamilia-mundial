@@ -210,8 +210,8 @@ export function Wizard({
         ),
       },
       {
-        title: "Tiebreaker: goals in the final? ⚽",
-        hint: "Total goals scored by both teams in the final. Breaks ties on the leaderboard.",
+        title: "Tiebreaker: How many total goals will be scored in the final? ⚽",
+        hint: "Closest prediction breaks ties on the leaderboard. Count both teams combined.",
         optional: true,
         canNext: true,
         body: (
