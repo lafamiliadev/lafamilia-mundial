@@ -36,7 +36,7 @@ export function ShareYourPicks({ url, text }: { url: string; text: string }) {
         {copied ? "✓ Link copied — paste it anywhere!" : "📣 Share Your Picks"}
       </Button>
       <p className="mt-2 text-center text-xs text-[var(--color-muted)]">
-        Sends your bracket link — friends see your card and can try to beat it.
+        Share your card and challenge 3 Familia members to beat it.
       </p>
     </div>
   );
