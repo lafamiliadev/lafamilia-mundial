@@ -2,6 +2,7 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { DEFAULT_SETTINGS, EMPTY_RESULTS } from "../types";
+import { baseSlug, uniqueSlug } from "../slug";
 import type { Participant, Results, Settings } from "../types";
 import type {
   ContentItem,
@@ -33,17 +34,48 @@ const EMPTY_SHAPE = (): Shape => ({
   content: [],
 });
 
+// Backfill fields added after some dev entries were already written, so old
+// .data/dev.json files keep working (and existing resume links stay valid).
+function normalize(data: Shape): { data: Shape; mutated: boolean } {
+  let mutated = false;
+  const used = new Set<string>();
+  for (const p of data.participants) if (p.slug) used.add(p.slug);
+  for (const p of data.participants) {
+    if (!p.slug) {
+      let base = baseSlug(p.name);
+      let s = base;
+      let i = 2;
+      while (used.has(s)) s = `${base}-${i++}`;
+      used.add(s);
+      p.slug = s;
+      mutated = true;
+    }
+    if (p.referredBy === undefined) {
+      p.referredBy = null;
+      mutated = true;
+    }
+    if (typeof p.referralVisits !== "number") {
+      p.referralVisits = 0;
+      mutated = true;
+    }
+  }
+  return { data, mutated };
+}
+
 // Always read fresh from disk. Next dev can run route handlers, server
 // components, and server actions in separate module instances, so an in-memory
 // read cache would go stale across them. The file is tiny — reading per call
 // keeps every context consistent.
 async function load(): Promise<Shape> {
+  let parsed: Shape;
   try {
-    const raw = await fs.readFile(DATA_FILE, "utf8");
-    return JSON.parse(raw) as Shape;
+    parsed = JSON.parse(await fs.readFile(DATA_FILE, "utf8")) as Shape;
   } catch {
     return EMPTY_SHAPE();
   }
+  const { data, mutated } = normalize(parsed);
+  if (mutated) await persist(data);
+  return data;
 }
 
 async function persist(data: Shape): Promise<void> {
@@ -66,20 +98,11 @@ export const memoryRepo: Repo = {
 
   async createParticipant(input: CreateParticipantInput) {
     const data = await load();
-    const participant: Participant = {
-      id: randomUUID(),
-      name: input.name,
-      email: input.email.toLowerCase(),
-      rootingCountry: input.rootingCountry,
-      resumeToken: randomUUID(),
-      crewCode: input.crewCode,
-      createdAt: new Date().toISOString(),
-      predictions: input.predictions,
-    };
-    // Upsert on email — re-submitting with the same email edits the entry.
-    const existingIdx = data.participants.findIndex(
-      (p) => p.email === participant.email,
-    );
+    const email = input.email.toLowerCase();
+
+    // Upsert on email — re-submitting edits the entry but PRESERVES the slug,
+    // referral attribution, visit count, token, and id.
+    const existingIdx = data.participants.findIndex((p) => p.email === email);
     if (existingIdx >= 0) {
       const existing = data.participants[existingIdx];
       data.participants[existingIdx] = {
@@ -92,6 +115,23 @@ export const memoryRepo: Repo = {
       await persist(data);
       return data.participants[existingIdx];
     }
+
+    const slug = await uniqueSlug(baseSlug(input.name), async (s) =>
+      data.participants.some((p) => p.slug === s),
+    );
+    const participant: Participant = {
+      id: randomUUID(),
+      name: input.name,
+      email,
+      rootingCountry: input.rootingCountry,
+      resumeToken: randomUUID(),
+      slug,
+      referredBy: input.referredBy ?? null,
+      referralVisits: 0,
+      crewCode: input.crewCode,
+      createdAt: new Date().toISOString(),
+      predictions: input.predictions,
+    };
     data.participants.push(participant);
     await persist(data);
     return participant;
@@ -107,6 +147,24 @@ export const memoryRepo: Repo = {
     return (
       data.participants.find((p) => p.email === email.toLowerCase()) ?? null
     );
+  },
+
+  async getBySlug(slug) {
+    const data = await load();
+    return data.participants.find((p) => p.slug === slug) ?? null;
+  },
+
+  async incrementReferralVisits(slug) {
+    const data = await load();
+    const p = data.participants.find((x) => x.slug === slug);
+    if (!p) return;
+    p.referralVisits = (p.referralVisits ?? 0) + 1;
+    await persist(data);
+  },
+
+  async countReferralSignups(slug) {
+    const data = await load();
+    return data.participants.filter((p) => p.referredBy === slug).length;
   },
 
   async updateByToken(token, input: UpdateInput) {

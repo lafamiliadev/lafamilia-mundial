@@ -17,15 +17,15 @@ export async function generateMetadata({
   const title = me
     ? `${me.name} picked ${teamName(me.predictions.champion)} to win · La Copa de LaFamilia 2026`
     : "Edit your predictions · La Copa de LaFamilia 2026";
-  const ogImage = `/api/og/${token}`;
+  const ogImage = me ? `/api/card/${me.slug}` : undefined;
   return {
     title,
     openGraph: {
       title,
       description: "Beat my bracket — predict the World Cup with LaFamilia. Takes under 2 minutes.",
-      images: [{ url: ogImage, width: 1200, height: 630 }],
+      ...(ogImage ? { images: [{ url: ogImage, width: 1080, height: 1350 }] } : {}),
     },
-    twitter: { card: "summary_large_image", images: [ogImage] },
+    twitter: { card: "summary_large_image", ...(ogImage ? { images: [ogImage] } : {}) },
   };
 }
 

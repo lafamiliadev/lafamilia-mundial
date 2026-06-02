@@ -5,6 +5,8 @@ export type CreateParticipantInput = {
   email: string;
   rootingCountry: string | null;
   crewCode: string | null;
+  /** Slug of the referrer whose share link brought this person in. */
+  referredBy?: string | null;
   predictions: Predictions;
 };
 
@@ -42,8 +44,14 @@ export interface Repo {
   createParticipant(input: CreateParticipantInput): Promise<Participant>;
   getByToken(token: string): Promise<Participant | null>;
   getByEmail(email: string): Promise<Participant | null>;
+  getBySlug(slug: string): Promise<Participant | null>;
   updateByToken(token: string, input: UpdateInput): Promise<Participant | null>;
   listParticipants(): Promise<Participant[]>;
+
+  /** Best-effort visit counter for a share page (real browsers only). */
+  incrementReferralVisits(slug: string): Promise<void>;
+  /** How many people submitted a bracket via this participant's link. */
+  countReferralSignups(slug: string): Promise<number>;
 
   getResults(): Promise<Results>;
   saveResults(results: Results): Promise<void>;

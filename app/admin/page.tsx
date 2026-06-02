@@ -11,7 +11,6 @@ import { isAdmin } from "@/lib/admin-auth";
 import { db } from "@/lib/db";
 import { env } from "@/lib/env";
 import { getProvider } from "@/lib/football";
-import { playerName } from "@/lib/players";
 import { teamFlag, teamName } from "@/lib/teams";
 import type { ProviderStatus } from "@/lib/football";
 
@@ -46,6 +45,21 @@ export default async function AdminDashboard() {
     (a, b) => (scores[b.id]?.total ?? 0) - (scores[a.id]?.total ?? 0),
   );
 
+  // Referral metrics
+  const signupsByRef = new Map<string, number>();
+  for (const p of participants) {
+    if (p.referredBy) signupsByRef.set(p.referredBy, (signupsByRef.get(p.referredBy) ?? 0) + 1);
+  }
+  const referredJoins = participants.filter((p) => p.referredBy).length;
+  const totalVisits = participants.reduce((s, p) => s + (p.referralVisits ?? 0), 0);
+  const topReferrers = [...signupsByRef.entries()]
+    .map(([refSlug, count]) => ({
+      name: participants.find((p) => p.slug === refSlug)?.name ?? refSlug,
+      count,
+    }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 5);
+
   return (
     <main className="mx-auto w-full max-w-3xl px-4 pb-24">
       <header className="flex items-center justify-between py-6">
@@ -61,9 +75,11 @@ export default async function AdminDashboard() {
       </header>
 
       {/* Stats */}
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
         {[
           { label: "Participants", value: participants.length },
+          { label: "Referred joins", value: referredJoins },
+          { label: "Share-page visits", value: totalVisits },
           { label: "Scored entries", value: Object.keys(scores).length },
           { label: "Champion set", value: results.champion ? teamName(results.champion) : "—" },
         ].map((s) => (
@@ -75,6 +91,25 @@ export default async function AdminDashboard() {
           </div>
         ))}
       </div>
+
+      {/* Referral leaderboard */}
+      {topReferrers.length > 0 && (
+        <section className="card mt-6 p-5">
+          <SectionTitle emoji="🔗">Top referrers</SectionTitle>
+          <ul className="mt-3 space-y-2">
+            {topReferrers.map((r, i) => (
+              <li key={r.name} className="flex items-center justify-between text-sm">
+                <span className="font-semibold">
+                  {i + 1}. {r.name}
+                </span>
+                <span className="tabular-nums text-[var(--color-muted)]">
+                  {r.count} {r.count === 1 ? "join" : "joins"}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       {/* API status + actions */}
       <section className="card mt-6 p-5">
@@ -152,34 +187,48 @@ export default async function AdminDashboard() {
                 <tr>
                   <th className="px-4 py-2">#</th>
                   <th className="px-4 py-2">Name</th>
-                  <th className="px-4 py-2">Email</th>
                   <th className="px-4 py-2">Champion</th>
-                  <th className="px-4 py-2">Boot</th>
+                  <th className="px-4 py-2">Via</th>
+                  <th className="px-4 py-2 text-right">Brought</th>
                   <th className="px-4 py-2 text-right">Pts</th>
-                  <th className="px-4 py-2">Edit</th>
+                  <th className="px-4 py-2">Links</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[var(--color-line)]">
                 {ranked.map((p, i) => (
                   <tr key={p.id}>
                     <td className="px-4 py-2 tabular-nums">{i + 1}</td>
-                    <td className="px-4 py-2 font-semibold">{p.name}</td>
-                    <td className="px-4 py-2 text-[var(--color-muted)]">{p.email}</td>
+                    <td className="px-4 py-2">
+                      <span className="font-semibold">{p.name}</span>
+                      <span className="block text-xs text-[var(--color-muted)]">{p.email}</span>
+                    </td>
                     <td className="px-4 py-2">
                       {teamFlag(p.predictions.champion)} {teamName(p.predictions.champion)}
                     </td>
-                    <td className="px-4 py-2">{playerName(p.predictions.goldenBoot)}</td>
+                    <td className="px-4 py-2 text-[var(--color-muted)]">{p.referredBy ?? "—"}</td>
+                    <td className="px-4 py-2 text-right tabular-nums">
+                      {signupsByRef.get(p.slug) ?? 0}
+                    </td>
                     <td className="px-4 py-2 text-right font-black tabular-nums">
                       {scores[p.id]?.total ?? 0}
                     </td>
-                    <td className="px-4 py-2">
+                    <td className="px-4 py-2 whitespace-nowrap">
+                      <a
+                        href={`/copa/${p.slug}`}
+                        className="text-[var(--color-pitch)] underline underline-offset-2"
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        share
+                      </a>
+                      <span className="mx-1 text-[var(--color-line)]">·</span>
                       <a
                         href={`/r/${p.resumeToken}`}
                         className="text-[var(--color-pitch)] underline underline-offset-2"
                         target="_blank"
                         rel="noreferrer"
                       >
-                        open
+                        edit
                       </a>
                     </td>
                   </tr>

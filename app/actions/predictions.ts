@@ -16,6 +16,7 @@ const predictionSchema = z.object({
   latamFurthest: z.string().max(8).nullable(),
   finalTotalGoals: z.number().int().min(0).max(20).nullable(),
   crewCode: z.string().trim().max(40).nullable().optional(),
+  ref: z.string().trim().max(40).nullable().optional(),
 });
 
 export type SubmitResult =
@@ -46,6 +47,7 @@ export async function submitPredictions(
       email: d.email,
       rootingCountry: d.rootingCountry,
       crewCode: d.crewCode ?? null,
+      referredBy: d.ref || null,
       predictions,
     });
     // Keep the leaderboard fresh (cheap — usually all-zero pre-tournament).

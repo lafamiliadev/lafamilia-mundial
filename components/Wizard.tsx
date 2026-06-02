@@ -55,10 +55,13 @@ export function Wizard({
   mode = "create",
   token,
   initial,
+  referrer,
 }: {
   mode?: "create" | "edit";
   token?: string;
   initial?: Partial<State>;
+  /** Slug of the participant whose share link brought this user in. */
+  referrer?: string | null;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -257,7 +260,7 @@ export function Wizard({
       const res =
         mode === "edit" && token
           ? await updatePredictions({ token, ...payload })
-          : await submitPredictions(payload);
+          : await submitPredictions({ ...payload, ref: referrer ?? null });
       if (!res.ok) {
         setError(res.error);
         return;

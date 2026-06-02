@@ -1,5 +1,6 @@
 import "server-only";
 import { supabaseAdmin } from "../supabase/admin";
+import { baseSlug, uniqueSlug } from "../slug";
 import { DEFAULT_SETTINGS, EMPTY_RESULTS } from "../types";
 import type { Participant, Predictions, Results, Settings } from "../types";
 import type {
@@ -19,6 +20,9 @@ type ParticipantRow = {
   email: string;
   rooting_country: string | null;
   resume_token: string;
+  slug: string;
+  referred_by: string | null;
+  referral_visits: number | null;
   crew_code: string | null;
   created_at: string;
 };
@@ -51,6 +55,9 @@ function toParticipant(row: ParticipantRow, pred?: PredictionRow | null): Partic
     email: row.email,
     rootingCountry: row.rooting_country,
     resumeToken: row.resume_token,
+    slug: row.slug,
+    referredBy: row.referred_by,
+    referralVisits: row.referral_visits ?? 0,
     crewCode: row.crew_code,
     createdAt: row.created_at,
     predictions: toPredictions(pred),
@@ -91,20 +98,47 @@ export const supabaseRepo: Repo = {
   async createParticipant(input: CreateParticipantInput) {
     const db = supabaseAdmin();
     const email = input.email.toLowerCase();
-    const { data: row, error } = await db
-      .from("participants")
-      .upsert(
-        {
+
+    const existing = await this.getByEmail(email);
+    let row: ParticipantRow;
+    if (existing) {
+      // Edit existing entry; preserve slug, referral attribution, visits, token.
+      const { data, error } = await db
+        .from("participants")
+        .update({
+          name: input.name,
+          rooting_country: input.rootingCountry,
+          crew_code: input.crewCode,
+        })
+        .eq("id", existing.id)
+        .select()
+        .single();
+      if (error || !data) throw error ?? new Error("Failed to update participant");
+      row = data as ParticipantRow;
+    } else {
+      const slug = await uniqueSlug(baseSlug(input.name), async (s) => {
+        const { data } = await db
+          .from("participants")
+          .select("id")
+          .eq("slug", s)
+          .maybeSingle();
+        return Boolean(data);
+      });
+      const { data, error } = await db
+        .from("participants")
+        .insert({
           name: input.name,
           email,
           rooting_country: input.rootingCountry,
           crew_code: input.crewCode,
-        },
-        { onConflict: "email" },
-      )
-      .select()
-      .single();
-    if (error || !row) throw error ?? new Error("Failed to create participant");
+          slug,
+          referred_by: input.referredBy ?? null,
+        })
+        .select()
+        .single();
+      if (error || !data) throw error ?? new Error("Failed to create participant");
+      row = data as ParticipantRow;
+    }
 
     await db
       .from("predictions")
@@ -112,7 +146,7 @@ export const supabaseRepo: Repo = {
         onConflict: "participant_id",
       });
 
-    return toParticipant(row as ParticipantRow, predictionColumns(row.id, input.predictions));
+    return toParticipant(row, predictionColumns(row.id, input.predictions));
   },
 
   async getByToken(token) {
@@ -145,6 +179,50 @@ export const supabaseRepo: Repo = {
       .eq("participant_id", row.id)
       .maybeSingle();
     return toParticipant(row as ParticipantRow, pred as PredictionRow | null);
+  },
+
+  async getBySlug(slug) {
+    const db = supabaseAdmin();
+    const { data: row } = await db
+      .from("participants")
+      .select("*")
+      .eq("slug", slug)
+      .maybeSingle();
+    if (!row) return null;
+    const { data: pred } = await db
+      .from("predictions")
+      .select("*")
+      .eq("participant_id", row.id)
+      .maybeSingle();
+    return toParticipant(row as ParticipantRow, pred as PredictionRow | null);
+  },
+
+  async incrementReferralVisits(slug) {
+    const db = supabaseAdmin();
+    // Atomic increment via RPC; falls back to read-modify-write if absent.
+    const { error } = await db.rpc("increment_referral_visits", { p_slug: slug });
+    if (error) {
+      const { data } = await db
+        .from("participants")
+        .select("referral_visits")
+        .eq("slug", slug)
+        .maybeSingle();
+      if (data) {
+        await db
+          .from("participants")
+          .update({ referral_visits: (data.referral_visits ?? 0) + 1 })
+          .eq("slug", slug);
+      }
+    }
+  },
+
+  async countReferralSignups(slug) {
+    const db = supabaseAdmin();
+    const { count } = await db
+      .from("participants")
+      .select("id", { count: "exact", head: true })
+      .eq("referred_by", slug);
+    return count ?? 0;
   },
 
   async updateByToken(token, input: UpdateInput) {

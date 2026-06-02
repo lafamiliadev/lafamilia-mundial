@@ -39,9 +39,17 @@ export async function GET(req: Request) {
       .sort((a, b) => b.total - a.total)
       .map((r, i) => [r.rank || i + 1, r.name, r.country, r.total]);
   } else {
+    const signupsByRef = new Map<string, number>();
+    for (const p of participants) {
+      if (p.referredBy) signupsByRef.set(p.referredBy, (signupsByRef.get(p.referredBy) ?? 0) + 1);
+    }
     header = [
       "name",
       "email",
+      "slug",
+      "referred_by",
+      "referral_visits",
+      "people_brought",
       "rooting_for",
       "champion",
       "runner_up",
@@ -55,6 +63,10 @@ export async function GET(req: Request) {
     rows = participants.map((p) => [
       p.name,
       p.email,
+      p.slug,
+      p.referredBy ?? "",
+      p.referralVisits ?? 0,
+      signupsByRef.get(p.slug) ?? 0,
       teamName(p.rootingCountry),
       teamName(p.predictions.champion),
       teamName(p.predictions.runnerUp),

@@ -8,9 +8,9 @@ import { playerName } from "@/lib/players";
 export const runtime = "nodejs";
 
 // "La Copa de LaFamilia 2026" share card — 1080×1350 portrait, built to be SAVED
-// + shared (WhatsApp, IG Stories, LinkedIn). Festive World-Cup palette, but a
-// CLEAN hierarchy: the champion pick is the focal point, supporting picks sit
-// quietly below, all on a calm white panel framed by the vibrant background.
+// + shared (WhatsApp, IG Stories, LinkedIn). Keyed by the PUBLIC slug (never the
+// private resume token). Festive palette, clean hierarchy: champion pick focal,
+// supporting picks quiet, on a calm white panel framed by the vibrant gradient.
 
 const NAVY = "#0a2342";
 const INK = "#0a2342";
@@ -38,10 +38,10 @@ function Support({ label, value }: { label: string; value: string }) {
   );
 }
 
-export async function GET(_req: Request, ctx: { params: Promise<{ token: string }> }) {
-  const { token } = await ctx.params;
+export async function GET(_req: Request, ctx: { params: Promise<{ slug: string }> }) {
+  const { slug } = await ctx.params;
   const repo = await db();
-  const me = await repo.getByToken(token);
+  const me = await repo.getBySlug(slug);
   const [white] = await Promise.all([logo("lafamilia-logo-white.svg")]);
 
   const name = me?.name ?? "A LaFamilia member";
@@ -67,10 +67,8 @@ export async function GET(_req: Request, ctx: { params: Promise<{ token: string 
           position: "relative",
         }}
       >
-        {/* One soft, low-key decorative ball — no clutter */}
         <div style={{ position: "absolute", bottom: "-90px", right: "-90px", fontSize: "360px", opacity: 0.1 }}>⚽</div>
 
-        {/* Header: logo + title (generous breathing room) */}
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "16px" }}>
           {white ? (
             <img src={white} width={260} height={104} style={{ objectFit: "contain" }} alt="LaFamilia" />
@@ -85,7 +83,6 @@ export async function GET(_req: Request, ctx: { params: Promise<{ token: string 
           </div>
         </div>
 
-        {/* Calm white content panel — the readable heart of the card */}
         <div
           style={{
             display: "flex",
@@ -101,7 +98,6 @@ export async function GET(_req: Request, ctx: { params: Promise<{ token: string 
             {firstName.toUpperCase()}&apos;S BRACKET
           </div>
 
-          {/* FOCAL POINT — champion pick */}
           <div style={{ display: "flex", flexDirection: "column", marginTop: "34px", gap: "2px" }}>
             <div style={{ display: "flex", fontSize: "30px", fontWeight: 800, color: GOLD, letterSpacing: "1px" }}>
               🏆 PREDICTING TO WIN
@@ -111,16 +107,13 @@ export async function GET(_req: Request, ctx: { params: Promise<{ token: string 
             </div>
           </div>
 
-          {/* Secondary — rooting for */}
           <div style={{ display: "flex", alignItems: "center", gap: "12px", marginTop: "26px" }}>
             <div style={{ display: "flex", fontSize: "30px", fontWeight: 700, color: TEAL }}>🌎 Rooting for</div>
             <div style={{ display: "flex", fontSize: "40px", fontWeight: 800, color: INK }}>{rooting}</div>
           </div>
 
-          {/* Divider */}
           <div style={{ display: "flex", height: "2px", background: "#ecf0f5", margin: "40px 0 36px" }} />
 
-          {/* Supporting picks — quiet, evenly spaced */}
           <div style={{ display: "flex", gap: "20px" }}>
             <Support label="Runner-up" value={p ? `${teamFlag(p.runnerUp)} ${teamName(p.runnerUp)}` : "—"} />
             <Support label="Golden Boot" value={p ? playerName(p.goldenBoot) : "—"} />
@@ -128,7 +121,6 @@ export async function GET(_req: Request, ctx: { params: Promise<{ token: string 
           </div>
         </div>
 
-        {/* Callout + footer — grouped at the bottom */}
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "18px" }}>
           <div style={{ display: "flex", fontSize: "54px", fontWeight: 800, color: "#ffffff", textShadow: "0 2px 10px rgba(0,0,0,0.22)" }}>
             Can your bracket beat mine? ⚽

@@ -28,11 +28,14 @@ export function SavePredictionCard({
   fileName,
   shareText,
   shareUrl,
+  secondary = false,
 }: {
   cardUrl: string;
   fileName: string;
   shareText: string;
   shareUrl: string;
+  /** Render as a quiet secondary action (download is no longer the headline). */
+  secondary?: boolean;
 }) {
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState<"" | "saved" | "shared">("");
@@ -87,16 +90,26 @@ export function SavePredictionCard({
     }
   }
 
+  const label = busy
+    ? "Creating your card…"
+    : done === "shared"
+      ? "✓ Shared!"
+      : done === "saved"
+        ? "✓ Saved!"
+        : "📸 Save card image";
+
+  if (secondary) {
+    return (
+      <Button onClick={handle} disabled={busy} variant="ghost" className="w-full text-sm">
+        {label}
+      </Button>
+    );
+  }
+
   return (
     <div>
       <Button onClick={handle} disabled={busy} variant="gold" className="w-full text-lg shadow-md">
-        {busy
-          ? "Creating your card…"
-          : done === "shared"
-            ? "✓ Shared!"
-            : done === "saved"
-              ? "✓ Saved! Now share it 🎉"
-              : "📸 Save Prediction Card"}
+        {busy ? label : done ? label : "📸 Save Prediction Card"}
       </Button>
       <p className="mt-2 text-center text-xs text-[var(--color-muted)]">
         Saves your branded card image — share it to WhatsApp, Stories, or LinkedIn.

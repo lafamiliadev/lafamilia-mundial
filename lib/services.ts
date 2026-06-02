@@ -175,3 +175,14 @@ export async function listPublicParticipants(): Promise<Participant[]> {
   const repo = await db();
   return repo.listParticipants();
 }
+
+export async function getReferralStats(
+  slug: string,
+): Promise<{ visits: number; signups: number }> {
+  const repo = await db();
+  const [me, signups] = await Promise.all([
+    repo.getBySlug(slug),
+    repo.countReferralSignups(slug),
+  ]);
+  return { visits: me?.referralVisits ?? 0, signups };
+}

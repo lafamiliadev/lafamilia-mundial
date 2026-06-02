@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ResumeLink } from "@/components/ResumeLink";
 import { SavePredictionCard } from "@/components/SavePredictionCard";
+import { ShareYourPicks } from "@/components/ShareYourPicks";
 import { SiembraCTA } from "@/components/Siembra";
 import { Button, LinkButton } from "@/components/ui";
 import { db } from "@/lib/db";
@@ -25,11 +26,12 @@ export default async function DonePage({
   if (!me) notFound();
 
   const resumeUrl = `${env.NEXT_PUBLIC_APP_URL}/r/${me.resumeToken}`;
-  const cardUrl = `/api/card/${me.resumeToken}`;
-  // Share the public app link (so friends make THEIR OWN bracket), not the private edit link.
-  const referralUrl = env.NEXT_PUBLIC_APP_URL;
-  const shareText = `I just made my La Copa de LaFamilia 2026 predictions ⚽🌎\n\nCan your bracket beat mine?\n\nSubmit yours here:`;
-  const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(`${shareText} ${referralUrl}`)}`;
+  const cardUrl = `/api/card/${me.slug}`;
+  // Personalized public share page — friends land here, see the card, and make
+  // their own bracket (attributed back via ?ref). This is the viral loop.
+  const copaUrl = `${env.NEXT_PUBLIC_APP_URL}/copa/${me.slug}`;
+  const shareText = `I just made my La Copa de LaFamilia 2026 predictions ⚽🌎\n\nCan you beat my bracket?\n\n${copaUrl}`;
+  const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(shareText)}`;
   const cardFile = `la-copa-lafamilia-${me.name.split(" ")[0].toLowerCase()}.png`;
 
   const summary = [
@@ -82,13 +84,11 @@ export default async function DonePage({
           </div>
         </div>
 
-        {/* Action hierarchy: Save Card → WhatsApp → Leaderboard / Edit */}
+        {/* Action hierarchy: Share Your Picks → WhatsApp → Leaderboard/Edit → (save card) */}
         <div className="mt-6 space-y-3">
-          <SavePredictionCard
-            cardUrl={cardUrl}
-            fileName={cardFile}
-            shareText={`I just made my La Copa de LaFamilia 2026 predictions ⚽🌎 Can your bracket beat mine?`}
-            shareUrl={referralUrl}
+          <ShareYourPicks
+            url={copaUrl}
+            text="I just made my La Copa de LaFamilia 2026 predictions ⚽🌎 Can you beat my bracket?"
           />
 
           <a href={whatsappUrl} target="_blank" rel="noreferrer" className="block">
@@ -105,6 +105,14 @@ export default async function DonePage({
               ✏️ Edit picks
             </LinkButton>
           </div>
+
+          <SavePredictionCard
+            cardUrl={cardUrl}
+            fileName={cardFile}
+            shareText="I just made my La Copa de LaFamilia 2026 predictions ⚽🌎 Can you beat my bracket?"
+            shareUrl={copaUrl}
+            secondary
+          />
         </div>
 
         {/* Siembra mission CTA — below the summary + share actions */}

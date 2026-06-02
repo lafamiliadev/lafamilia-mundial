@@ -61,6 +61,12 @@ export type Participant = {
   email: string;
   rootingCountry: string | null;
   resumeToken: string;
+  /** Public, human-readable handle for the share page: /copa/<slug>. */
+  slug: string;
+  /** Slug of the participant whose link brought them in (referral attribution). */
+  referredBy: string | null;
+  /** Approximate count of real-browser visits to this participant's share page. */
+  referralVisits: number;
   crewCode: string | null;
   createdAt: string;
   predictions: Predictions;
