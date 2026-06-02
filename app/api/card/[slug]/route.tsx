@@ -1,24 +1,27 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { ImageResponse } from "next/og";
+import QRCode from "qrcode";
 import { db } from "@/lib/db";
-import { teamFlag, teamName } from "@/lib/teams";
+import { env } from "@/lib/env";
+import { TEAM_BY_CODE, teamFlag, teamName } from "@/lib/teams";
 import { playerName } from "@/lib/players";
 
 export const runtime = "nodejs";
 
-// "La Copa de LaFamilia 2026" share card — 1080×1350 portrait, built to be SAVED
-// + shared (WhatsApp, IG Stories, LinkedIn). Keyed by the PUBLIC slug (never the
-// private resume token). Festive palette, clean hierarchy: champion pick focal,
-// supporting picks quiet, on a calm white panel framed by the vibrant gradient.
+// La Copa de LaFamilia 2026 — the COLLECTIBLE prediction card. A standalone,
+// premium digital trading card (think FIFA Ultimate Team × Amex Centurion ×
+// limited-edition World Cup collectible). Deep emerald + ivory + gold foil.
+// No fundraising, no marketing copy — just an artifact worth saving + sharing.
 
-const NAVY = "#0a2342";
-const INK = "#0a2342";
-const GOLD = "#e8920c";
-const TEAL = "#0e8d80";
-const MUTED = "#7c8aa0";
+const EMERALD = "#0b3a2c";
+const EMERALD_DEEP = "#072018";
+const CREAM = "#f5edda";
+const SAND = "#cdbb90";
+const GOLD = "#c8a24a";
+const GOLD_LT = "#e6cd82";
 
-async function logo(file: string): Promise<string | null> {
+async function asset(file: string): Promise<string | null> {
   try {
     const svg = await readFile(path.join(process.cwd(), "public", file), "utf8");
     return `data:image/svg+xml;base64,${Buffer.from(svg).toString("base64")}`;
@@ -27,29 +30,48 @@ async function logo(file: string): Promise<string | null> {
   }
 }
 
-function Support({ label, value }: { label: string; value: string }) {
-  return (
-    <div style={{ display: "flex", flexDirection: "column", flex: 1, alignItems: "center", textAlign: "center", gap: "4px" }}>
-      <div style={{ display: "flex", fontSize: "24px", fontWeight: 700, color: MUTED, textTransform: "uppercase", letterSpacing: "1px" }}>
-        {label}
-      </div>
-      <div style={{ display: "flex", fontSize: "36px", fontWeight: 800, color: INK }}>{value}</div>
-    </div>
-  );
+// One collectible badge, derived from the member's profile.
+function deriveBadge(order: number, champSeed: number): { emoji: string; label: string } {
+  if (order >= 0 && order < 25) return { emoji: "🏆", label: "Founding Predictor" };
+  if (champSeed >= 3) return { emoji: "🔥", label: "Bold Pick" };
+  return { emoji: "⚽", label: "Early Entry" };
 }
 
 export async function GET(_req: Request, ctx: { params: Promise<{ slug: string }> }) {
   const { slug } = await ctx.params;
   const repo = await db();
-  const me = await repo.getBySlug(slug);
-  const [white] = await Promise.all([logo("lafamilia-logo-white.svg")]);
+  const [me, all, logo] = await Promise.all([
+    repo.getBySlug(slug),
+    repo.listParticipants(),
+    asset("lafamilia-logo-gold.svg"),
+  ]);
 
-  const name = me?.name ?? "A LaFamilia member";
-  const firstName = name.split(" ")[0];
+  const name = me?.name ?? "A LaFamilia Member";
   const p = me?.predictions;
 
-  const champ = p ? `${teamFlag(p.champion)} ${teamName(p.champion)}` : "—";
-  const rooting = me?.rootingCountry ? `${teamFlag(me.rootingCountry)} ${teamName(me.rootingCountry)}` : "—";
+  const championCode = p?.champion ?? null;
+  const champName = (championCode ? teamName(championCode) : "—").toUpperCase();
+  const champSeed = championCode ? (TEAM_BY_CODE[championCode]?.fifaSeed ?? 4) : 4;
+  const order = me ? all.findIndex((x) => x.slug === me.slug) : -1;
+  const badge = deriveBadge(order, champSeed);
+
+  // Hero type scales to the country name so it always reads as the hero.
+  const heroSize =
+    champName.length <= 7 ? 176 : champName.length <= 10 ? 144 : champName.length <= 14 ? 104 : 82;
+
+  const referralUrl = `${env.NEXT_PUBLIC_APP_URL}/copa/${me?.slug ?? ""}`;
+  const qr = await QRCode.toDataURL(referralUrl, {
+    margin: 1,
+    width: 320,
+    errorCorrectionLevel: "M",
+    color: { dark: EMERALD, light: CREAM },
+  });
+
+  const strip = [
+    { label: "Runner-up", value: p ? `${teamFlag(p.runnerUp)} ${teamName(p.runnerUp)}` : "—" },
+    { label: "Golden Boot", value: p ? playerName(p.goldenBoot) : "—" },
+    { label: "Dark Horse", value: p ? `${teamFlag(p.darkHorse)} ${teamName(p.darkHorse)}` : "—" },
+  ];
 
   return new ImageResponse(
     (
@@ -58,75 +80,156 @@ export async function GET(_req: Request, ctx: { params: Promise<{ slug: string }
           width: "1080px",
           height: "1350px",
           display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          justifyContent: "space-between",
-          background: "linear-gradient(155deg, #ff2d6f 0%, #ff6b1a 50%, #ffb627 100%)",
-          fontFamily: "sans-serif",
-          padding: "76px 64px",
           position: "relative",
+          fontFamily: "sans-serif",
+          background: `radial-gradient(120% 70% at 50% 0%, ${EMERALD} 0%, ${EMERALD_DEEP} 78%)`,
         }}
       >
-        <div style={{ position: "absolute", bottom: "-90px", right: "-90px", fontSize: "360px", opacity: 0.1 }}>⚽</div>
+        {/* Gold foil double frame */}
+        <div style={{ position: "absolute", top: "30px", left: "30px", right: "30px", bottom: "30px", border: `3px solid ${GOLD}`, borderRadius: "30px" }} />
+        <div style={{ position: "absolute", top: "40px", left: "40px", right: "40px", bottom: "40px", border: `1px solid rgba(230,205,130,0.45)`, borderRadius: "22px" }} />
 
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "16px" }}>
-          {white ? (
-            <img src={white} width={260} height={104} style={{ objectFit: "contain" }} alt="LaFamilia" />
-          ) : (
-            <div style={{ display: "flex", fontSize: "56px", fontWeight: 800, color: "#fff" }}>LaFamilia</div>
-          )}
-          <div style={{ display: "flex", fontSize: "46px", fontWeight: 800, color: "#ffffff", textShadow: "0 2px 8px rgba(0,0,0,0.18)" }}>
-            La Copa de LaFamilia 2026
-          </div>
-          <div style={{ display: "flex", fontSize: "27px", fontWeight: 700, color: "#fff3d6", letterSpacing: "1px" }}>
-            PREDICT · COMPETE · BRAG FOREVER
-          </div>
-        </div>
-
+        {/* Content */}
         <div
           style={{
+            position: "relative",
             display: "flex",
             flexDirection: "column",
             width: "100%",
-            background: "#ffffff",
-            borderRadius: "44px",
-            padding: "56px",
-            boxShadow: "0 30px 60px rgba(10,35,66,0.3)",
+            height: "100%",
+            padding: "76px 72px",
           }}
         >
-          <div style={{ display: "flex", fontSize: "28px", fontWeight: 800, color: MUTED, letterSpacing: "2px" }}>
-            {firstName.toUpperCase()}&apos;S BRACKET
-          </div>
-
-          <div style={{ display: "flex", flexDirection: "column", marginTop: "34px", gap: "2px" }}>
-            <div style={{ display: "flex", fontSize: "30px", fontWeight: 800, color: GOLD, letterSpacing: "1px" }}>
-              🏆 PREDICTING TO WIN
+          {/* ── Header ── */}
+          <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+                {logo ? (
+                  <img src={logo} width={150} height={60} style={{ objectFit: "contain" }} alt="LaFamilia" />
+                ) : (
+                  <div style={{ display: "flex", fontSize: "40px", fontWeight: 800, color: GOLD }}>LaFamilia</div>
+                )}
+              </div>
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "10px",
+                  border: `1.5px solid ${GOLD}`,
+                  background: "rgba(200,162,74,0.10)",
+                  borderRadius: "999px",
+                  padding: "10px 20px",
+                }}
+              >
+                <span style={{ fontSize: "26px" }}>{badge.emoji}</span>
+                <span style={{ display: "flex", fontSize: "20px", fontWeight: 700, color: GOLD_LT, letterSpacing: "1px", textTransform: "uppercase" }}>
+                  {badge.label}
+                </span>
+              </div>
             </div>
-            <div style={{ display: "flex", fontSize: "104px", fontWeight: 800, color: INK, lineHeight: 1.05 }}>
-              {champ}
+            <div style={{ display: "flex", fontSize: "24px", fontWeight: 700, color: SAND, letterSpacing: "7px" }}>
+              LA COPA DE LAFAMILIA · 2026
+            </div>
+            <div style={{ display: "flex", height: "2px", background: `linear-gradient(90deg, ${GOLD} 0%, rgba(200,162,74,0) 100%)` }} />
+          </div>
+
+          {/* ── Champion hero ── */}
+          <div
+            style={{
+              position: "relative",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              flex: 1,
+            }}
+          >
+            {/* Subtle large flag for depth */}
+            <div style={{ position: "absolute", display: "flex", fontSize: "440px", opacity: 0.08 }}>
+              {teamFlag(championCode)}
+            </div>
+
+            <div style={{ display: "flex", fontSize: "26px", fontWeight: 700, color: SAND, letterSpacing: "4px" }}>
+              {name.toUpperCase()}&apos;S PICKS
+            </div>
+            <div style={{ display: "flex", marginTop: "26px", fontSize: "30px", fontWeight: 800, color: GOLD, letterSpacing: "8px" }}>
+              CHAMPION
+            </div>
+            <div style={{ display: "flex", fontSize: `${heroSize}px`, fontWeight: 900, color: CREAM, letterSpacing: "2px", lineHeight: 1, marginTop: "6px" }}>
+              {champName}
+            </div>
+            <div style={{ display: "flex", marginTop: "22px", fontSize: "108px", lineHeight: 1 }}>
+              {teamFlag(championCode)}
+            </div>
+
+            {/* Compact prediction strip */}
+            <div
+              style={{
+                display: "flex",
+                marginTop: "48px",
+                borderTop: `1px solid rgba(205,187,144,0.35)`,
+                borderBottom: `1px solid rgba(205,187,144,0.35)`,
+                paddingTop: "24px",
+                paddingBottom: "24px",
+              }}
+            >
+              {strip.map((s, i) => (
+                <div
+                  key={s.label}
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    gap: "8px",
+                    width: "300px",
+                    borderLeft: i === 0 ? "none" : `1px solid rgba(205,187,144,0.30)`,
+                  }}
+                >
+                  <span style={{ display: "flex", fontSize: "20px", fontWeight: 700, color: GOLD, letterSpacing: "2px", textTransform: "uppercase" }}>
+                    {s.label}
+                  </span>
+                  <span style={{ display: "flex", fontSize: "34px", fontWeight: 800, color: CREAM }}>{s.value}</span>
+                </div>
+              ))}
             </div>
           </div>
 
-          <div style={{ display: "flex", alignItems: "center", gap: "12px", marginTop: "26px" }}>
-            <div style={{ display: "flex", fontSize: "30px", fontWeight: 700, color: TEAL }}>🌎 Rooting for</div>
-            <div style={{ display: "flex", fontSize: "40px", fontWeight: 800, color: INK }}>{rooting}</div>
-          </div>
+          {/* ── Bottom: challenge + QR ── */}
+          <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: "18px" }}>
+              <div style={{ display: "flex", flexDirection: "column", fontSize: "54px", fontWeight: 800, color: CREAM, lineHeight: 1.05 }}>
+                <span>Can you beat</span>
+                <span>my bracket?</span>
+              </div>
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  alignSelf: "flex-start",
+                  border: `1.5px solid ${GOLD}`,
+                  borderRadius: "999px",
+                  padding: "12px 26px",
+                  fontSize: "22px",
+                  fontWeight: 800,
+                  color: GOLD_LT,
+                  letterSpacing: "1px",
+                }}
+              >
+                Make Your Picks ⚽
+              </div>
+              <span style={{ display: "flex", fontSize: "18px", fontWeight: 600, color: SAND, letterSpacing: "1px", opacity: 0.8 }}>
+                Built by LaFamilia
+              </span>
+            </div>
 
-          <div style={{ display: "flex", height: "2px", background: "#ecf0f5", margin: "40px 0 36px" }} />
-
-          <div style={{ display: "flex", gap: "20px" }}>
-            <Support label="Runner-up" value={p ? `${teamFlag(p.runnerUp)} ${teamName(p.runnerUp)}` : "—"} />
-            <Support label="Golden Boot" value={p ? playerName(p.goldenBoot) : "—"} />
-            <Support label="Dark horse" value={p ? `${teamFlag(p.darkHorse)} ${teamName(p.darkHorse)}` : "—"} />
-          </div>
-        </div>
-
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "18px" }}>
-          <div style={{ display: "flex", fontSize: "54px", fontWeight: 800, color: "#ffffff", textShadow: "0 2px 10px rgba(0,0,0,0.22)" }}>
-            Can your bracket beat mine? ⚽
-          </div>
-          <div style={{ display: "flex", fontSize: "24px", color: "#fff4dd", fontWeight: 600, opacity: 0.95 }}>
-            🌱 Siembra — planting seeds for the next generation of Latine founders
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "10px" }}>
+              <div style={{ display: "flex", background: CREAM, padding: "14px", borderRadius: "20px", border: `2px solid ${GOLD}` }}>
+                <img src={qr} width={188} height={188} alt="Scan to play" />
+              </div>
+              <span style={{ display: "flex", fontSize: "17px", fontWeight: 700, color: GOLD, letterSpacing: "3px" }}>
+                SCAN TO PLAY
+              </span>
+            </div>
           </div>
         </div>
       </div>
