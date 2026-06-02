@@ -1,0 +1,86 @@
+@import "tailwindcss";
+
+/* ── LaFamilia Mundial design tokens ───────────────────────────────── */
+@theme {
+  --color-bg: #fbfaf7;
+  --color-surface: #ffffff;
+  --color-ink: #16140f;
+  --color-muted: #6b6457;
+  --color-line: #ece7dd;
+
+  --color-pitch: #0b6b3a; /* emerald pitch */
+  --color-pitch-deep: #084a28;
+  --color-gold: #f5b301; /* trophy gold */
+  --color-gold-soft: #ffeab0;
+  --color-coral: #ff5a5f; /* warm accent */
+  --color-sky: #2b6cff;
+
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+
+  --radius-xl2: 1.5rem;
+}
+
+:root {
+  --background: var(--color-bg);
+  --foreground: var(--color-ink);
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  background: var(--color-bg);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  overscroll-behavior-y: none;
+}
+
+/* Festive hero backdrop */
+.bg-stadium {
+  background:
+    radial-gradient(120% 80% at 50% -10%, rgba(245, 179, 1, 0.18), transparent 60%),
+    radial-gradient(120% 90% at 100% 0%, rgba(43, 108, 255, 0.12), transparent 55%),
+    linear-gradient(170deg, #0b6b3a 0%, #084a28 60%, #06371e 100%);
+}
+
+/* Subtle card pop */
+.card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-xl2);
+  box-shadow: 0 1px 2px rgba(16, 14, 8, 0.04), 0 8px 30px rgba(16, 14, 8, 0.06);
+}
+
+/* Selectable pick card */
+.pick {
+  transition:
+    transform 0.12s ease,
+    box-shadow 0.12s ease,
+    border-color 0.12s ease;
+}
+.pick:active {
+  transform: scale(0.97);
+}
+.pick-selected {
+  border-color: var(--color-pitch);
+  box-shadow: 0 0 0 3px rgba(11, 107, 58, 0.18);
+}
+
+@keyframes pop-in {
+  0% { opacity: 0; transform: translateY(8px) scale(0.98); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+.animate-pop {
+  animation: pop-in 0.35s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+@keyframes confetti-fall {
+  0% { transform: translateY(-10vh) rotate(0deg); opacity: 1; }
+  100% { transform: translateY(110vh) rotate(540deg); opacity: 0; }
+}
+
+/* Hide scrollbars on horizontal pick rows */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }

@@ -1,0 +1,198 @@
+import { redirect } from "next/navigation";
+import {
+  CopyButton,
+  GenerateUpdatesButton,
+  RecalcButton,
+  ResultsForm,
+} from "@/components/admin";
+import { Button, SectionTitle } from "@/components/ui";
+import { adminLogout } from "@/app/actions/admin";
+import { isAdmin } from "@/lib/admin-auth";
+import { db } from "@/lib/db";
+import { env } from "@/lib/env";
+import { getProvider } from "@/lib/football";
+import { playerName } from "@/lib/players";
+import { teamFlag, teamName } from "@/lib/teams";
+import type { ProviderStatus } from "@/lib/football";
+
+export const dynamic = "force-dynamic";
+export const metadata = { title: "Admin dashboard · LaFamilia Mundial 2026" };
+
+export default async function AdminDashboard() {
+  if (!(await isAdmin())) redirect("/admin/login");
+
+  const repo = await db();
+  const [participants, scores, settings, results, content] = await Promise.all([
+    repo.listParticipants(),
+    repo.getScores(),
+    repo.getSettings(),
+    repo.getResults(),
+    repo.listContent(),
+  ]);
+
+  let status: ProviderStatus;
+  try {
+    status = await getProvider().status();
+  } catch (e) {
+    status = {
+      provider: env.FOOTBALL_API_PROVIDER,
+      ok: false,
+      detail: (e as Error).message,
+      fetchedAt: new Date().toISOString(),
+    };
+  }
+
+  const ranked = [...participants].sort(
+    (a, b) => (scores[b.id]?.total ?? 0) - (scores[a.id]?.total ?? 0),
+  );
+
+  return (
+    <main className="mx-auto w-full max-w-3xl px-4 pb-24">
+      <header className="flex items-center justify-between py-6">
+        <div>
+          <h1 className="text-2xl font-black tracking-tight">Control room ⚙️</h1>
+          <p className="text-sm text-[var(--color-muted)]">LaFamilia Mundial 2026</p>
+        </div>
+        <form action={adminLogout}>
+          <Button variant="ghost" type="submit" className="min-h-0 px-4 py-2 text-sm">
+            Log out
+          </Button>
+        </form>
+      </header>
+
+      {/* Stats */}
+      <div className="grid grid-cols-3 gap-3">
+        {[
+          { label: "Participants", value: participants.length },
+          { label: "Scored entries", value: Object.keys(scores).length },
+          { label: "Champion set", value: results.champion ? teamName(results.champion) : "—" },
+        ].map((s) => (
+          <div key={s.label} className="card p-4">
+            <p className="text-xs font-semibold uppercase tracking-wider text-[var(--color-muted)]">
+              {s.label}
+            </p>
+            <p className="mt-1 text-2xl font-black tabular-nums">{s.value}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* API status + actions */}
+      <section className="card mt-6 p-5">
+        <SectionTitle emoji="🛰️">API status</SectionTitle>
+        <div className="mt-3 flex items-center gap-3">
+          <span
+            className={`inline-block h-3 w-3 rounded-full ${
+              status.ok ? "bg-[var(--color-pitch)]" : "bg-[var(--color-coral)]"
+            }`}
+          />
+          <div className="text-sm">
+            <p className="font-semibold">
+              Provider: {status.provider} {status.ok ? "· healthy" : "· unavailable"}
+            </p>
+            <p className="text-[var(--color-muted)]">{status.detail}</p>
+          </div>
+        </div>
+        <div className="mt-4 flex flex-wrap gap-3">
+          <RecalcButton />
+          <a href="/api/admin/export?kind=participants" className="inline-block">
+            <Button variant="outline">⬇ Export participants CSV</Button>
+          </a>
+          <a href="/api/admin/export?kind=leaderboard" className="inline-block">
+            <Button variant="outline">⬇ Export leaderboard CSV</Button>
+          </a>
+        </div>
+      </section>
+
+      {/* Results editor */}
+      <section className="card mt-6 p-5">
+        <SectionTitle emoji="🎯">Tournament results</SectionTitle>
+        <p className="mt-1 text-sm text-[var(--color-muted)]">
+          Auto-pulled by the scoring cron; edit here to override. Saving recomputes every score.
+        </p>
+        <div className="mt-4">
+          <ResultsForm initial={results} />
+        </div>
+      </section>
+
+      {/* WhatsApp generator */}
+      <section className="card mt-6 p-5">
+        <SectionTitle emoji="📲">WhatsApp update generator</SectionTitle>
+        <p className="mt-1 text-sm text-[var(--color-muted)]">
+          One tap turns the live data into shareable community posts.
+        </p>
+        <div className="mt-4">
+          <GenerateUpdatesButton />
+        </div>
+        {content.length > 0 && (
+          <ul className="mt-5 space-y-3">
+            {content.slice(0, 12).map((c) => (
+              <li key={c.id} className="rounded-2xl border border-[var(--color-line)] p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <p className="font-bold">{c.title}</p>
+                  <CopyButton text={`${c.title}\n${c.body}`} />
+                </div>
+                <p className="mt-1 text-sm text-[var(--color-muted)]">{c.body}</p>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      {/* Participants */}
+      <section className="card mt-6 overflow-hidden">
+        <div className="p-5 pb-3">
+          <SectionTitle emoji="👥">Participants</SectionTitle>
+        </div>
+        {participants.length === 0 ? (
+          <p className="px-5 pb-5 text-sm text-[var(--color-muted)]">No participants yet.</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm">
+              <thead className="bg-black/[0.03] text-xs uppercase tracking-wider text-[var(--color-muted)]">
+                <tr>
+                  <th className="px-4 py-2">#</th>
+                  <th className="px-4 py-2">Name</th>
+                  <th className="px-4 py-2">Email</th>
+                  <th className="px-4 py-2">Champion</th>
+                  <th className="px-4 py-2">Boot</th>
+                  <th className="px-4 py-2 text-right">Pts</th>
+                  <th className="px-4 py-2">Edit</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[var(--color-line)]">
+                {ranked.map((p, i) => (
+                  <tr key={p.id}>
+                    <td className="px-4 py-2 tabular-nums">{i + 1}</td>
+                    <td className="px-4 py-2 font-semibold">{p.name}</td>
+                    <td className="px-4 py-2 text-[var(--color-muted)]">{p.email}</td>
+                    <td className="px-4 py-2">
+                      {teamFlag(p.predictions.champion)} {teamName(p.predictions.champion)}
+                    </td>
+                    <td className="px-4 py-2">{playerName(p.predictions.goldenBoot)}</td>
+                    <td className="px-4 py-2 text-right font-black tabular-nums">
+                      {scores[p.id]?.total ?? 0}
+                    </td>
+                    <td className="px-4 py-2">
+                      <a
+                        href={`/r/${p.resumeToken}`}
+                        className="text-[var(--color-pitch)] underline underline-offset-2"
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        open
+                      </a>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+
+      <p className="mt-6 text-center text-xs text-[var(--color-muted)]">
+        Lock time: {new Date(settings.lockTime).toUTCString()} · Stage: {settings.tournamentStage}
+      </p>
+    </main>
+  );
+}
