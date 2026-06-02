@@ -30,8 +30,14 @@ export default async function DonePage({
   // Personalized public share page — friends land here, see the card, and make
   // their own bracket (attributed back via ?ref). This is the viral loop.
   const copaUrl = `${env.NEXT_PUBLIC_APP_URL}/copa/${me.slug}`;
-  const shareText = `I just made my La Copa de LaFamilia 2026 predictions ⚽🌎\n\nCan you beat my bracket?\n\n${copaUrl}`;
-  const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(shareText)}`;
+  const shareMessage = `Just made my La Copa de LaFamilia predictions ⚽️
+
+A little friendly competition by LaFamilia Foundation in support of Siembra, their 5-year anniversary campaign to shift more capital to Latine founders and bring more Latine investors into VC.
+
+Because when one of us gets in the room, we open the door for more of us.
+
+Can you beat my bracket?`;
+  const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(`${shareMessage}\n\n${copaUrl}`)}`;
   const cardFile = `la-copa-lafamilia-${me.name.split(" ")[0].toLowerCase()}.png`;
 
   const summary = [
@@ -86,10 +92,7 @@ export default async function DonePage({
 
         {/* Action hierarchy: Share Your Picks → WhatsApp → Leaderboard/Edit → (save card) */}
         <div className="mt-6 space-y-3">
-          <ShareYourPicks
-            url={copaUrl}
-            text="I just made my La Copa de LaFamilia 2026 predictions ⚽🌎 Can you beat my bracket?"
-          />
+          <ShareYourPicks url={copaUrl} text={shareMessage} />
 
           <a href={whatsappUrl} target="_blank" rel="noreferrer" className="block">
             <Button variant="primary" className="w-full">
@@ -109,7 +112,7 @@ export default async function DonePage({
           <SavePredictionCard
             cardUrl={cardUrl}
             fileName={cardFile}
-            shareText="I just made my La Copa de LaFamilia 2026 predictions ⚽🌎 Can you beat my bracket?"
+            shareText={shareMessage}
             shareUrl={copaUrl}
             secondary
           />
