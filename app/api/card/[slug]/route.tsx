@@ -166,7 +166,7 @@ export async function GET(_req: Request, ctx: { params: Promise<{ slug: string }
             {/* Brand + community invite */}
             <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "5px", marginTop: "4px" }}>
               <span style={{ display: "flex", fontSize: "19px", fontWeight: 700, color: SAND }}>
-                LaFamilia — where Latine founders &amp; investors build together
+                Built by LaFamilia · the largest Latine venture community
               </span>
               <span style={{ display: "flex", fontSize: "20px", fontWeight: 800, color: GOLD_LT, letterSpacing: "0.5px" }}>
                 Join the familia → nas.io/lafamilia-foundation
