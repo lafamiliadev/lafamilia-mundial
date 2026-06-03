@@ -89,13 +89,13 @@ export default async function Home() {
       {/* How it works */}
       <section className="mx-auto w-full max-w-md px-5 py-10">
         <h2 className="text-sm font-bold uppercase tracking-wider text-[var(--color-muted)]">
-          Takes under 2 minutes
+          About 3 minutes, all flag-tapping
         </h2>
         <ul className="mt-4 space-y-3">
           {[
-            { e: "🏆", t: "Pick the champion & runner-up", d: "Tap a flag — no soccer expertise needed." },
-            { e: "🔥", t: "Call the dark horse & Golden Boot", d: "Who surprises everyone? Who scores the most?" },
-            { e: "📊", t: "Climb the leaderboard", d: "Earn points as the tournament unfolds." },
+            { e: "🥇", t: "Call the 12 group winners", d: "Tap the team you think tops each group. No soccer degree needed." },
+            { e: "🔥", t: "Pick your Final Four & champion", d: "Who reaches the semis? Who lifts the trophy?" },
+            { e: "📊", t: "Climb the leaderboard", d: "Earn points from the group stage all the way to the final." },
           ].map((s) => (
             <li key={s.t} className="card flex items-start gap-4 p-4">
               <span className="text-2xl">{s.e}</span>

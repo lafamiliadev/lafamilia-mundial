@@ -15,7 +15,7 @@ export const metadata: Metadata = {
     "Predict. Compete. Brag forever. The World Cup prediction game for the LaFamilia community.",
   openGraph: {
     title: "La Copa de LaFamilia 2026 ⚽🌎",
-    description: "Predict. Compete. Brag forever. Takes under 2 minutes.",
+    description: "Predict. Compete. Brag forever. Takes a few minutes.",
     type: "website",
   },
   twitter: { card: "summary_large_image" },

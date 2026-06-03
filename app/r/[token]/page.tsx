@@ -23,7 +23,7 @@ export async function generateMetadata({
     title,
     openGraph: {
       title,
-      description: "Beat my bracket — predict the World Cup with LaFamilia. Takes under 2 minutes.",
+      description: "Beat my bracket — predict the World Cup with LaFamilia. Takes a few minutes.",
       ...(ogImage ? { images: [{ url: ogImage, width: 1080, height: 1350 }] } : {}),
     },
     twitter: { card: "summary_large_image", ...(ogImage ? { images: [ogImage] } : {}) },

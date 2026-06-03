@@ -19,7 +19,7 @@ export async function generateMetadata({
   const me = await repo.getBySlug(slug);
   if (!me) return { title: "La Copa de LaFamilia 2026" };
   const title = `${me.name} picked ${teamName(me.predictions.champion)} to win · La Copa de LaFamilia 2026`;
-  const description = `See ${me.name.split(" ")[0]}'s World Cup bracket and add your own — takes under 2 minutes.`;
+  const description = `See ${me.name.split(" ")[0]}'s World Cup bracket and add your own — takes a few minutes.`;
   const image = `${env.NEXT_PUBLIC_APP_URL}/api/card/${me.slug}`;
   return {
     title,
@@ -88,7 +88,7 @@ export default async function CopaPage({
             Add Your Prediction ⚽
           </LinkButton>
           <p className="mt-2 text-center text-xs text-[var(--color-muted)]">
-            Make your picks in under 2 minutes — no password needed.
+            Make your picks in a few minutes — no password needed.
           </p>
         </div>
 
