@@ -144,18 +144,18 @@ export async function GET(_req: Request, ctx: { params: Promise<{ slug: string }
             }}
           >
             {picks.map((s) => (
-              <div key={s.label} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "9px", width: "314px", padding: "18px 4px" }}>
-                <span style={{ display: "flex", fontSize: "21px", fontWeight: 700, color: GOLD, letterSpacing: "2px", textTransform: "uppercase" }}>
+              <div key={s.label} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "10px", width: "314px", padding: "22px 4px" }}>
+                <span style={{ display: "flex", fontSize: "24px", fontWeight: 700, color: GOLD, letterSpacing: "2px", textTransform: "uppercase" }}>
                   {s.label}
                 </span>
-                <span style={{ display: "flex", fontSize: "37px", fontWeight: 800, color: CREAM }}>{s.value}</span>
+                <span style={{ display: "flex", fontSize: "44px", fontWeight: 800, color: CREAM }}>{s.value}</span>
               </div>
             ))}
           </div>
 
           {/* ── Challenge ── */}
-          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "18px", marginTop: "38px" }}>
-            <div style={{ display: "flex", fontSize: "56px", fontWeight: 800, color: CREAM, lineHeight: 1.05 }}>
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "16px", marginTop: "34px" }}>
+            <div style={{ display: "flex", fontSize: "40px", fontWeight: 800, color: CREAM, lineHeight: 1.05 }}>
               Can you beat my bracket?
             </div>
             <div style={{ display: "flex", alignItems: "center", border: `1.5px solid ${GOLD}`, borderRadius: "999px", padding: "13px 30px", fontSize: "23px", fontWeight: 800, color: GOLD_LT, letterSpacing: "1px" }}>
