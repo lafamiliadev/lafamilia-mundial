@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { CopyShareLink } from "@/components/CopyShareLink";
 import { ResumeLink } from "@/components/ResumeLink";
 import { SavePredictionCard } from "@/components/SavePredictionCard";
-import { ShareYourPicks } from "@/components/ShareYourPicks";
 import { SiembraCTA } from "@/components/Siembra";
 import { Button, LinkButton } from "@/components/ui";
 import { db } from "@/lib/db";
@@ -90,16 +90,29 @@ Can you beat my bracket?`;
           </div>
         </div>
 
-        {/* Action hierarchy: Share Your Picks → WhatsApp → Leaderboard/Edit → (save card) */}
+        {/* One obvious next step: share with Familia on WhatsApp. */}
         <div className="mt-6 space-y-3">
-          <ShareYourPicks url={copaUrl} text={shareMessage} />
-
+          {/* PRIMARY CTA */}
           <a href={whatsappUrl} target="_blank" rel="noreferrer" className="block">
-            <Button variant="primary" className="w-full">
-              📲 Share on WhatsApp
+            <Button variant="primary" className="w-full py-5 text-lg shadow-md">
+              📲 Share with Familia on WhatsApp
             </Button>
           </a>
+          <p className="text-center text-xs text-[var(--color-muted)]">
+            Share your card and challenge 3 Familia members to beat it.
+          </p>
 
+          {/* secondary: copy the share link (same action as before) */}
+          <CopyShareLink url={copaUrl} text={shareMessage} />
+
+          {/* supporting secondary actions */}
+          <SavePredictionCard
+            cardUrl={cardUrl}
+            fileName={cardFile}
+            shareText={shareMessage}
+            shareUrl={copaUrl}
+            secondary
+          />
           <div className="grid grid-cols-2 gap-3">
             <LinkButton href={`/leaderboard?me=${me.resumeToken}`} variant="outline" className="w-full">
               🏆 Leaderboard
@@ -108,14 +121,6 @@ Can you beat my bracket?`;
               ✏️ Edit picks
             </LinkButton>
           </div>
-
-          <SavePredictionCard
-            cardUrl={cardUrl}
-            fileName={cardFile}
-            shareText={shareMessage}
-            shareUrl={copaUrl}
-            secondary
-          />
         </div>
 
         {/* Siembra mission CTA — below the summary + share actions */}
