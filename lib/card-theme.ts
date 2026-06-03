@@ -66,6 +66,19 @@ const THEMES: Record<string, CardTheme> = {
   GHA: { base: "#0a3b22", accent: "#ffd200" },
   // OFC
   NZL: { base: "#0a1733", accent: "#e2495f" },
+  // 2026 debutants / playoff qualifiers
+  CUW: { base: "#0b2c54", accent: "#ffd200" },
+  HAI: { base: "#0b2046", accent: "#e2495f" },
+  SCO: { base: "#0b2c54", accent: "#7fb2ff" },
+  BIH: { base: "#0c2c54", accent: "#ffd200" },
+  CZE: { base: "#0b2046", accent: "#e2495f" },
+  SWE: { base: "#0b2c54", accent: "#ffd200" },
+  UZB: { base: "#0c2c54", accent: "#6ad1a8" },
+  JOR: { base: "#1b2533", accent: "#e2495f" },
+  IRQ: { base: "#4a0e12", accent: "#2fbf71" },
+  RSA: { base: "#0a3b22", accent: "#ffd200" },
+  CPV: { base: "#0c2c54", accent: "#e2495f" },
+  COD: { base: "#0b2c54", accent: "#ffd200" },
 };
 
 export function cardTheme(code: string | null | undefined): CardTheme {

@@ -35,8 +35,7 @@ export const PLAYERS: Player[] = [
   { id: "gakpo", name: "Cody Gakpo", teamCode: "NED" },
   { id: "lukaku", name: "Romelu Lukaku", teamCode: "BEL" },
   { id: "debruyne", name: "Kevin De Bruyne", teamCode: "BEL" },
-  { id: "haaland", name: "Erling Haaland", teamCode: "NOR" }, // included if NOR qualifies
-  { id: "osimhen", name: "Victor Osimhen", teamCode: "NGA" },
+  { id: "haaland", name: "Erling Haaland", teamCode: "NOR" },
   { id: "salah", name: "Mohamed Salah", teamCode: "EGY" },
   { id: "hakimi", name: "Achraf Hakimi", teamCode: "MAR" },
   { id: "en-nesyri", name: "Youssef En-Nesyri", teamCode: "MAR" },
