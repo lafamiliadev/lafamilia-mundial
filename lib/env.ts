@@ -25,7 +25,8 @@ const schema = z.object({
 
   // Optional email (magic resume + milestone nudges).
   RESEND_API_KEY: z.string().optional(),
-  EMAIL_FROM: z.string().default("LaFamilia Mundial <mundial@vcfamilia.com>"),
+  // Must be a Resend-verified domain/address in production.
+  EMAIL_FROM: z.string().default("La Copa de LaFamilia <noreply@vcfamilia.com>"),
 });
 
 const parsed = schema.safeParse(process.env);

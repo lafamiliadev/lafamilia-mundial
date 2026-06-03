@@ -2,6 +2,8 @@
 
 import { z } from "zod";
 import { db } from "@/lib/db";
+import { sendPredictionConfirmation } from "@/lib/email";
+import { env } from "@/lib/env";
 import { recomputeScores } from "@/lib/services";
 import type { Predictions } from "@/lib/types";
 
@@ -42,6 +44,8 @@ export async function submitPredictions(
 
   try {
     const repo = await db();
+    // Was this a brand-new entry? (createParticipant upserts on email.)
+    const existing = await repo.getByEmail(d.email);
     const participant = await repo.createParticipant({
       name: d.name,
       email: d.email,
@@ -52,6 +56,19 @@ export async function submitPredictions(
     });
     // Keep the leaderboard fresh (cheap — usually all-zero pre-tournament).
     await recomputeScores({ pullFromProvider: false }).catch(() => {});
+
+    // Confirmation email — only on first submission, best-effort (never blocks).
+    if (!existing) {
+      const settings = await repo.getSettings();
+      await sendPredictionConfirmation({
+        to: participant.email,
+        firstName: participant.name.split(" ")[0] || participant.name,
+        editUrl: `${env.NEXT_PUBLIC_APP_URL}/r/${participant.resumeToken}`,
+        shareUrl: `${env.NEXT_PUBLIC_APP_URL}/copa/${participant.slug}`,
+        deadlineIso: settings.lockTime,
+      }).catch((e) => console.error("Confirmation email failed:", e));
+    }
+
     return { ok: true, token: participant.resumeToken };
   } catch {
     return { ok: false, error: "Something went wrong. Please try again." };

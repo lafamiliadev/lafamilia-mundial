@@ -109,9 +109,9 @@ export async function GET(_req: Request, ctx: { params: Promise<{ slug: string }
           <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
               {logo ? (
-                <img src={logo} width={146} height={58} style={{ objectFit: "contain" }} alt="LaFamilia" />
+                <img src={logo} width={216} height={108} style={{ objectFit: "contain" }} alt="LaFamilia" />
               ) : (
-                <div style={{ display: "flex", fontSize: "38px", fontWeight: 800, color: GOLD }}>LaFamilia</div>
+                <div style={{ display: "flex", fontSize: "52px", fontWeight: 800, color: GOLD }}>LaFamilia</div>
               )}
               <div style={{ display: "flex", alignItems: "center", gap: "10px", border: `1.5px solid ${theme.accent}`, background: withAlpha(theme.accent, 0.12), borderRadius: "999px", padding: "9px 18px" }}>
                 <span style={{ fontSize: "24px" }}>{badge.emoji}</span>

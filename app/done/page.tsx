@@ -71,7 +71,7 @@ Can you beat my bracket?`;
             style={{ background: "linear-gradient(135deg, #ff2d6f 0%, #ff6b1a 55%, #ffb627 100%)" }}
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/lafamilia-logo-white.svg" alt="LaFamilia" className="h-7 w-auto" />
+            <img src="/lafamilia-logo-white.svg" alt="LaFamilia" className="h-11 w-auto" />
             <p className="mt-3 text-xs font-bold uppercase tracking-wider text-white/85">
               La Copa de LaFamilia 2026 ⚽
             </p>
