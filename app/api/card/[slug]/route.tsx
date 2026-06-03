@@ -1,9 +1,7 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { ImageResponse } from "next/og";
-import QRCode from "qrcode";
 import { db } from "@/lib/db";
-import { env } from "@/lib/env";
 import { cardTheme, darken, withAlpha } from "@/lib/card-theme";
 import { TEAM_BY_CODE, teamFlag, teamName } from "@/lib/teams";
 import { playerName } from "@/lib/players";
@@ -56,14 +54,6 @@ export async function GET(_req: Request, ctx: { params: Promise<{ slug: string }
 
   const heroSize =
     champName.length <= 7 ? 168 : champName.length <= 10 ? 136 : champName.length <= 14 ? 100 : 80;
-
-  const referralUrl = `${env.NEXT_PUBLIC_APP_URL}/copa/${me?.slug ?? ""}`;
-  const qr = await QRCode.toDataURL(referralUrl, {
-    margin: 1,
-    width: 320,
-    errorCorrectionLevel: "M",
-    color: { dark: theme.base, light: CREAM },
-  });
 
   // Every supporting pick (champion is the hero above).
   const goals = p?.finalTotalGoals;
@@ -149,43 +139,31 @@ export async function GET(_req: Request, ctx: { params: Promise<{ slug: string }
               flexWrap: "wrap",
               borderTop: `1px solid ${withAlpha(SAND, 0.35)}`,
               borderBottom: `1px solid ${withAlpha(SAND, 0.35)}`,
-              paddingTop: "22px",
-              paddingBottom: "22px",
+              paddingTop: "30px",
+              paddingBottom: "30px",
             }}
           >
             {picks.map((s) => (
-              <div key={s.label} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "6px", width: "314px", padding: "10px 4px" }}>
-                <span style={{ display: "flex", fontSize: "18px", fontWeight: 700, color: GOLD, letterSpacing: "2px", textTransform: "uppercase" }}>
+              <div key={s.label} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "9px", width: "314px", padding: "18px 4px" }}>
+                <span style={{ display: "flex", fontSize: "21px", fontWeight: 700, color: GOLD, letterSpacing: "2px", textTransform: "uppercase" }}>
                   {s.label}
                 </span>
-                <span style={{ display: "flex", fontSize: "30px", fontWeight: 800, color: CREAM }}>{s.value}</span>
+                <span style={{ display: "flex", fontSize: "37px", fontWeight: 800, color: CREAM }}>{s.value}</span>
               </div>
             ))}
           </div>
 
-          {/* ── Challenge + QR ── */}
-          <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", marginTop: "34px" }}>
-            <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-              <div style={{ display: "flex", flexDirection: "column", fontSize: "50px", fontWeight: 800, color: CREAM, lineHeight: 1.05 }}>
-                <span>Can you beat</span>
-                <span>my bracket?</span>
-              </div>
-              <div style={{ display: "flex", alignItems: "center", alignSelf: "flex-start", border: `1.5px solid ${GOLD}`, borderRadius: "999px", padding: "11px 24px", fontSize: "21px", fontWeight: 800, color: GOLD_LT, letterSpacing: "1px" }}>
-                Make Your Picks ⚽
-              </div>
-              <span style={{ display: "flex", fontSize: "17px", fontWeight: 600, color: SAND, letterSpacing: "1px", opacity: 0.8 }}>
-                Built by LaFamilia
-              </span>
+          {/* ── Challenge ── */}
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "18px", marginTop: "38px" }}>
+            <div style={{ display: "flex", fontSize: "56px", fontWeight: 800, color: CREAM, lineHeight: 1.05 }}>
+              Can you beat my bracket?
             </div>
-
-            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "9px" }}>
-              <div style={{ display: "flex", background: CREAM, padding: "13px", borderRadius: "18px", border: `2px solid ${GOLD}` }}>
-                <img src={qr} width={176} height={176} alt="Scan to play" />
-              </div>
-              <span style={{ display: "flex", fontSize: "16px", fontWeight: 700, color: theme.accent, letterSpacing: "3px" }}>
-                SCAN TO PLAY
-              </span>
+            <div style={{ display: "flex", alignItems: "center", border: `1.5px solid ${GOLD}`, borderRadius: "999px", padding: "13px 30px", fontSize: "23px", fontWeight: 800, color: GOLD_LT, letterSpacing: "1px" }}>
+              Make Your Picks ⚽
             </div>
+            <span style={{ display: "flex", fontSize: "17px", fontWeight: 600, color: SAND, letterSpacing: "1px", opacity: 0.8 }}>
+              Built by LaFamilia
+            </span>
           </div>
         </div>
       </div>
