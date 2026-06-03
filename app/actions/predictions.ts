@@ -75,6 +75,36 @@ export async function submitPredictions(
   }
 }
 
+const emailSchema = z.string().trim().email().max(160);
+
+export type FindResult =
+  | { ok: true; token: string }
+  | { ok: false; error: string };
+
+/**
+ * Look up an existing entry by email so a member can get back into their
+ * pre-filled editor without their resume link. Returns the resume token to
+ * redirect to /r/[token]. (Low-stakes community game — no email verification,
+ * same trust model as re-submitting with the same email.)
+ */
+export async function findResumeToken(rawEmail: string): Promise<FindResult> {
+  const parsed = emailSchema.safeParse(rawEmail);
+  if (!parsed.success) return { ok: false, error: "Enter a valid email address." };
+  try {
+    const repo = await db();
+    const me = await repo.getByEmail(parsed.data);
+    if (!me) {
+      return {
+        ok: false,
+        error: "We couldn't find a bracket for that email. Check the spelling, or start a new one.",
+      };
+    }
+    return { ok: true, token: me.resumeToken };
+  } catch {
+    return { ok: false, error: "Something went wrong. Please try again." };
+  }
+}
+
 const updateSchema = predictionSchema.partial().extend({
   token: z.string().min(8),
 });

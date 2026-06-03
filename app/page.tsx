@@ -49,6 +49,12 @@ export default async function Home() {
             <LinkButton href="/play" variant="gold" className="w-full text-lg">
               Submit Predictions →
             </LinkButton>
+            <p className="text-center text-sm text-white/80">
+              Already played?{" "}
+              <Link href="/edit" className="font-semibold underline underline-offset-4">
+                Edit your picks
+              </Link>
+            </p>
             <div className="flex items-center justify-center gap-4 text-sm text-white/80">
               <Link href="/leaderboard" className="underline-offset-4 hover:underline">
                 Leaderboard
