@@ -82,6 +82,10 @@ export async function recomputeScores(
   const participants = await repo.listParticipants();
   const actualFinalGoals = null; // could be derived from results in future
 
+  // Snapshot each participant's CURRENT rank before recomputing — this becomes
+  // their "previous rank" so the board can show ▲/▼ movement.
+  const prevScores = await repo.getScores();
+
   const scored = participants.map((p) => {
     const s = scorePredictions(p.predictions, merged, settings);
     return {
@@ -104,6 +108,7 @@ export async function recomputeScores(
       bonus: s.bonus,
       total: s.total,
       rank: rankById.get(s.participantId) ?? 0,
+      previousRank: prevScores[s.participantId]?.rank ?? 0,
     })),
   );
 
@@ -119,6 +124,12 @@ export type LeaderboardData = {
   total: number;
   top: LeaderboardRow[];
   me: LeaderboardRow | null;
+  /** Highest score on the board — bars are drawn relative to this. */
+  leaderTotal: number;
+  /** Points the gap between `me` and the person one rank above (for the chase). */
+  meGapToNext: number | null;
+  /** True once any points have been scored (drives "starting line" vs race UI). */
+  scoringStarted: boolean;
 };
 
 /** Build the leaderboard, optionally highlighting the viewer's row by token. */
@@ -130,10 +141,11 @@ export async function getLeaderboardData(
   const participants = await repo.listParticipants();
   const scores = await repo.getScores();
 
-  const rows: (LeaderboardRow & { id: string })[] = participants
+  const rows: (LeaderboardRow & { id: string; previousRank: number })[] = participants
     .map((p) => ({
       id: p.id,
       rank: scores[p.id]?.rank ?? 0,
+      previousRank: scores[p.id]?.previousRank ?? 0,
       name: p.name,
       rootingCountry: p.rootingCountry,
       total: scores[p.id]?.total ?? 0,
@@ -148,35 +160,38 @@ export async function getLeaderboardData(
     if (!r.rank) r.rank = i + 1;
   });
 
+  const leaderTotal = rows.length ? rows[0].total : 0;
+  const scoringStarted = leaderTotal > 0;
+
   let meId: string | null = null;
   if (token) {
     const me = await repo.getByToken(token);
     meId = me?.id ?? null;
   }
 
-  const top = rows.slice(0, topN).map((r) => ({
+  // movement: previousRank - rank (positive = climbed). 0 prevRank = brand new.
+  const withDelta = (r: (typeof rows)[number]): LeaderboardRow => ({
     rank: r.rank,
     name: r.name,
     rootingCountry: r.rootingCountry,
     total: r.total,
+    delta: r.previousRank > 0 ? r.previousRank - r.rank : 0,
     isMe: r.id === meId,
-  }));
+  });
+
+  const top = rows.slice(0, topN).map(withDelta);
 
   let me: LeaderboardRow | null = null;
+  let meGapToNext: number | null = null;
   if (meId) {
-    const meRow = rows.find((r) => r.id === meId);
-    if (meRow) {
-      me = {
-        rank: meRow.rank,
-        name: meRow.name,
-        rootingCountry: meRow.rootingCountry,
-        total: meRow.total,
-        isMe: true,
-      };
+    const meIdx = rows.findIndex((r) => r.id === meId);
+    if (meIdx >= 0) {
+      me = withDelta(rows[meIdx]);
+      if (meIdx > 0) meGapToNext = rows[meIdx - 1].total - rows[meIdx].total;
     }
   }
 
-  return { total: participants.length, top, me };
+  return { total: participants.length, top, me, leaderTotal, meGapToNext, scoringStarted };
 }
 
 export async function getParticipantCount(): Promise<number> {

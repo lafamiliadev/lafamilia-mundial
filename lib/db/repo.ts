@@ -22,6 +22,8 @@ export type ScoreRow = {
   bonus: number;
   total: number;
   rank: number;
+  /** Rank at the previous scoring run — powers ▲/▼ movement (0 = no prior rank). */
+  previousRank: number;
 };
 
 export type ContentItem = {

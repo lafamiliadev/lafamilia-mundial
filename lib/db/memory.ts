@@ -231,7 +231,13 @@ export const memoryRepo: Repo = {
     const data = await load();
     const scores: Shape["scores"] = {};
     for (const r of rows) {
-      scores[r.participantId] = { base: r.base, bonus: r.bonus, total: r.total, rank: r.rank };
+      scores[r.participantId] = {
+        base: r.base,
+        bonus: r.bonus,
+        total: r.total,
+        rank: r.rank,
+        previousRank: r.previousRank,
+      };
     }
     await persist({ ...data, scores });
   },

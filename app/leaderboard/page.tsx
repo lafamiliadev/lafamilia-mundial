@@ -1,35 +1,102 @@
+import { Countdown } from "@/components/Countdown";
 import { SiembraBanner } from "@/components/Siembra";
 import { LinkButton, PageShell, SectionTitle, TopNav } from "@/components/ui";
 import { getLeaderboardData } from "@/lib/services";
+import { nextScoringMilestone } from "@/lib/schedule";
 import { teamFlag } from "@/lib/teams";
 import type { LeaderboardRow } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Leaderboard · La Copa de LaFamilia 2026" };
 
-const medal = (rank: number) =>
-  rank === 1 ? "🥇" : rank === 2 ? "🥈" : rank === 3 ? "🥉" : null;
+const PODIUM = [
+  { medal: "🥇", color: "#f5b301", bar: "h-24", ring: "ring-[#f5b301]" },
+  { medal: "🥈", color: "#c2c7d0", bar: "h-16", ring: "ring-[#c2c7d0]" },
+  { medal: "🥉", color: "#cd7f32", bar: "h-12", ring: "ring-[#cd7f32]" },
+];
 
-function Row({ r }: { r: LeaderboardRow }) {
+/** ▲/▼ movement since the last scoring run. */
+function Move({ delta }: { delta?: number }) {
+  if (!delta) return <span className="text-xs font-semibold text-[var(--color-muted)]">–</span>;
+  const up = delta > 0;
   return (
-    <div
-      className={`flex items-center gap-3 px-4 py-3 ${
-        r.isMe ? "bg-[var(--color-gold-soft)]/40" : ""
+    <span
+      className={`text-xs font-bold tabular-nums ${
+        up ? "text-[var(--color-pitch)]" : "text-[var(--color-coral)]"
       }`}
     >
-      <div className="w-8 text-center text-lg font-black tabular-nums">
-        {medal(r.rank) ?? r.rank}
+      {up ? "▲" : "▼"}
+      {Math.abs(delta)}
+    </span>
+  );
+}
+
+/** A race "lane": name + flag + movement, a progress bar, and the score. */
+function Lane({ r, leaderTotal }: { r: LeaderboardRow; leaderTotal: number }) {
+  const pct = leaderTotal > 0 ? Math.max(4, Math.round((r.total / leaderTotal) * 100)) : 0;
+  return (
+    <div className={`px-4 py-3 ${r.isMe ? "bg-[var(--color-gold-soft)]/40" : ""}`}>
+      <div className="flex items-center gap-3">
+        <div className="w-6 text-center text-sm font-black tabular-nums text-[var(--color-muted)]">
+          {r.rank}
+        </div>
+        <div className="flex min-w-0 flex-1 items-center gap-2">
+          <span className="shrink-0 text-base leading-none">{teamFlag(r.rootingCountry)}</span>
+          <span className="truncate font-semibold">{r.name}</span>
+          {r.isMe && (
+            <span className="shrink-0 rounded-full bg-[var(--color-pitch)] px-2 py-0.5 text-[10px] font-bold text-white">
+              YOU
+            </span>
+          )}
+        </div>
+        <div className="w-8 shrink-0 text-right">
+          <Move delta={r.delta} />
+        </div>
+        <div className="w-12 shrink-0 text-right text-lg font-black tabular-nums">{r.total}</div>
       </div>
-      <div className="flex min-w-0 flex-1 items-center gap-2">
-        <span className="truncate font-semibold">{r.name}</span>
-        {r.isMe && (
-          <span className="shrink-0 rounded-full bg-[var(--color-pitch)] px-2 py-0.5 text-[10px] font-bold text-white">
-            YOU
-          </span>
-        )}
+      {/* race track */}
+      <div className="mt-2 ml-9 h-2 overflow-hidden rounded-full bg-[var(--color-line)]">
+        <div
+          className="h-full rounded-full transition-all duration-500"
+          style={{
+            width: `${pct}%`,
+            background: r.rank === 1 ? "var(--color-gold)" : "var(--color-pitch)",
+          }}
+        />
       </div>
-      <div className="shrink-0 text-xl leading-none">{teamFlag(r.rootingCountry)}</div>
-      <div className="w-14 shrink-0 text-right font-black tabular-nums">{r.total}</div>
+    </div>
+  );
+}
+
+function Podium({ rows }: { rows: LeaderboardRow[] }) {
+  // Visual order places #1 in the center: [2nd, 1st, 3rd].
+  const order = [rows[1], rows[0], rows[2]];
+  const placeFor = (r: LeaderboardRow) => rows.indexOf(r); // 0,1,2
+  return (
+    <div className="grid grid-cols-3 items-end gap-2">
+      {order.map((r, i) => {
+        if (!r) return <div key={i} />;
+        const place = placeFor(r);
+        const p = PODIUM[place];
+        return (
+          <div key={r.name + i} className="flex flex-col items-center">
+            {place === 0 && <div className="text-xl leading-none">👑</div>}
+            <div
+              className={`mb-1 flex h-12 w-12 items-center justify-center rounded-full bg-white text-xl ring-2 ${p.ring}`}
+            >
+              {p.medal}
+            </div>
+            <p className="max-w-full truncate text-center text-sm font-bold">{r.name}</p>
+            <p className="text-xs font-semibold text-[var(--color-muted)]">{r.total} pts</p>
+            <div
+              className={`mt-2 flex w-full ${p.bar} items-start justify-center rounded-t-xl pt-2 text-lg font-black text-white`}
+              style={{ background: p.color }}
+            >
+              {place + 1}
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -40,69 +107,126 @@ export default async function LeaderboardPage({
   searchParams: Promise<{ me?: string }>;
 }) {
   const { me: token } = await searchParams;
-  const { total, top, me } = await getLeaderboardData(token);
+  const { total, top, me, leaderTotal, meGapToNext, scoringStarted } =
+    await getLeaderboardData(token);
+  const nextDrop = nextScoringMilestone(new Date());
+
+  const podiumRows = top.slice(0, 3);
+  const chasers = top.slice(3);
 
   return (
     <main className="flex flex-1 flex-col">
       <TopNav active="leaderboard" />
       <PageShell>
         <div className="py-6">
-          <SectionTitle emoji="🏆">Leaderboard</SectionTitle>
+          <SectionTitle emoji="🏆">The Race</SectionTitle>
           <p className="mt-1 text-sm text-[var(--color-muted)]">
-            {total} {total === 1 ? "predictor" : "predictors"} in the running. The board lights up
-            when the group stage ends, then climbs through the semifinals and final.
+            {total} {total === 1 ? "predictor" : "predictors"} · 🏅 <strong>Top 3 win prizes</strong>.
           </p>
         </div>
 
-        {/* Non-intrusive mission banner — never blocks the game */}
-        <div className="mb-5">
-          <SiembraBanner />
-        </div>
+        {/* Next points drop — the anticipation engine */}
+        {nextDrop && (
+          <div className="mb-5 rounded-2xl bg-[var(--color-navy)] px-4 py-4 text-white">
+            <p className="text-xs font-bold uppercase tracking-wider text-[var(--color-gold-soft)]">
+              ⚡ Next points drop · {nextDrop.pointsInPlay} pts in play
+            </p>
+            <p className="mb-3 text-sm font-semibold">{nextDrop.label}</p>
+            <Countdown lockTime={nextDrop.dateIso} />
+          </div>
+        )}
 
         {total === 0 ? (
           <div className="card p-8 text-center">
             <div className="text-4xl">🫥</div>
-            <p className="mt-3 font-bold">No predictions yet</p>
-            <p className="mt-1 text-sm text-[var(--color-muted)]">
-              Be the first to get on the board.
-            </p>
+            <p className="mt-3 font-bold">No predictors yet</p>
+            <p className="mt-1 text-sm text-[var(--color-muted)]">Be the first on the starting line.</p>
             <LinkButton href="/play" variant="primary" className="mt-5 w-full">
               Make your predictions →
             </LinkButton>
           </div>
-        ) : (
-          <>
-            <div className="mb-4 flex items-center justify-between rounded-2xl bg-[var(--color-pitch)] px-4 py-3 text-white">
-              <span className="text-sm font-semibold opacity-90">Total participants</span>
-              <span className="text-2xl font-black tabular-nums">{total}</span>
+        ) : !scoringStarted ? (
+          // ── Starting line: nobody has scored yet ──
+          <div className="card overflow-hidden">
+            <div className="bg-[var(--color-pitch)] px-4 py-4 text-center text-white">
+              <p className="text-2xl">🏁</p>
+              <p className="mt-1 font-black">At the starting line</p>
+              <p className="mt-1 text-sm text-white/85">
+                Everyone&apos;s tied at 0. The race begins when the first points drop —
+                {nextDrop ? ` ${nextDrop.label.toLowerCase()}.` : " soon."}
+              </p>
             </div>
-
-            <div className="card divide-y divide-[var(--color-line)] overflow-hidden">
-              <div className="bg-black/[0.03] px-4 py-2 text-xs font-bold uppercase tracking-wider text-[var(--color-muted)]">
-                Top 10
-              </div>
+            <div className="divide-y divide-[var(--color-line)]">
               {top.map((r) => (
-                <Row key={`${r.rank}-${r.name}`} r={r} />
+                <div
+                  key={`${r.rank}-${r.name}`}
+                  className={`flex items-center gap-3 px-4 py-3 ${
+                    r.isMe ? "bg-[var(--color-gold-soft)]/40" : ""
+                  }`}
+                >
+                  <span className="text-base leading-none">{teamFlag(r.rootingCountry)}</span>
+                  <span className="min-w-0 flex-1 truncate font-semibold">{r.name}</span>
+                  {r.isMe && (
+                    <span className="rounded-full bg-[var(--color-pitch)] px-2 py-0.5 text-[10px] font-bold text-white">
+                      YOU
+                    </span>
+                  )}
+                  <span className="text-sm font-semibold text-[var(--color-muted)]">0 pts</span>
+                </div>
               ))}
             </div>
+          </div>
+        ) : (
+          // ── Live race ──
+          <>
+            {podiumRows.length >= 1 && (
+              <div className="card p-4">
+                <Podium rows={podiumRows} />
+                <p className="mt-3 text-center text-xs font-semibold text-[var(--color-muted)]">
+                  🏆 The top 3 take the prizes — keep climbing.
+                </p>
+              </div>
+            )}
 
-            {me && me.rank > 10 && (
+            {chasers.length > 0 && (
+              <div className="card mt-4 divide-y divide-[var(--color-line)] overflow-hidden">
+                <div className="bg-black/[0.03] px-4 py-2 text-xs font-bold uppercase tracking-wider text-[var(--color-muted)]">
+                  The chase
+                </div>
+                {chasers.map((r) => (
+                  <Lane key={`${r.rank}-${r.name}`} r={r} leaderTotal={leaderTotal} />
+                ))}
+              </div>
+            )}
+
+            {/* Your position + the gap to catch */}
+            {me && me.rank > 3 && (
               <>
                 <p className="mt-5 mb-2 text-xs font-bold uppercase tracking-wider text-[var(--color-muted)]">
-                  Your ranking
+                  Your spot
                 </p>
                 <div className="card overflow-hidden">
-                  <Row r={me} />
+                  <Lane r={me} leaderTotal={leaderTotal} />
                 </div>
+                {meGapToNext != null && meGapToNext > 0 && (
+                  <p className="mt-2 text-center text-sm font-semibold text-[var(--color-ink)]">
+                    {meGapToNext} {meGapToNext === 1 ? "point" : "points"} behind #{me.rank - 1} — close the gap. 🔥
+                  </p>
+                )}
               </>
             )}
-
-            {!token && (
-              <p className="mt-5 text-center text-sm text-[var(--color-muted)]">
-                Open your private link to highlight your rank here.
-              </p>
-            )}
           </>
+        )}
+
+        {/* Mission — never blocks the game */}
+        <div className="mt-6">
+          <SiembraBanner />
+        </div>
+
+        {!token && total > 0 && (
+          <p className="mt-5 text-center text-sm text-[var(--color-muted)]">
+            Open your private link to see your spot and movement here.
+          </p>
         )}
       </PageShell>
     </main>

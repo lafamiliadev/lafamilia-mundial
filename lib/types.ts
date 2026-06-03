@@ -111,5 +111,7 @@ export type LeaderboardRow = {
   name: string;
   rootingCountry: string | null;
   total: number;
+  /** Rank change since the last scoring run: + climbed, − dropped, 0 = none/new. */
+  delta?: number;
   isMe?: boolean;
 };
