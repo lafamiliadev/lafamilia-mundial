@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, useTransition } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { GroupWinners } from "./GroupWinners";
 import { MultiPickGrid } from "./MultiPickGrid";
@@ -54,6 +55,7 @@ export function Wizard({
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [emailExists, setEmailExists] = useState(false);
   const [step, setStep] = useState(0);
   const [s, setS] = useState<State>({ ...EMPTY, ...initial });
 
@@ -242,6 +244,7 @@ export function Wizard({
 
   function submit() {
     setError(null);
+    setEmailExists(false);
     startTransition(async () => {
       const payload = {
         name: s.name,
@@ -258,6 +261,7 @@ export function Wizard({
           : await submitPredictions({ ...payload, ref: referrer ?? null });
       if (!res.ok) {
         setError(res.error);
+        if (res.code === "EMAIL_EXISTS") setEmailExists(true);
         return;
       }
       try {
@@ -340,9 +344,17 @@ export function Wizard({
               ))}
             </div>
             {error && (
-              <p className="mt-4 rounded-2xl bg-[var(--color-coral)]/10 px-4 py-3 text-sm font-semibold text-[var(--color-coral)]">
-                {error}
-              </p>
+              <div className="mt-4 rounded-2xl bg-[var(--color-coral)]/10 px-4 py-3 text-sm font-semibold text-[var(--color-coral)]">
+                <p>{error}</p>
+                {emailExists && (
+                  <Link
+                    href="/edit"
+                    className="mt-1 inline-block underline underline-offset-4"
+                  >
+                    Edit your picks →
+                  </Link>
+                )}
+              </div>
             )}
           </>
         )}
