@@ -88,6 +88,19 @@ export function Wizard({
   const set = <K extends keyof State>(k: K, v: State[K]) =>
     setS((prev) => ({ ...prev, [k]: v }));
 
+  // After picking from a (long) grid, glide back to the top so the question
+  // and the now-highlighted choice are in view and the Continue button is the
+  // obvious next move. Only on an actual selection — not when clearing one.
+  const scrollToTop = () => {
+    if (typeof window === "undefined") return;
+    const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    window.scrollTo({ top: 0, behavior: reduce ? "auto" : "smooth" });
+  };
+  const pick = <K extends keyof State>(k: K, v: State[K]) => {
+    set(k, v);
+    if (v !== null) scrollToTop();
+  };
+
   type StepDef = {
     title: string;
     hint?: string;
@@ -131,7 +144,7 @@ export function Wizard({
           <PickGrid
             options={teamOptions}
             value={s.rootingCountry}
-            onChange={(v) => set("rootingCountry", v)}
+            onChange={(v) => pick("rootingCountry", v)}
             searchable
             searchPlaceholder="Search countries…"
           />
@@ -145,7 +158,7 @@ export function Wizard({
           <PickGrid
             options={teamOptions}
             value={s.champion}
-            onChange={(v) => set("champion", v)}
+            onChange={(v) => pick("champion", v)}
             searchable
             searchPlaceholder="Search teams…"
           />
@@ -159,7 +172,7 @@ export function Wizard({
           <PickGrid
             options={teamOptions.filter((o) => o.key !== s.champion)}
             value={s.runnerUp}
-            onChange={(v) => set("runnerUp", v)}
+            onChange={(v) => pick("runnerUp", v)}
             searchable
             searchPlaceholder="Search teams…"
           />
@@ -174,7 +187,7 @@ export function Wizard({
           <PickGrid
             options={playerOptions}
             value={s.goldenBoot}
-            onChange={(v) => set("goldenBoot", v)}
+            onChange={(v) => pick("goldenBoot", v)}
             searchable
             searchPlaceholder="Search players…"
             allowNone={{ key: "__none", label: "Not sure yet" }}
@@ -189,7 +202,7 @@ export function Wizard({
           <PickGrid
             options={teamOptions}
             value={s.darkHorse}
-            onChange={(v) => set("darkHorse", v)}
+            onChange={(v) => pick("darkHorse", v)}
             searchable
             searchPlaceholder="Search teams…"
           />
@@ -203,7 +216,7 @@ export function Wizard({
           <PickGrid
             options={latamOptions}
             value={s.latamFurthest}
-            onChange={(v) => set("latamFurthest", v)}
+            onChange={(v) => pick("latamFurthest", v)}
             searchable
             searchPlaceholder="Search LatAm teams…"
           />
