@@ -29,21 +29,17 @@ type ParticipantRow = {
 
 type PredictionRow = {
   participant_id: string;
+  group_winners: Record<string, string> | null;
+  semifinalists: string[] | null;
   champion: string | null;
-  runner_up: string | null;
-  golden_boot: string | null;
-  dark_horse: string | null;
-  latam_furthest: string | null;
   final_total_goals: number | null;
 };
 
 function toPredictions(row?: PredictionRow | null): Predictions {
   return {
+    groupWinners: row?.group_winners ?? null,
+    semifinalists: row?.semifinalists ?? null,
     champion: row?.champion ?? null,
-    runnerUp: row?.runner_up ?? null,
-    goldenBoot: row?.golden_boot ?? null,
-    darkHorse: row?.dark_horse ?? null,
-    latamFurthest: row?.latam_furthest ?? null,
     finalTotalGoals: row?.final_total_goals ?? null,
   };
 }
@@ -67,11 +63,9 @@ function toParticipant(row: ParticipantRow, pred?: PredictionRow | null): Partic
 function predictionColumns(participantId: string, p: Predictions): PredictionRow {
   return {
     participant_id: participantId,
+    group_winners: p.groupWinners,
+    semifinalists: p.semifinalists,
     champion: p.champion,
-    runner_up: p.runnerUp,
-    golden_boot: p.goldenBoot,
-    dark_horse: p.darkHorse,
-    latam_furthest: p.latamFurthest,
     final_total_goals: p.finalTotalGoals,
   };
 }

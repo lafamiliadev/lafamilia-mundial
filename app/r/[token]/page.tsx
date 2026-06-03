@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Wizard } from "@/components/Wizard";
 import { db } from "@/lib/db";
+import { getGroups } from "@/lib/services";
 import { teamName } from "@/lib/teams";
 
 export const dynamic = "force-dynamic";
@@ -39,20 +40,21 @@ export default async function ResumePage({
   const me = await repo.getByToken(token);
   if (!me) notFound();
 
+  const groups = await getGroups();
+
   return (
     <main className="flex flex-1 flex-col">
       <Wizard
         mode="edit"
         token={token}
+        groups={groups}
         initial={{
           name: me.name,
           email: me.email,
           rootingCountry: me.rootingCountry,
+          groupWinners: me.predictions.groupWinners ?? {},
+          semifinalists: me.predictions.semifinalists ?? [],
           champion: me.predictions.champion,
-          runnerUp: me.predictions.runnerUp,
-          goldenBoot: me.predictions.goldenBoot ?? "__none",
-          darkHorse: me.predictions.darkHorse,
-          latamFurthest: me.predictions.latamFurthest,
           finalTotalGoals: me.predictions.finalTotalGoals ?? 3,
         }}
       />

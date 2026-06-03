@@ -1,4 +1,4 @@
-import type { Results } from "../types";
+import type { GroupMap, Results } from "../types";
 
 // Swappable football-data abstraction. The scoring cron depends ONLY on this
 // interface, so swapping providers is a one-line env change.
@@ -15,9 +15,15 @@ export interface FootballProvider {
   /** Health/quota check shown on the admin "API status" panel. */
   status(): Promise<ProviderStatus>;
   /**
-   * Pull the current authoritative tournament results (champion, runner-up,
-   * golden boot, per-stage team lists, etc.). Returns a partial — only what's
-   * known so far. The scoring engine handles the rest.
+   * Group composition (group letter A–L → 4 team codes), the source of truth for
+   * the prediction wizard. Pulled from the provider and cached in settings;
+   * returns {} if not yet available.
+   */
+  fetchGroups(): Promise<GroupMap>;
+  /**
+   * Pull the current authoritative tournament results (champion, group winners,
+   * per-stage team lists). Returns only what's known so far; the scoring engine
+   * handles the rest.
    */
   fetchResults(): Promise<Results>;
 }

@@ -11,7 +11,7 @@ import {
 } from "@/lib/admin-auth";
 import { db } from "@/lib/db";
 import { generateCommunityUpdates } from "@/lib/community";
-import { recomputeScores } from "@/lib/services";
+import { recomputeScores, syncTournamentGroups } from "@/lib/services";
 import type { Results, Settings } from "@/lib/types";
 
 async function requireAdmin() {
@@ -51,6 +51,20 @@ export async function triggerRecalc(): Promise<{ ok: boolean; message: string }>
       ok: true,
       message: `Recalculated ${report.participants} entries via ${report.provider}.`,
     };
+  } catch (e) {
+    return { ok: false, message: (e as Error).message };
+  }
+}
+
+export async function syncGroupsAction(): Promise<{ ok: boolean; message: string }> {
+  await requireAdmin();
+  try {
+    const { count, provider } = await syncTournamentGroups();
+    revalidatePath("/admin");
+    revalidatePath("/play");
+    return count > 0
+      ? { ok: true, message: `Synced ${count} groups from ${provider}.` }
+      : { ok: false, message: `No groups returned by ${provider}. Check the provider/key.` };
   } catch (e) {
     return { ok: false, message: (e as Error).message };
   }

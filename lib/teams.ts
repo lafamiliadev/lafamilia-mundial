@@ -126,3 +126,53 @@ export function teamFlag(code: string | null | undefined): string {
   if (!code) return "🏳️";
   return TEAM_BY_CODE[code]?.flag ?? "🏳️";
 }
+
+// ── Provider name resolution ─────────────────────────────────────────
+// Football data providers (FIFA / API-Football) spell some nations differently.
+// This alias map + accent-insensitive matching hardens name→code resolution so
+// group standings and results map reliably. Source of truth, not hardcoded data.
+export const TEAM_ALIASES: Record<string, string> = {
+  "united states": "USA",
+  "usa": "USA",
+  "korea republic": "KOR",
+  "south korea": "KOR",
+  "ir iran": "IRN",
+  "iran": "IRN",
+  "iran islamic republic": "IRN",
+  "cote d'ivoire": "CIV",
+  "ivory coast": "CIV",
+  "czech republic": "CZE",
+  "czechia": "CZE",
+  "turkiye": "TUR",
+  "turkey": "TUR",
+  "cabo verde": "CPV",
+  "cape verde islands": "CPV",
+  "congo dr": "COD",
+  "dr congo": "COD",
+  "democratic republic of the congo": "COD",
+  "bosnia and herzegovina": "BIH",
+  "saudi arabia": "KSA",
+};
+
+function normalizeName(name: string): string {
+  return name
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, ""); // strip accents
+}
+
+const NAME_INDEX: Record<string, string> = (() => {
+  const idx: Record<string, string> = {};
+  for (const t of [...TEAMS, ...LEGACY_TEAMS]) idx[normalizeName(t.name)] = t.code;
+  for (const [alias, code] of Object.entries(TEAM_ALIASES)) idx[normalizeName(alias)] = code;
+  return idx;
+})();
+
+/** Resolve a provider-supplied team name (or 3-letter code) to our team code. */
+export function resolveTeamCode(name: string | null | undefined): string | null {
+  if (!name) return null;
+  const raw = name.trim();
+  if (TEAM_BY_CODE[raw.toUpperCase()]) return raw.toUpperCase(); // already a code
+  return NAME_INDEX[normalizeName(raw)] ?? null;
+}

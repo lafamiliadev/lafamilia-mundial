@@ -1,9 +1,9 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
-import { DEFAULT_SETTINGS, EMPTY_RESULTS } from "../types";
+import { DEFAULT_SETTINGS, DEFAULT_WEIGHTS, EMPTY_RESULTS } from "../types";
 import { baseSlug, uniqueSlug } from "../slug";
-import type { Participant, Results, Settings } from "../types";
+import type { Participant, Predictions, Results, Settings } from "../types";
 import type {
   ContentItem,
   CreateParticipantInput,
@@ -38,6 +38,21 @@ const EMPTY_SHAPE = (): Shape => ({
 // .data/dev.json files keep working (and existing resume links stay valid).
 function normalize(data: Shape): { data: Shape; mutated: boolean } {
   let mutated = false;
+
+  // Upgrade settings written before the "Group Winners + Final Four" format
+  // (old weights lacked groupWinner). Keep lockTime + any synced groups.
+  const w = data.settings?.weights as Partial<typeof DEFAULT_WEIGHTS> | undefined;
+  if (!w || typeof w.groupWinner !== "number") {
+    data.settings = {
+      ...DEFAULT_SETTINGS,
+      ...data.settings,
+      weights: DEFAULT_WEIGHTS,
+      groups: data.settings?.groups ?? {},
+      groupsSyncedAt: data.settings?.groupsSyncedAt ?? null,
+    };
+    mutated = true;
+  }
+
   const used = new Set<string>();
   for (const p of data.participants) if (p.slug) used.add(p.slug);
   for (const p of data.participants) {
@@ -56,6 +71,18 @@ function normalize(data: Shape): { data: Shape; mutated: boolean } {
     }
     if (typeof p.referralVisits !== "number") {
       p.referralVisits = 0;
+      mutated = true;
+    }
+    // Migrate predictions to the new shape: preserve champion (pre-fills on
+    // re-pick), drop the old 6-pick fields, ensure new keys exist.
+    const pred = p.predictions as Partial<Predictions> & Record<string, unknown>;
+    if (pred && (!("groupWinners" in pred) || !("semifinalists" in pred))) {
+      p.predictions = {
+        groupWinners: (pred.groupWinners as Predictions["groupWinners"]) ?? null,
+        semifinalists: (pred.semifinalists as Predictions["semifinalists"]) ?? null,
+        champion: (pred.champion as string | null) ?? null,
+        finalTotalGoals: (pred.finalTotalGoals as number | null) ?? null,
+      };
       mutated = true;
     }
   }

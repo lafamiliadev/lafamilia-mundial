@@ -4,7 +4,6 @@ import { ImageResponse } from "next/og";
 import { db } from "@/lib/db";
 import { cardTheme, darken, withAlpha } from "@/lib/card-theme";
 import { TEAM_BY_CODE, teamFlag, teamName } from "@/lib/teams";
-import { playerName } from "@/lib/players";
 
 export const runtime = "nodejs";
 
@@ -55,16 +54,13 @@ export async function GET(_req: Request, ctx: { params: Promise<{ slug: string }
   const heroSize =
     champName.length <= 7 ? 168 : champName.length <= 10 ? 136 : champName.length <= 14 ? 100 : 80;
 
-  // Every supporting pick (champion is the hero above).
-  const goals = p?.finalTotalGoals;
-  const picks = [
-    { label: "Rooting for", value: me?.rootingCountry ? `${teamFlag(me.rootingCountry)} ${teamName(me.rootingCountry)}` : "—" },
-    { label: "Runner-up", value: p ? `${teamFlag(p.runnerUp)} ${teamName(p.runnerUp)}` : "—" },
-    { label: "Golden Boot", value: p ? playerName(p.goldenBoot) : "—" },
-    { label: "Dark Horse", value: p ? `${teamFlag(p.darkHorse)} ${teamName(p.darkHorse)}` : "—" },
-    { label: "LatAm Furthest", value: p ? `${teamFlag(p.latamFurthest)} ${teamName(p.latamFurthest)}` : "—" },
-    { label: "Final Goals", value: goals != null ? String(goals) : "—" },
-  ];
+  // The Final Four (prestige share artifact) + group-winner flag strip.
+  const finalFour = (p?.semifinalists ?? []).slice(0, 4);
+  const winnerFlags = Object.keys(p?.groupWinners ?? {})
+    .sort()
+    .map((l) => (p?.groupWinners ?? {})[l])
+    .filter(Boolean);
+  const rooting = me?.rootingCountry ?? null;
 
   return new ImageResponse(
     (
@@ -132,25 +128,31 @@ export async function GET(_req: Request, ctx: { params: Promise<{ slug: string }
             <div style={{ display: "flex", marginTop: "20px", fontSize: "96px", lineHeight: 1 }}>{teamFlag(championCode)}</div>
           </div>
 
-          {/* ── All supporting picks (3 × 2) ── */}
-          <div
-            style={{
-              display: "flex",
-              flexWrap: "wrap",
-              borderTop: `1px solid ${withAlpha(SAND, 0.35)}`,
-              borderBottom: `1px solid ${withAlpha(SAND, 0.35)}`,
-              paddingTop: "30px",
-              paddingBottom: "30px",
-            }}
-          >
-            {picks.map((s) => (
-              <div key={s.label} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "10px", width: "314px", padding: "22px 4px" }}>
-                <span style={{ display: "flex", fontSize: "24px", fontWeight: 700, color: GOLD, letterSpacing: "2px", textTransform: "uppercase" }}>
-                  {s.label}
-                </span>
-                <span style={{ display: "flex", fontSize: "44px", fontWeight: 800, color: CREAM }}>{s.value}</span>
-              </div>
-            ))}
+          {/* ── My Final Four ── */}
+          <div style={{ display: "flex", flexDirection: "column", borderTop: `1px solid ${withAlpha(SAND, 0.35)}`, paddingTop: "28px" }}>
+            <span style={{ display: "flex", fontSize: "24px", fontWeight: 800, color: GOLD, letterSpacing: "5px", textTransform: "uppercase", marginBottom: "18px" }}>
+              🔥 My Final Four
+            </span>
+            <div style={{ display: "flex", justifyContent: "space-between" }}>
+              {finalFour.map((code) => (
+                <div key={code} style={{ display: "flex", flexDirection: "column", alignItems: "center", width: "224px", gap: "10px" }}>
+                  <span style={{ display: "flex", fontSize: "76px", lineHeight: 1 }}>{teamFlag(code)}</span>
+                  <span style={{ display: "flex", fontSize: "26px", fontWeight: 800, color: CREAM, textAlign: "center" }}>{teamName(code)}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* ── Group winners strip + rooting ── */}
+          <div style={{ display: "flex", flexDirection: "column", borderTop: `1px solid ${withAlpha(SAND, 0.35)}`, borderBottom: `1px solid ${withAlpha(SAND, 0.35)}`, paddingTop: "22px", paddingBottom: "22px", marginTop: "26px" }}>
+            <span style={{ display: "flex", fontSize: "19px", fontWeight: 700, color: GOLD, letterSpacing: "3px", textTransform: "uppercase", marginBottom: "14px" }}>
+              {`12 Group Winners${rooting ? `   ·   Rooting ${teamFlag(rooting)} ${teamName(rooting)}` : ""}`}
+            </span>
+            <div style={{ display: "flex", flexWrap: "wrap" }}>
+              {winnerFlags.map((code, i) => (
+                <span key={i} style={{ display: "flex", justifyContent: "center", fontSize: "48px", width: "78px" }}>{teamFlag(code)}</span>
+              ))}
+            </div>
           </div>
 
           {/* ── Challenge ── */}

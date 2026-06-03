@@ -5,9 +5,32 @@ import { Button } from "./ui";
 import {
   generateUpdatesAction,
   saveResultsAction,
+  syncGroupsAction,
   triggerRecalc,
 } from "@/app/actions/admin";
-import type { Results, Stage } from "@/lib/types";
+import { GROUP_LETTERS, type Results, type Stage } from "@/lib/types";
+
+export function SyncGroupsButton() {
+  const [pending, start] = useTransition();
+  const [msg, setMsg] = useState<string | null>(null);
+  return (
+    <div>
+      <Button
+        variant="primary"
+        disabled={pending}
+        onClick={() =>
+          start(async () => {
+            const r = await syncGroupsAction();
+            setMsg(r.message);
+          })
+        }
+      >
+        {pending ? "Syncing…" : "🌐 Sync tournament (groups)"}
+      </Button>
+      {msg && <p className="mt-2 text-sm text-[var(--color-muted)]">{msg}</p>}
+    </div>
+  );
+}
 
 export function RecalcButton() {
   const [pending, start] = useTransition();
@@ -75,10 +98,9 @@ export function ResultsForm({ initial }: { initial: Results }) {
   const [pending, start] = useTransition();
   const [saved, setSaved] = useState(false);
   const [champion, setChampion] = useState(initial.champion ?? "");
-  const [runnerUp, setRunnerUp] = useState(initial.runnerUp ?? "");
-  const [goldenBoot, setGoldenBoot] = useState(initial.goldenBoot ?? "");
-  const [latam, setLatam] = useState(initial.latamFurthest ?? "");
-  const [darkHorse, setDarkHorse] = useState(initial.darkHorseTeam ?? "");
+  const [groupWinners, setGroupWinners] = useState<Record<string, string>>(
+    Object.fromEntries(GROUP_LETTERS.map((l) => [l, initial.groupWinners?.[l] ?? ""])),
+  );
   const [stages, setStages] = useState<Record<string, string>>(
     Object.fromEntries(
       STAGES.map((s) => [s, (initial.stageReached[s] ?? []).join(", ")]),
@@ -97,12 +119,14 @@ export function ResultsForm({ initial }: { initial: Results }) {
         .filter(Boolean);
       if (codes.length) stageReached[s] = codes;
     }
+    const gw: Record<string, string> = {};
+    for (const l of GROUP_LETTERS) {
+      const code = groupWinners[l]?.trim().toUpperCase();
+      if (code) gw[l] = code;
+    }
     const payload: Partial<Results> = {
       champion: champion.trim().toUpperCase() || null,
-      runnerUp: runnerUp.trim().toUpperCase() || null,
-      goldenBoot: goldenBoot.trim() || null,
-      latamFurthest: latam.trim().toUpperCase() || null,
-      darkHorseTeam: darkHorse.trim().toUpperCase() || null,
+      groupWinners: gw,
       stageReached,
     };
     start(async () => {
@@ -114,31 +138,30 @@ export function ResultsForm({ initial }: { initial: Results }) {
 
   return (
     <div className="space-y-3">
-      <div className="grid grid-cols-2 gap-3">
-        <label className="text-sm font-semibold">
-          Champion (code)
-          <input className={input} value={champion} onChange={(e) => setChampion(e.target.value)} placeholder="ARG" />
-        </label>
-        <label className="text-sm font-semibold">
-          Runner-up (code)
-          <input className={input} value={runnerUp} onChange={(e) => setRunnerUp(e.target.value)} placeholder="FRA" />
-        </label>
-        <label className="text-sm font-semibold">
-          LatAm furthest (code)
-          <input className={input} value={latam} onChange={(e) => setLatam(e.target.value)} placeholder="BRA" />
-        </label>
-        <label className="text-sm font-semibold">
-          Dark horse override
-          <input className={input} value={darkHorse} onChange={(e) => setDarkHorse(e.target.value)} placeholder="MAR" />
-        </label>
-        <label className="col-span-2 text-sm font-semibold">
-          Golden Boot (player id)
-          <input className={`${input} normal-case`} value={goldenBoot} onChange={(e) => setGoldenBoot(e.target.value)} placeholder="messi" />
-        </label>
+      <label className="block text-sm font-semibold">
+        Champion (code)
+        <input className={input} value={champion} onChange={(e) => setChampion(e.target.value)} placeholder="ARG" />
+      </label>
+
+      <p className="pt-1 text-xs font-bold uppercase tracking-wider text-[var(--color-muted)]">
+        Group winners (rank 1 per group — usually auto-synced)
+      </p>
+      <div className="grid grid-cols-3 gap-2">
+        {GROUP_LETTERS.map((l) => (
+          <label key={l} className="text-sm font-semibold">
+            <span className="text-xs text-[var(--color-muted)]">Group {l}</span>
+            <input
+              className={input}
+              value={groupWinners[l]}
+              onChange={(e) => setGroupWinners((x) => ({ ...x, [l]: e.target.value }))}
+              placeholder="—"
+            />
+          </label>
+        ))}
       </div>
 
       <p className="pt-1 text-xs font-bold uppercase tracking-wider text-[var(--color-muted)]">
-        Teams reaching each stage (comma-separated codes)
+        Teams reaching each stage (comma-separated codes — sf = semifinalists)
       </p>
       {STAGES.map((s) => (
         <label key={s} className="block text-sm font-semibold">

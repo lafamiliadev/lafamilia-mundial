@@ -49,8 +49,8 @@ export default async function LeaderboardPage({
         <div className="py-6">
           <SectionTitle emoji="🏆">Leaderboard</SectionTitle>
           <p className="mt-1 text-sm text-[var(--color-muted)]">
-            {total} {total === 1 ? "predictor" : "predictors"} in the running. Points grow as the
-            tournament unfolds.
+            {total} {total === 1 ? "predictor" : "predictors"} in the running. The board lights up
+            when the group stage ends, then climbs through the semifinals and final.
           </p>
         </div>
 

@@ -2,21 +2,21 @@
 
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { GroupWinners } from "./GroupWinners";
+import { MultiPickGrid } from "./MultiPickGrid";
 import { PickGrid, type PickOption } from "./PickGrid";
 import { Button, cn } from "./ui";
-import { LATAM_TEAMS, TEAMS, teamFlag, teamName } from "@/lib/teams";
-import { PLAYERS, playerName } from "@/lib/players";
+import { TEAMS, teamFlag, teamName } from "@/lib/teams";
 import { submitPredictions, updatePredictions } from "@/app/actions/predictions";
+import type { GroupMap } from "@/lib/types";
 
 type State = {
   name: string;
   email: string;
   rootingCountry: string | null;
+  groupWinners: Record<string, string>;
+  semifinalists: string[];
   champion: string | null;
-  runnerUp: string | null;
-  goldenBoot: string | null;
-  darkHorse: string | null;
-  latamFurthest: string | null;
   finalTotalGoals: number | null;
 };
 
@@ -24,44 +24,32 @@ const EMPTY: State = {
   name: "",
   email: "",
   rootingCountry: null,
+  groupWinners: {},
+  semifinalists: [],
   champion: null,
-  runnerUp: null,
-  goldenBoot: null,
-  darkHorse: null,
-  latamFurthest: null,
   finalTotalGoals: 3,
 };
 
-const STORAGE_KEY = "mundial26:draft:v1";
+const STORAGE_KEY = "mundial26:draft:v2";
 
 const teamOptions: PickOption[] = [...TEAMS]
   .sort((a, b) => Number(b.qualified) - Number(a.qualified) || a.name.localeCompare(b.name))
   .map((t) => ({ key: t.code, label: t.name, flag: t.flag }));
-
-const latamOptions: PickOption[] = LATAM_TEAMS.map((t) => ({
-  key: t.code,
-  label: t.name,
-  flag: t.flag,
-}));
-
-const playerOptions: PickOption[] = PLAYERS.map((p) => ({
-  key: p.id,
-  label: p.name,
-  sublabel: teamName(p.teamCode),
-  flag: teamFlag(p.teamCode),
-}));
 
 export function Wizard({
   mode = "create",
   token,
   initial,
   referrer,
+  groups,
 }: {
   mode?: "create" | "edit";
   token?: string;
   initial?: Partial<State>;
   /** Slug of the participant whose share link brought this user in. */
   referrer?: string | null;
+  /** Group composition (letter → team codes), source of truth from the provider. */
+  groups: GroupMap;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -85,12 +73,16 @@ export function Wizard({
     } catch {}
   }, [s, mode]);
 
+  // Fresh step → start at the top so the question + first options are in view.
+  useEffect(() => {
+    if (typeof window !== "undefined") window.scrollTo({ top: 0 });
+  }, [step]);
+
   const set = <K extends keyof State>(k: K, v: State[K]) =>
     setS((prev) => ({ ...prev, [k]: v }));
 
-  // After picking from a (long) grid, glide back to the top so the question
-  // and the now-highlighted choice are in view and the Continue button is the
-  // obvious next move. Only on an actual selection — not when clearing one.
+  // After picking from a grid, glide back to the top so the Continue button is
+  // the obvious next move. Only on an actual selection.
   const scrollToTop = () => {
     if (typeof window === "undefined") return;
     const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
@@ -101,12 +93,33 @@ export function Wizard({
     if (v !== null) scrollToTop();
   };
 
+  // Toggle a Final Four pick (cap 4); if a removed team was the champion, clear it.
+  const toggleSemifinalist = (code: string) => {
+    setS((prev) => {
+      const has = prev.semifinalists.includes(code);
+      if (has) {
+        const semis = prev.semifinalists.filter((c) => c !== code);
+        return { ...prev, semifinalists: semis, champion: prev.champion === code ? null : prev.champion };
+      }
+      if (prev.semifinalists.length >= 4) return prev;
+      return { ...prev, semifinalists: [...prev.semifinalists, code] };
+    });
+  };
+
+  const groupCount = Object.keys(groups).length;
+  const groupsFilled = Object.keys(groups).filter((l) => s.groupWinners[l]).length;
+
+  const championOptions: PickOption[] = s.semifinalists.map((code) => ({
+    key: code,
+    label: teamName(code),
+    flag: teamFlag(code),
+  }));
+
   type StepDef = {
     title: string;
     hint?: string;
     body: React.ReactNode;
     canNext: boolean;
-    optional?: boolean;
   };
 
   const steps: StepDef[] = useMemo(() => {
@@ -138,7 +151,7 @@ export function Wizard({
       },
       {
         title: "Who are you rooting for? 🌎",
-        hint: "Your team — win or lose, you're with them.",
+        hint: "Your team — win or lose, you're with them. (Just for flavor, not scored.)",
         canNext: !!s.rootingCountry,
         body: (
           <PickGrid
@@ -151,81 +164,51 @@ export function Wizard({
         ),
       },
       {
-        title: "Who wins the World Cup? 🏆",
-        hint: "Your champion pick — worth the most points.",
+        title: "Call the 12 group winners 🥇",
+        hint: "Tap the team you think finishes 1st in each group. Points land when the group stage ends.",
+        canNext: groupCount > 0 && groupsFilled === groupCount,
+        body: (
+          <GroupWinners
+            groups={groups}
+            value={s.groupWinners}
+            onChange={(next) => set("groupWinners", next)}
+          />
+        ),
+      },
+      {
+        title: "Pick your Final Four 🔥",
+        hint: "Choose 4 teams you think reach the semifinals.",
+        canNext: s.semifinalists.length === 4,
+        body: (
+          <MultiPickGrid
+            options={teamOptions}
+            selected={s.semifinalists}
+            onToggle={toggleSemifinalist}
+            max={4}
+            searchPlaceholder="Search teams…"
+          />
+        ),
+      },
+      {
+        title: "And the champion? 🏆",
+        hint: "Your winner — pick from your Final Four.",
         canNext: !!s.champion,
-        body: (
-          <PickGrid
-            options={teamOptions}
-            value={s.champion}
-            onChange={(v) => pick("champion", v)}
-            searchable
-            searchPlaceholder="Search teams…"
-          />
-        ),
+        body:
+          championOptions.length > 0 ? (
+            <PickGrid
+              options={championOptions}
+              value={s.champion}
+              onChange={(v) => pick("champion", v)}
+            />
+          ) : (
+            <p className="card p-5 text-center text-sm text-[var(--color-muted)]">
+              Pick your Final Four first, then choose the champion.
+            </p>
+          ),
       },
       {
-        title: "Who finishes runner-up? 🥈",
-        hint: "The team that makes the final but falls just short.",
-        canNext: !!s.runnerUp,
-        body: (
-          <PickGrid
-            options={teamOptions.filter((o) => o.key !== s.champion)}
-            value={s.runnerUp}
-            onChange={(v) => pick("runnerUp", v)}
-            searchable
-            searchPlaceholder="Search teams…"
-          />
-        ),
-      },
-      {
-        title: "Golden Boot winner? 🥅",
-        hint: "Top scorer of the tournament. Not sure? Skip it.",
-        optional: true,
-        canNext: true,
-        body: (
-          <PickGrid
-            options={playerOptions}
-            value={s.goldenBoot}
-            onChange={(v) => pick("goldenBoot", v)}
-            searchable
-            searchPlaceholder="Search players…"
-            allowNone={{ key: "__none", label: "Not sure yet" }}
-          />
-        ),
-      },
-      {
-        title: "Pick your dark horse 🔥",
-        hint: "Which team will surprise everyone? Outsiders score bonus points.",
-        canNext: !!s.darkHorse,
-        body: (
-          <PickGrid
-            options={teamOptions}
-            value={s.darkHorse}
-            onChange={(v) => pick("darkHorse", v)}
-            searchable
-            searchPlaceholder="Search teams…"
-          />
-        ),
-      },
-      {
-        title: "LatAm team that goes furthest 🌶️",
-        hint: "Which Latin American side carries the region deepest?",
-        canNext: !!s.latamFurthest,
-        body: (
-          <PickGrid
-            options={latamOptions}
-            value={s.latamFurthest}
-            onChange={(v) => pick("latamFurthest", v)}
-            searchable
-            searchPlaceholder="Search LatAm teams…"
-          />
-        ),
-      },
-      {
-        title: "Tiebreaker: How many total goals will be scored in the final? ⚽",
+        title: "Tiebreaker: total goals in the final? ⚽",
         hint: "Closest prediction breaks ties on the leaderboard. Count both teams combined.",
-        optional: true,
         canNext: true,
         body: (
           <div className="flex items-center justify-center gap-6 py-4">
@@ -250,7 +233,8 @@ export function Wizard({
         ),
       },
     ];
-  }, [s]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [s, groups]);
 
   const isReview = step === steps.length;
   const total = steps.length + 1;
@@ -263,11 +247,9 @@ export function Wizard({
         name: s.name,
         email: s.email,
         rootingCountry: s.rootingCountry,
+        groupWinners: Object.keys(s.groupWinners).length ? s.groupWinners : null,
+        semifinalists: s.semifinalists.length ? s.semifinalists : null,
         champion: s.champion,
-        runnerUp: s.runnerUp,
-        goldenBoot: s.goldenBoot === "__none" ? null : s.goldenBoot,
-        darkHorse: s.darkHorse,
-        latamFurthest: s.latamFurthest,
         finalTotalGoals: s.finalTotalGoals,
       };
       const res =
@@ -285,14 +267,27 @@ export function Wizard({
     });
   }
 
-  const reviewRows: { label: string; value: string }[] = [
-    { label: "Rooting for", value: `${teamFlag(s.rootingCountry)} ${teamName(s.rootingCountry)}` },
-    { label: "Champion", value: `${teamFlag(s.champion)} ${teamName(s.champion)}` },
-    { label: "Runner-up", value: `${teamFlag(s.runnerUp)} ${teamName(s.runnerUp)}` },
-    { label: "Golden Boot", value: playerName(s.goldenBoot === "__none" ? null : s.goldenBoot) },
-    { label: "Dark horse", value: `${teamFlag(s.darkHorse)} ${teamName(s.darkHorse)}` },
-    { label: "LatAm furthest", value: `${teamFlag(s.latamFurthest)} ${teamName(s.latamFurthest)}` },
-    { label: "Goals in final", value: String(s.finalTotalGoals ?? "—") },
+  const winnerFlags = Object.keys(groups)
+    .sort()
+    .map((l) => s.groupWinners[l])
+    .filter(Boolean);
+
+  const reviewRows: { label: string; value: string; step: number }[] = [
+    { label: "Rooting for", value: `${teamFlag(s.rootingCountry)} ${teamName(s.rootingCountry)}`, step: 1 },
+    {
+      label: "Group winners",
+      value: winnerFlags.length ? winnerFlags.map((c) => teamFlag(c)).join(" ") : "—",
+      step: 2,
+    },
+    {
+      label: "Final Four",
+      value: s.semifinalists.length
+        ? s.semifinalists.map((c) => teamFlag(c)).join(" ")
+        : "—",
+      step: 3,
+    },
+    { label: "Champion", value: `${teamFlag(s.champion)} ${teamName(s.champion)}`, step: 4 },
+    { label: "Goals in final", value: String(s.finalTotalGoals ?? "—"), step: 5 },
   ];
 
   return (
@@ -306,9 +301,7 @@ export function Wizard({
           >
             ← Back
           </button>
-          <span>
-            {isReview ? "Review" : `Step ${step + 1} of ${total}`}
-          </span>
+          <span>{isReview ? "Review" : `Step ${step + 1} of ${total}`}</span>
         </div>
         <div className="h-2 w-full overflow-hidden rounded-full bg-[var(--color-line)]">
           <div
@@ -335,14 +328,14 @@ export function Wizard({
               Tap any row to change it. You can edit anytime before kickoff.
             </p>
             <div className="card mt-5 divide-y divide-[var(--color-line)]">
-              {reviewRows.map((r, i) => (
+              {reviewRows.map((r) => (
                 <button
                   key={r.label}
-                  onClick={() => setStep(i === 0 ? 1 : i + 1)}
-                  className="flex w-full items-center justify-between px-4 py-3.5 text-left hover:bg-black/[0.02]"
+                  onClick={() => setStep(r.step)}
+                  className="flex w-full items-center justify-between gap-3 px-4 py-3.5 text-left hover:bg-black/[0.02]"
                 >
-                  <span className="text-sm text-[var(--color-muted)]">{r.label}</span>
-                  <span className="font-semibold">{r.value} ›</span>
+                  <span className="shrink-0 text-sm text-[var(--color-muted)]">{r.label}</span>
+                  <span className="truncate text-right font-semibold">{r.value} ›</span>
                 </button>
               ))}
             </div>
@@ -358,24 +351,13 @@ export function Wizard({
       {/* Footer action */}
       <div className="sticky bottom-0 z-10 -mx-4 border-t border-[var(--color-line)] bg-[var(--color-bg)] px-4 py-3">
         {!isReview ? (
-          <div className="flex items-center gap-3">
-            {steps[step].optional && (
-              <Button
-                variant="ghost"
-                onClick={() => setStep((x) => x + 1)}
-                className="flex-1"
-              >
-                Skip
-              </Button>
-            )}
-            <Button
-              onClick={() => setStep((x) => x + 1)}
-              disabled={!steps[step].canNext}
-              className={cn(steps[step].optional ? "flex-1" : "w-full")}
-            >
-              Continue →
-            </Button>
-          </div>
+          <Button
+            onClick={() => setStep((x) => x + 1)}
+            disabled={!steps[step].canNext}
+            className="w-full"
+          >
+            Continue →
+          </Button>
         ) : (
           <Button variant="gold" onClick={submit} disabled={pending} className="w-full text-lg">
             {pending ? "Saving…" : mode === "edit" ? "Save changes" : "Submit predictions 🎉"}

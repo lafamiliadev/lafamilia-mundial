@@ -2,22 +2,54 @@ import "server-only";
 import { db } from "./db";
 import { getProvider } from "./football";
 import { rankParticipants, scorePredictions } from "./scoring";
-import type { LeaderboardRow, Participant, Results } from "./types";
+import type { GroupMap, LeaderboardRow, Participant, Results } from "./types";
 
 // Merge admin-entered results over provider results. Admin override wins per
 // field, so a human can always correct an API edge case.
 function mergeResults(provider: Results, stored: Results): Results {
   return {
     champion: stored.champion ?? provider.champion,
-    runnerUp: stored.runnerUp ?? provider.runnerUp,
-    goldenBoot: stored.goldenBoot ?? provider.goldenBoot,
-    latamFurthest: stored.latamFurthest ?? provider.latamFurthest,
-    darkHorseTeam: stored.darkHorseTeam ?? provider.darkHorseTeam,
+    groupWinners: {
+      ...provider.groupWinners,
+      ...stored.groupWinners, // admin-specified group winners take precedence
+    },
     stageReached: {
       ...provider.stageReached,
       ...stored.stageReached, // admin-specified stages take precedence
     },
   };
+}
+
+/**
+ * Sync the official group composition from the active provider into settings
+ * (source of truth for the wizard). Used by the admin "Sync tournament" button;
+ * can run pre-tournament. Won't clobber cached groups with an empty fetch.
+ */
+export async function syncTournamentGroups(): Promise<{
+  count: number;
+  provider: string;
+  groups: GroupMap;
+}> {
+  const repo = await db();
+  const provider = getProvider();
+  const groups = await provider.fetchGroups();
+  const count = Object.keys(groups).length;
+  if (count > 0) {
+    const settings = await repo.getSettings();
+    await repo.saveSettings({
+      ...settings,
+      groups,
+      groupsSyncedAt: new Date().toISOString(),
+    });
+  }
+  return { count, provider: provider.name, groups };
+}
+
+/** Cached group composition for the wizard (letter → team codes). */
+export async function getGroups(): Promise<GroupMap> {
+  const repo = await db();
+  const settings = await repo.getSettings();
+  return settings.groups ?? {};
 }
 
 export type RecomputeReport = {

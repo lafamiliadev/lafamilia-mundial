@@ -7,7 +7,6 @@ import { SiembraCTA } from "@/components/Siembra";
 import { Button, LinkButton } from "@/components/ui";
 import { db } from "@/lib/db";
 import { env } from "@/lib/env";
-import { playerName } from "@/lib/players";
 import { teamFlag, teamName } from "@/lib/teams";
 
 export const dynamic = "force-dynamic";
@@ -30,9 +29,14 @@ export default async function DonePage({
   // Personalized public share page — friends land here, see the card, and make
   // their own bracket (attributed back via ?ref). This is the viral loop.
   const copaUrl = `${env.NEXT_PUBLIC_APP_URL}/copa/${me.slug}`;
-  const shareMessage = `Just made my La Copa de LaFamilia predictions ⚽️
+  const finalFour = me.predictions.semifinalists ?? [];
+  const winnerFlags = Object.keys(me.predictions.groupWinners ?? {})
+    .sort()
+    .map((l) => (me.predictions.groupWinners ?? {})[l])
+    .filter(Boolean);
+  const shareMessage = `My Final Four 🔥 ${finalFour.map((c) => teamFlag(c)).join(" ")} — and ${teamName(me.predictions.champion)} to lift it. 🏆
 
-A little friendly competition by LaFamilia Foundation in support of Siembra, their 5-year anniversary campaign to shift more capital to Latine founders and bring more Latine investors into VC.
+La Copa de LaFamilia: a little friendly competition by LaFamilia Foundation in support of Siembra, their 5-year anniversary campaign to shift more capital to Latine founders and bring more Latine investors into VC.
 
 Because when one of us gets in the room, we open the door for more of us.
 
@@ -42,11 +46,15 @@ Can you beat my bracket?`;
 
   const summary = [
     { label: "Rooting for", value: `${teamFlag(me.rootingCountry)} ${teamName(me.rootingCountry)}` },
-    { label: "Predicting to win", value: `${teamFlag(me.predictions.champion)} ${teamName(me.predictions.champion)}` },
-    { label: "Runner-up", value: `${teamFlag(me.predictions.runnerUp)} ${teamName(me.predictions.runnerUp)}` },
-    { label: "Golden Boot", value: playerName(me.predictions.goldenBoot) },
-    { label: "Dark horse", value: `${teamFlag(me.predictions.darkHorse)} ${teamName(me.predictions.darkHorse)}` },
-    { label: "LatAm furthest", value: `${teamFlag(me.predictions.latamFurthest)} ${teamName(me.predictions.latamFurthest)}` },
+    {
+      label: "Final Four",
+      value: finalFour.length ? finalFour.map((c) => teamFlag(c)).join(" ") : "—",
+    },
+    {
+      label: "Group winners",
+      value: winnerFlags.length ? `${winnerFlags.length} / 12 picked` : "—",
+    },
+    { label: "Goals in final", value: String(me.predictions.finalTotalGoals ?? "—") },
   ];
 
   return (

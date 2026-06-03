@@ -2,57 +2,61 @@
 
 export type Stage = "r16" | "qf" | "sf" | "final" | "champion";
 
+/** The 12 World Cup 2026 groups. */
+export const GROUP_LETTERS = [
+  "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L",
+] as const;
+export type GroupLetter = (typeof GROUP_LETTERS)[number];
+
+/** Group composition: group letter → the (4) team codes drawn into it. Synced
+ * from the football provider (source of truth), never hardcoded. */
+export type GroupMap = Record<string, string[]>;
+
 export type ScoringWeights = {
+  /** Per correctly-predicted group winner (12 groups). */
+  groupWinner: number;
+  /** Per correctly-predicted semifinalist (your Final Four). */
+  semifinalist: number;
+  /** Correct champion. */
   champion: number;
-  runnerUp: number;
-  goldenBoot: number;
-  darkHorse: number;
-  latamFurthest: number;
-  bonusR16: number;
-  bonusQf: number;
-  bonusSf: number;
-  bonusFinalist: number;
-  bonusChampion: number;
+  /** Bonus for nailing all 12 group winners. */
+  groupSweepBonus: number;
 };
 
 export const DEFAULT_WEIGHTS: ScoringWeights = {
-  champion: 25,
-  runnerUp: 15,
-  goldenBoot: 15,
-  darkHorse: 10,
-  latamFurthest: 15,
-  bonusR16: 5,
-  bonusQf: 5,
-  bonusSf: 10,
-  bonusFinalist: 10,
-  bonusChampion: 25,
+  groupWinner: 3, // max 36 across 12 groups
+  semifinalist: 10, // max 40 across 4 picks
+  champion: 20,
+  groupSweepBonus: 10,
 };
 
 export type Settings = {
   weights: ScoringWeights;
   lockTime: string; // ISO timestamp — predictions lock at first kickoff
   tournamentStage: "pre" | Stage | "done";
-  /** Min FIFA seed tier a Dark Horse pick must be to qualify (4 = only true outsiders). */
-  darkHorseMinSeed: number;
-  /** Stage a Dark Horse pick must reach to score (default qf). */
-  darkHorseReachStage: Stage;
+  /** Cached group composition, synced from the active provider (source of truth). */
+  groups: GroupMap;
+  /** When groups were last synced from the provider (ISO), or null. */
+  groupsSyncedAt: string | null;
 };
 
 export const DEFAULT_SETTINGS: Settings = {
   weights: DEFAULT_WEIGHTS,
   lockTime: "2026-06-11T20:00:00Z", // WC2026 opening match
   tournamentStage: "pre",
-  darkHorseMinSeed: 3,
-  darkHorseReachStage: "qf",
+  groups: {},
+  groupsSyncedAt: null,
 };
 
 export type Predictions = {
-  champion: string | null; // team code
-  runnerUp: string | null;
-  goldenBoot: string | null; // player id
-  darkHorse: string | null; // team code
-  latamFurthest: string | null; // team code
-  finalTotalGoals: number | null; // tiebreaker
+  /** Group letter → predicted winning team code (12 entries when complete). */
+  groupWinners: Record<string, string> | null;
+  /** The 4 teams predicted to reach the semifinals ("Final Four"). */
+  semifinalists: string[] | null;
+  /** Champion — must be one of the four semifinalists. */
+  champion: string | null;
+  /** Tiebreaker: total goals scored in the final. */
+  finalTotalGoals: number | null;
 };
 
 export type Participant = {
@@ -82,20 +86,15 @@ export type PublicEntry = {
 
 export type Results = {
   champion: string | null;
-  runnerUp: string | null;
-  goldenBoot: string | null; // player id
-  latamFurthest: string | null;
-  darkHorseTeam: string | null; // optional explicit override
-  /** Which teams reached each stage — drives progressive bonus scoring. */
+  /** Actual group winners: group letter → winning team code (rank 1). */
+  groupWinners: Record<string, string>;
+  /** Which teams reached each stage. Semifinalists = stageReached.sf. */
   stageReached: Partial<Record<Stage, string[]>>;
 };
 
 export const EMPTY_RESULTS: Results = {
   champion: null,
-  runnerUp: null,
-  goldenBoot: null,
-  latamFurthest: null,
-  darkHorseTeam: null,
+  groupWinners: {},
   stageReached: {},
 };
 

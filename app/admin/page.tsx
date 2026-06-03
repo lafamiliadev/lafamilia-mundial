@@ -4,6 +4,7 @@ import {
   GenerateUpdatesButton,
   RecalcButton,
   ResultsForm,
+  SyncGroupsButton,
 } from "@/components/admin";
 import { Button, SectionTitle } from "@/components/ui";
 import { adminLogout } from "@/app/actions/admin";
@@ -136,6 +137,33 @@ export default async function AdminDashboard() {
             <Button variant="outline">⬇ Export leaderboard CSV</Button>
           </a>
         </div>
+      </section>
+
+      {/* Tournament setup — group draw */}
+      <section className="card mt-6 p-5">
+        <SectionTitle emoji="🌐">Tournament setup</SectionTitle>
+        <p className="mt-1 text-sm text-[var(--color-muted)]">
+          {Object.keys(settings.groups ?? {}).length === 12
+            ? `All 12 groups loaded${settings.groupsSyncedAt ? ` · synced ${new Date(settings.groupsSyncedAt).toLocaleString()}` : ""}. Verify they match the official draw below.`
+            : `${Object.keys(settings.groups ?? {}).length}/12 groups loaded — sync the draw so members can pick group winners.`}
+        </p>
+        <div className="mt-4">
+          <SyncGroupsButton />
+        </div>
+        {Object.keys(settings.groups ?? {}).length > 0 && (
+          <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
+            {Object.keys(settings.groups)
+              .sort()
+              .map((letter) => (
+                <div key={letter} className="rounded-xl border border-[var(--color-line)] p-2 text-sm">
+                  <p className="text-xs font-bold uppercase text-[var(--color-muted)]">Group {letter}</p>
+                  <p className="mt-1">
+                    {(settings.groups[letter] ?? []).map((c) => teamFlag(c)).join(" ")}
+                  </p>
+                </div>
+              ))}
+          </div>
+        )}
       </section>
 
       {/* Results editor */}

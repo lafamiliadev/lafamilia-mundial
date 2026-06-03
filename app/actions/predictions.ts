@@ -7,19 +7,38 @@ import { env } from "@/lib/env";
 import { recomputeScores } from "@/lib/services";
 import type { Predictions } from "@/lib/types";
 
-const predictionSchema = z.object({
+const code = z.string().trim().min(2).max(8);
+
+const predictionBase = z.object({
   name: z.string().trim().min(1, "Add your name").max(80),
   email: z.string().trim().email("Enter a valid email").max(160),
-  rootingCountry: z.string().max(8).nullable(),
-  champion: z.string().max(8).nullable(),
-  runnerUp: z.string().max(8).nullable(),
-  goldenBoot: z.string().max(64).nullable(),
-  darkHorse: z.string().max(8).nullable(),
-  latamFurthest: z.string().max(8).nullable(),
+  rootingCountry: code.nullable(),
+  // Group winners: { "A": code, ..., "L": code } — all 12 required to submit.
+  groupWinners: z.record(z.string(), code).nullable(),
+  // Final Four — exactly 4 distinct team codes.
+  semifinalists: z.array(code).max(4).nullable(),
+  // Champion — must be one of the four semifinalists.
+  champion: code.nullable(),
   finalTotalGoals: z.number().int().min(0).max(20).nullable(),
   crewCode: z.string().trim().max(40).nullable().optional(),
   ref: z.string().trim().max(40).nullable().optional(),
 });
+
+const predictionSchema = predictionBase.superRefine((d, ctx) => {
+    const groups = d.groupWinners ?? {};
+    if (Object.keys(groups).length !== 12) {
+      ctx.addIssue({ code: "custom", message: "Pick all 12 group winners." });
+    }
+    const sf = d.semifinalists ?? [];
+    if (sf.length !== 4 || new Set(sf).size !== 4) {
+      ctx.addIssue({ code: "custom", message: "Pick exactly 4 semifinalists." });
+    }
+    if (!d.champion) {
+      ctx.addIssue({ code: "custom", message: "Pick your champion." });
+    } else if (sf.length && !sf.includes(d.champion)) {
+      ctx.addIssue({ code: "custom", message: "Champion must be one of your Final Four." });
+    }
+  });
 
 export type SubmitResult =
   | { ok: true; token: string }
@@ -34,11 +53,9 @@ export async function submitPredictions(
   }
   const d = parsed.data;
   const predictions: Predictions = {
+    groupWinners: d.groupWinners,
+    semifinalists: d.semifinalists,
     champion: d.champion,
-    runnerUp: d.runnerUp,
-    goldenBoot: d.goldenBoot,
-    darkHorse: d.darkHorse,
-    latamFurthest: d.latamFurthest,
     finalTotalGoals: d.finalTotalGoals,
   };
 
@@ -105,9 +122,21 @@ export async function findResumeToken(rawEmail: string): Promise<FindResult> {
   }
 }
 
-const updateSchema = predictionSchema.partial().extend({
-  token: z.string().min(8),
-});
+// Edits go through the same completeness rules as a fresh submit (the editor
+// always sends a full bracket), so reuse predictionSchema + a token.
+const updateSchema = predictionBase
+  .extend({ token: z.string().min(8) })
+  .superRefine((d, ctx) => {
+    const groups = d.groupWinners ?? {};
+    if (Object.keys(groups).length !== 12)
+      ctx.addIssue({ code: "custom", message: "Pick all 12 group winners." });
+    const sf = d.semifinalists ?? [];
+    if (sf.length !== 4 || new Set(sf).size !== 4)
+      ctx.addIssue({ code: "custom", message: "Pick exactly 4 semifinalists." });
+    if (!d.champion) ctx.addIssue({ code: "custom", message: "Pick your champion." });
+    else if (sf.length && !sf.includes(d.champion))
+      ctx.addIssue({ code: "custom", message: "Champion must be one of your Final Four." });
+  });
 
 export async function updatePredictions(
   raw: z.input<typeof updateSchema>,
@@ -116,20 +145,14 @@ export async function updatePredictions(
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid input" };
   }
-  const { token, name, rootingCountry, ...rest } = parsed.data;
+  const { token, name, rootingCountry, groupWinners, semifinalists, champion, finalTotalGoals } =
+    parsed.data;
   try {
     const repo = await db();
     const updated = await repo.updateByToken(token, {
       name,
       rootingCountry: rootingCountry ?? undefined,
-      predictions: {
-        champion: rest.champion ?? undefined,
-        runnerUp: rest.runnerUp ?? undefined,
-        goldenBoot: rest.goldenBoot ?? undefined,
-        darkHorse: rest.darkHorse ?? undefined,
-        latamFurthest: rest.latamFurthest ?? undefined,
-        finalTotalGoals: rest.finalTotalGoals ?? undefined,
-      },
+      predictions: { groupWinners, semifinalists, champion, finalTotalGoals },
     });
     if (!updated) return { ok: false, error: "Entry not found." };
     await recomputeScores({ pullFromProvider: false }).catch(() => {});

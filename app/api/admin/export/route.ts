@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { isAdmin } from "@/lib/admin-auth";
 import { db } from "@/lib/db";
-import { playerName } from "@/lib/players";
 import { teamName } from "@/lib/teams";
+import { GROUP_LETTERS } from "@/lib/types";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -52,31 +52,31 @@ export async function GET(req: Request) {
       "people_brought",
       "rooting_for",
       "champion",
-      "runner_up",
-      "golden_boot",
-      "dark_horse",
-      "latam_furthest",
+      "semifinalists",
+      ...GROUP_LETTERS.map((l) => `group_${l}`),
       "final_goals",
       "total_points",
       "created_at",
     ];
-    rows = participants.map((p) => [
-      p.name,
-      p.email,
-      p.slug,
-      p.referredBy ?? "",
-      p.referralVisits ?? 0,
-      signupsByRef.get(p.slug) ?? 0,
-      teamName(p.rootingCountry),
-      teamName(p.predictions.champion),
-      teamName(p.predictions.runnerUp),
-      playerName(p.predictions.goldenBoot),
-      teamName(p.predictions.darkHorse),
-      teamName(p.predictions.latamFurthest),
-      p.predictions.finalTotalGoals,
-      scores[p.id]?.total ?? 0,
-      p.createdAt,
-    ]);
+    rows = participants.map((p) => {
+      const gw = p.predictions.groupWinners ?? {};
+      const sf = (p.predictions.semifinalists ?? []).map((c) => teamName(c)).join(" / ");
+      return [
+        p.name,
+        p.email,
+        p.slug,
+        p.referredBy ?? "",
+        p.referralVisits ?? 0,
+        signupsByRef.get(p.slug) ?? 0,
+        teamName(p.rootingCountry),
+        teamName(p.predictions.champion),
+        sf,
+        ...GROUP_LETTERS.map((l) => (gw[l] ? teamName(gw[l]) : "")),
+        p.predictions.finalTotalGoals,
+        scores[p.id]?.total ?? 0,
+        p.createdAt,
+      ];
+    });
   }
 
   const csv = [header, ...rows]
