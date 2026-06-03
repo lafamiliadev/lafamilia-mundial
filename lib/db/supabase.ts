@@ -276,13 +276,14 @@ export const supabaseRepo: Repo = {
     const { data } = await db.from("scores").select("*");
     const out: Record<string, Omit<ScoreRow, "participantId">> = {};
     for (const r of data ?? []) {
-      const row = r as { base: number; bonus: number; total: number; rank: number; previous_rank: number | null; participant_id: string };
+      const row = r as { base: number; bonus: number; total: number; rank: number; previous_rank: number | null; start_rank: number | null; participant_id: string };
       out[row.participant_id] = {
         base: row.base,
         bonus: row.bonus,
         total: row.total,
         rank: row.rank,
         previousRank: row.previous_rank ?? 0,
+        startRank: row.start_rank ?? 0,
       };
     }
     return out;
@@ -297,6 +298,7 @@ export const supabaseRepo: Repo = {
         total: r.total,
         rank: r.rank,
         previous_rank: r.previousRank,
+        start_rank: r.startRank,
       })),
       { onConflict: "participant_id" },
     );

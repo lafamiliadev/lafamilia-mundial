@@ -80,6 +80,17 @@ export async function saveResultsAction(input: Partial<Results>) {
   revalidatePath("/leaderboard");
 }
 
+export async function setAwardsRevealed(reveal: boolean): Promise<{ ok: boolean; message: string }> {
+  await requireAdmin();
+  const repo = await db();
+  const current = await repo.getSettings();
+  await repo.saveSettings({ ...current, awardsRevealed: reveal });
+  revalidatePath("/admin");
+  revalidatePath("/awards");
+  revalidatePath("/leaderboard");
+  return { ok: true, message: reveal ? "Honors are live on /awards." : "Honors hidden." };
+}
+
 export async function saveSettingsAction(input: Partial<Settings>) {
   await requireAdmin();
   const repo = await db();

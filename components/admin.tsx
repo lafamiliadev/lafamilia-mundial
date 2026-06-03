@@ -5,10 +5,59 @@ import { Button } from "./ui";
 import {
   generateUpdatesAction,
   saveResultsAction,
+  setAwardsRevealed,
   syncGroupsAction,
   triggerRecalc,
 } from "@/app/actions/admin";
 import { GROUP_LETTERS, type Results, type Stage } from "@/lib/types";
+import type { AwardsResult } from "@/lib/awards";
+
+export function AwardsAdmin({ awards, revealed }: { awards: AwardsResult; revealed: boolean }) {
+  const [pending, start] = useTransition();
+  const [isLive, setIsLive] = useState(revealed);
+  const [msg, setMsg] = useState<string | null>(null);
+  const all = [awards.champion, ...awards.honors].filter(Boolean);
+
+  return (
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-center gap-3">
+        <Button
+          variant={isLive ? "outline" : "gold"}
+          disabled={pending}
+          onClick={() =>
+            start(async () => {
+              const r = await setAwardsRevealed(!isLive);
+              setIsLive(!isLive);
+              setMsg(r.message);
+            })
+          }
+        >
+          {pending ? "Saving…" : isLive ? "Hide honors" : "🏆 Reveal honors"}
+        </Button>
+        <span className="text-sm text-[var(--color-muted)]">
+          {isLive ? "Live on /awards" : "Hidden — preview below"}
+        </span>
+      </div>
+      {msg && <p className="text-sm text-[var(--color-muted)]">{msg}</p>}
+      {all.length === 0 ? (
+        <p className="text-sm text-[var(--color-muted)]">
+          No honors yet — they populate once results are scored.
+        </p>
+      ) : (
+        <ul className="space-y-2">
+          {all.map((a) => (
+            <li key={a!.id} className="rounded-xl border border-[var(--color-line)] p-3 text-sm">
+              <span className="font-bold">
+                {a!.emoji} {a!.title}
+              </span>{" "}
+              — {a!.winners.map((w) => `${w.name} (${w.detail})`).join("; ")}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
 
 export function SyncGroupsButton() {
   const [pending, start] = useTransition();

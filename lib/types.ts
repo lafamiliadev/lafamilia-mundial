@@ -38,6 +38,8 @@ export type Settings = {
   groups: GroupMap;
   /** When groups were last synced from the provider (ISO), or null. */
   groupsSyncedAt: string | null;
+  /** When true, the La Familia Honors (awards) are public on /awards. */
+  awardsRevealed: boolean;
 };
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -46,6 +48,7 @@ export const DEFAULT_SETTINGS: Settings = {
   tournamentStage: "pre",
   groups: {},
   groupsSyncedAt: null,
+  awardsRevealed: false,
 };
 
 export type Predictions = {

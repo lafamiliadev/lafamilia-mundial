@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import {
+  AwardsAdmin,
   CopyButton,
   GenerateUpdatesButton,
   RecalcButton,
@@ -12,6 +13,7 @@ import { isAdmin } from "@/lib/admin-auth";
 import { db } from "@/lib/db";
 import { env } from "@/lib/env";
 import { getProvider } from "@/lib/football";
+import { getAwards } from "@/lib/services";
 import { teamFlag, teamName } from "@/lib/teams";
 import type { ProviderStatus } from "@/lib/football";
 
@@ -22,12 +24,13 @@ export default async function AdminDashboard() {
   if (!(await isAdmin())) redirect("/admin/login");
 
   const repo = await db();
-  const [participants, scores, settings, results, content] = await Promise.all([
+  const [participants, scores, settings, results, content, awards] = await Promise.all([
     repo.listParticipants(),
     repo.getScores(),
     repo.getSettings(),
     repo.getResults(),
     repo.listContent(),
+    getAwards(),
   ]);
 
   let status: ProviderStatus;
@@ -174,6 +177,17 @@ export default async function AdminDashboard() {
         </p>
         <div className="mt-4">
           <ResultsForm initial={results} />
+        </div>
+      </section>
+
+      {/* La Familia Honors */}
+      <section className="card mt-6 p-5">
+        <SectionTitle emoji="🏆">La Familia Honors</SectionTitle>
+        <p className="mt-1 text-sm text-[var(--color-muted)]">
+          Preview the awards, then reveal them on /awards for the finale.
+        </p>
+        <div className="mt-4">
+          <AwardsAdmin awards={awards} revealed={settings.awardsRevealed ?? false} />
         </div>
       </section>
 

@@ -36,9 +36,9 @@ export default async function DonePage({
     .filter(Boolean);
   const shareMessage = `My Final Four 🔥 ${finalFour.map((c) => teamFlag(c)).join(" ")} — and ${teamName(me.predictions.champion)} to lift it. 🏆
 
-La Copa de LaFamilia is a friendly World Cup challenge from LaFamilia — the largest Latine venture community — in support of Siembra. Because when one of us gets in the room, we open the door for more of us.
+La Copa de LaFamilia is a little World Cup challenge from LaFamilia, the largest Latine venture community, in support of Siembra. When one of us gets in the room, we open the door for the next.
 
-Can you beat my bracket? 👇`;
+Think you can beat my bracket? 👇`;
   const communityLine = `🤝 Join the familia: https://nas.io/lafamilia-foundation`;
   const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(`${shareMessage}\n\n${copaUrl}\n\n${communityLine}`)}`;
   const cardFile = `la-copa-lafamilia-${me.name.split(" ")[0].toLowerCase()}.png`;

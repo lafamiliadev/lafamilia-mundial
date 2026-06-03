@@ -24,6 +24,8 @@ export type ScoreRow = {
   rank: number;
   /** Rank at the previous scoring run — powers ▲/▼ movement (0 = no prior rank). */
   previousRank: number;
+  /** Rank at the first scored run (group-stage end) — powers the Highest Climber award. */
+  startRank: number;
 };
 
 export type ContentItem = {

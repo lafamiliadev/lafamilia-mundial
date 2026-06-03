@@ -96,9 +96,8 @@ export default async function CopaPage({
         <div className="mt-8 card p-5 text-center">
           <p className="text-base font-extrabold tracking-tight">What&apos;s LaFamilia? 🌎</p>
           <p className="mt-2 text-sm leading-relaxed text-[var(--color-muted)]">
-            The largest Latine venture community — where founders, operators &amp; investors find
-            their people, learn in the open, and build alongside each other. La Copa is just us
-            having fun together.
+            The largest Latine venture community. Founders, investors, and operators who actually
+            show up for each other. La Copa is just us having fun with it.
           </p>
           <a
             href="https://nas.io/lafamilia-foundation"

@@ -1,5 +1,6 @@
 import "server-only";
 import { db } from "./db";
+import { computeAwards, type AwardsResult } from "./awards";
 import { getProvider } from "./football";
 import { rankParticipants, scorePredictions } from "./scoring";
 import type { GroupMap, LeaderboardRow, Participant, Results } from "./types";
@@ -101,15 +102,25 @@ export async function recomputeScores(
   const ranks = rankParticipants(scored, actualFinalGoals);
   const rankById = new Map(ranks.map((r) => [r.participantId, r.rank]));
 
+  // Capture each entry's rank the FIRST time real points exist (group-stage end)
+  // so the Highest Climber award can measure the full-tournament climb.
+  const scoringNow = scored.some((s) => s.total > 0);
+
   await repo.saveScores(
-    scored.map((s) => ({
-      participantId: s.participantId,
-      base: s.base,
-      bonus: s.bonus,
-      total: s.total,
-      rank: rankById.get(s.participantId) ?? 0,
-      previousRank: prevScores[s.participantId]?.rank ?? 0,
-    })),
+    scored.map((s) => {
+      const prev = prevScores[s.participantId];
+      const newRank = rankById.get(s.participantId) ?? 0;
+      const existingStart = prev?.startRank ?? 0;
+      return {
+        participantId: s.participantId,
+        base: s.base,
+        bonus: s.bonus,
+        total: s.total,
+        rank: newRank,
+        previousRank: prev?.rank ?? 0,
+        startRank: existingStart > 0 ? existingStart : scoringNow ? newRank : 0,
+      };
+    }),
   );
 
   return {
@@ -192,6 +203,20 @@ export async function getLeaderboardData(
   }
 
   return { total: participants.length, top, me, leaderTotal, meGapToNext, scoringStarted };
+}
+
+/** La Familia Honors — derived from everyone's picks + final scores. */
+export async function getAwards(): Promise<AwardsResult> {
+  const repo = await db();
+  const [participants, scores, results] = await Promise.all([
+    repo.listParticipants(),
+    repo.getScores(),
+    repo.getResults(),
+  ]);
+  const lite = Object.fromEntries(
+    Object.entries(scores).map(([id, s]) => [id, { rank: s.rank, total: s.total, startRank: s.startRank }]),
+  );
+  return computeAwards(participants, lite, results);
 }
 
 export async function getParticipantCount(): Promise<number> {

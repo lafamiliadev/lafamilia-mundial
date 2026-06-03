@@ -237,6 +237,7 @@ export const memoryRepo: Repo = {
         total: r.total,
         rank: r.rank,
         previousRank: r.previousRank,
+        startRank: r.startRank,
       };
     }
     await persist({ ...data, scores });

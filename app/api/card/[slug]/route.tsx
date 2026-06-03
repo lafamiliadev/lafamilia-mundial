@@ -161,7 +161,7 @@ export async function GET(_req: Request, ctx: { params: Promise<{ slug: string }
               Can you beat my bracket?
             </div>
             <div style={{ display: "flex", alignItems: "center", border: `1.5px solid ${GOLD}`, borderRadius: "999px", padding: "12px 28px", fontSize: "22px", fontWeight: 800, color: GOLD_LT, letterSpacing: "1px" }}>
-              Make Your Picks ⚽
+              Make your picks ⚽
             </div>
             {/* Brand + community invite */}
             <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "5px", marginTop: "4px" }}>

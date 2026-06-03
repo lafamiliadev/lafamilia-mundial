@@ -1,6 +1,8 @@
+import Link from "next/link";
 import { Countdown } from "@/components/Countdown";
 import { SiembraBanner } from "@/components/Siembra";
 import { LinkButton, PageShell, SectionTitle, TopNav } from "@/components/ui";
+import { db } from "@/lib/db";
 import { getLeaderboardData } from "@/lib/services";
 import { nextScoringMilestone } from "@/lib/schedule";
 import { teamFlag } from "@/lib/teams";
@@ -110,6 +112,9 @@ export default async function LeaderboardPage({
   const { total, top, me, leaderTotal, meGapToNext, scoringStarted } =
     await getLeaderboardData(token);
   const nextDrop = nextScoringMilestone(new Date());
+  const repo = await db();
+  const settings = await repo.getSettings();
+  const honorsLive = settings.awardsRevealed ?? false;
 
   const podiumRows = top.slice(0, 3);
   const chasers = top.slice(3);
@@ -121,9 +126,19 @@ export default async function LeaderboardPage({
         <div className="py-6">
           <SectionTitle emoji="🏆">The Race</SectionTitle>
           <p className="mt-1 text-sm text-[var(--color-muted)]">
-            {total} {total === 1 ? "predictor" : "predictors"} · 🏅 <strong>Top 3 win prizes</strong>.
+            {total} predicting. <strong>Top 3 take home prizes</strong> 🏅
           </p>
         </div>
+
+        {honorsLive && (
+          <Link
+            href="/awards"
+            className="mb-5 flex items-center justify-between rounded-2xl bg-[var(--color-gold-soft)]/50 px-4 py-3 font-semibold"
+          >
+            <span>🏆 The Familia Honors are in</span>
+            <span className="text-sm">See the winners →</span>
+          </Link>
+        )}
 
         {/* Next points drop — the anticipation engine */}
         {nextDrop && (
@@ -152,8 +167,8 @@ export default async function LeaderboardPage({
               <p className="text-2xl">🏁</p>
               <p className="mt-1 font-black">At the starting line</p>
               <p className="mt-1 text-sm text-white/85">
-                Everyone&apos;s tied at 0. The race begins when the first points drop —
-                {nextDrop ? ` ${nextDrop.label.toLowerCase()}.` : " soon."}
+                Everyone&apos;s at zero. The race starts when the first points land
+                {nextDrop ? `, ${nextDrop.label.toLowerCase()}.` : " soon."}
               </p>
             </div>
             <div className="divide-y divide-[var(--color-line)]">
@@ -183,7 +198,7 @@ export default async function LeaderboardPage({
               <div className="card p-4">
                 <Podium rows={podiumRows} />
                 <p className="mt-3 text-center text-xs font-semibold text-[var(--color-muted)]">
-                  🏆 The top 3 take the prizes — keep climbing.
+                  Top 3 win. The whole board&apos;s still in play.
                 </p>
               </div>
             )}
@@ -210,7 +225,7 @@ export default async function LeaderboardPage({
                 </div>
                 {meGapToNext != null && meGapToNext > 0 && (
                   <p className="mt-2 text-center text-sm font-semibold text-[var(--color-ink)]">
-                    {meGapToNext} {meGapToNext === 1 ? "point" : "points"} behind #{me.rank - 1} — close the gap. 🔥
+                    {meGapToNext} {meGapToNext === 1 ? "point" : "points"} behind #{me.rank - 1}. Catchable. 🔥
                   </p>
                 )}
               </>
@@ -225,7 +240,7 @@ export default async function LeaderboardPage({
 
         {!token && total > 0 && (
           <p className="mt-5 text-center text-sm text-[var(--color-muted)]">
-            Open your private link to see your spot and movement here.
+            Open your private link to find yourself on the board.
           </p>
         )}
       </PageShell>
