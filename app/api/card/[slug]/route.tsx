@@ -156,16 +156,22 @@ export async function GET(_req: Request, ctx: { params: Promise<{ slug: string }
           </div>
 
           {/* ── Challenge ── */}
-          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "16px", marginTop: "34px" }}>
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "14px", marginTop: "30px" }}>
             <div style={{ display: "flex", fontSize: "40px", fontWeight: 800, color: CREAM, lineHeight: 1.05 }}>
               Can you beat my bracket?
             </div>
-            <div style={{ display: "flex", alignItems: "center", border: `1.5px solid ${GOLD}`, borderRadius: "999px", padding: "13px 30px", fontSize: "23px", fontWeight: 800, color: GOLD_LT, letterSpacing: "1px" }}>
+            <div style={{ display: "flex", alignItems: "center", border: `1.5px solid ${GOLD}`, borderRadius: "999px", padding: "12px 28px", fontSize: "22px", fontWeight: 800, color: GOLD_LT, letterSpacing: "1px" }}>
               Make Your Picks ⚽
             </div>
-            <span style={{ display: "flex", fontSize: "17px", fontWeight: 600, color: SAND, letterSpacing: "1px", opacity: 0.8 }}>
-              Built by LaFamilia
-            </span>
+            {/* Brand + community invite */}
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "5px", marginTop: "4px" }}>
+              <span style={{ display: "flex", fontSize: "19px", fontWeight: 700, color: SAND }}>
+                LaFamilia — where Latine founders &amp; investors build together
+              </span>
+              <span style={{ display: "flex", fontSize: "20px", fontWeight: 800, color: GOLD_LT, letterSpacing: "0.5px" }}>
+                Join the familia → nas.io/lafamilia-foundation
+              </span>
+            </div>
           </div>
         </div>
       </div>

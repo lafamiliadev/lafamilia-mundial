@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { RefVisitPing } from "@/components/RefVisitPing";
 import { SiembraCTA } from "@/components/Siembra";
-import { LinkButton } from "@/components/ui";
+import { Button, LinkButton } from "@/components/ui";
 import { db } from "@/lib/db";
 import { env } from "@/lib/env";
 import { teamName } from "@/lib/teams";
@@ -92,8 +92,28 @@ export default async function CopaPage({
           </p>
         </div>
 
+        {/* What's LaFamilia — brief intro + community invite */}
+        <div className="mt-8 card p-5 text-center">
+          <p className="text-base font-extrabold tracking-tight">What&apos;s LaFamilia? 🌎</p>
+          <p className="mt-2 text-sm leading-relaxed text-[var(--color-muted)]">
+            The community for Latine founders, operators &amp; investors — a place to find your
+            people, learn in the open, and build alongside each other. La Copa is just us having
+            fun together.
+          </p>
+          <a
+            href="https://nas.io/lafamilia-foundation"
+            target="_blank"
+            rel="noreferrer"
+            className="block"
+          >
+            <Button variant="primary" className="mt-4 w-full">
+              🤝 Join the familia
+            </Button>
+          </a>
+        </div>
+
         {/* Siembra — a warm, optional way to support */}
-        <div className="mt-8">
+        <div className="mt-6">
           <SiembraCTA />
         </div>
 

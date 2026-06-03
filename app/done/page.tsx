@@ -36,12 +36,11 @@ export default async function DonePage({
     .filter(Boolean);
   const shareMessage = `My Final Four 🔥 ${finalFour.map((c) => teamFlag(c)).join(" ")} — and ${teamName(me.predictions.champion)} to lift it. 🏆
 
-La Copa de LaFamilia: a little friendly competition by LaFamilia Foundation in support of Siembra, their 5-year anniversary campaign to shift more capital to Latine founders and bring more Latine investors into VC.
+La Copa de LaFamilia is a friendly World Cup challenge from LaFamilia — the community for Latine founders, operators & investors — in support of Siembra. Because when one of us gets in the room, we open the door for more of us.
 
-Because when one of us gets in the room, we open the door for more of us.
-
-Can you beat my bracket?`;
-  const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(`${shareMessage}\n\n${copaUrl}`)}`;
+Can you beat my bracket? 👇`;
+  const communityLine = `🤝 Join the familia: https://nas.io/lafamilia-foundation`;
+  const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(`${shareMessage}\n\n${copaUrl}\n\n${communityLine}`)}`;
   const cardFile = `la-copa-lafamilia-${me.name.split(" ")[0].toLowerCase()}.png`;
 
   const summary = [
