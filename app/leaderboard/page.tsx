@@ -130,6 +130,11 @@ export default async function LeaderboardPage({
           </p>
         </div>
 
+        {/* Mission, front and center — supporting Siembra is why we play. */}
+        <div className="mb-5">
+          <SiembraBanner />
+        </div>
+
         {honorsLive && (
           <Link
             href="/awards"
@@ -232,11 +237,6 @@ export default async function LeaderboardPage({
             )}
           </>
         )}
-
-        {/* Mission — never blocks the game */}
-        <div className="mt-6">
-          <SiembraBanner />
-        </div>
 
         {!token && total > 0 && (
           <p className="mt-5 text-center text-sm text-[var(--color-muted)]">

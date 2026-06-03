@@ -24,12 +24,26 @@ const Cell = ({ value, label }: { value: number; label: string }) => (
 
 export function Countdown({ lockTime }: { lockTime: string }) {
   const target = new Date(lockTime).getTime();
-  const [t, setT] = useState(() => diff(target));
+  // Start null so SSR and the first client paint match (the clock only differs
+  // once mounted) — avoids a hydration mismatch on the ticking digits.
+  const [t, setT] = useState<ReturnType<typeof diff> | null>(null);
 
   useEffect(() => {
+    setT(diff(target));
     const id = setInterval(() => setT(diff(target)), 1000);
     return () => clearInterval(id);
   }, [target]);
+
+  if (!t) {
+    return (
+      <div className="flex items-end gap-2">
+        <Cell value={0} label="days" />
+        <Cell value={0} label="hrs" />
+        <Cell value={0} label="min" />
+        <Cell value={0} label="sec" />
+      </div>
+    );
+  }
 
   if (t.done) {
     return (
