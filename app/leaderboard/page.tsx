@@ -37,7 +37,10 @@ function Move({ delta }: { delta?: number }) {
 function Lane({ r, leaderTotal }: { r: LeaderboardRow; leaderTotal: number }) {
   const pct = leaderTotal > 0 ? Math.max(4, Math.round((r.total / leaderTotal) * 100)) : 0;
   return (
-    <div className={`px-4 py-3 ${r.isMe ? "bg-[var(--color-gold-soft)]/40" : ""}`}>
+    <Link
+      href={`/copa/${r.slug}`}
+      className={`block px-4 py-3 transition hover:bg-black/[0.02] ${r.isMe ? "bg-[var(--color-gold-soft)]/40" : ""}`}
+    >
       <div className="flex items-center gap-3">
         <div className="w-6 text-center text-sm font-black tabular-nums text-[var(--color-muted)]">
           {r.rank}
@@ -55,9 +58,10 @@ function Lane({ r, leaderTotal }: { r: LeaderboardRow; leaderTotal: number }) {
           <Move delta={r.delta} />
         </div>
         <div className="w-12 shrink-0 text-right text-lg font-black tabular-nums">{r.total}</div>
+        <span className="shrink-0 text-[var(--color-muted)]">›</span>
       </div>
       {/* race track */}
-      <div className="mt-2 ml-9 h-2 overflow-hidden rounded-full bg-[var(--color-line)]">
+      <div className="mt-2 ml-9 mr-5 h-2 overflow-hidden rounded-full bg-[var(--color-line)]">
         <div
           className="h-full rounded-full transition-all duration-500"
           style={{
@@ -66,7 +70,7 @@ function Lane({ r, leaderTotal }: { r: LeaderboardRow; leaderTotal: number }) {
           }}
         />
       </div>
-    </div>
+    </Link>
   );
 }
 
@@ -81,14 +85,16 @@ function Podium({ rows }: { rows: LeaderboardRow[] }) {
         const place = placeFor(r);
         const p = PODIUM[place];
         return (
-          <div key={r.name + i} className="flex flex-col items-center">
+          <Link key={r.name + i} href={`/copa/${r.slug}`} className="flex flex-col items-center">
             {place === 0 && <div className="text-xl leading-none">👑</div>}
             <div
               className={`mb-1 flex h-12 w-12 items-center justify-center rounded-full bg-white text-xl ring-2 ${p.ring}`}
             >
               {p.medal}
             </div>
-            <p className="max-w-full truncate text-center text-sm font-bold">{r.name}</p>
+            <p className="max-w-full truncate text-center text-sm font-bold underline-offset-4 hover:underline">
+              {r.name}
+            </p>
             <p className="text-xs font-semibold text-[var(--color-muted)]">{r.total} pts</p>
             <div
               className={`mt-2 flex w-full ${p.bar} items-start justify-center rounded-t-xl pt-2 text-lg font-black text-white`}
@@ -96,7 +102,7 @@ function Podium({ rows }: { rows: LeaderboardRow[] }) {
             >
               {place + 1}
             </div>
-          </div>
+          </Link>
         );
       })}
     </div>
@@ -128,6 +134,9 @@ export default async function LeaderboardPage({
           <p className="mt-1 text-sm text-[var(--color-muted)]">
             {total} predicting. <strong>Top 3 take home prizes</strong> 🏅
           </p>
+          {total > 0 && (
+            <p className="mt-1 text-xs text-[var(--color-muted)]">Tap anyone to see their bracket.</p>
+          )}
         </div>
 
         {/* Mission, front and center — supporting Siembra is why we play. */}
@@ -178,9 +187,10 @@ export default async function LeaderboardPage({
             </div>
             <div className="divide-y divide-[var(--color-line)]">
               {top.map((r) => (
-                <div
+                <Link
+                  href={`/copa/${r.slug}`}
                   key={`${r.rank}-${r.name}`}
-                  className={`flex items-center gap-3 px-4 py-3 ${
+                  className={`flex items-center gap-3 px-4 py-3 transition hover:bg-black/[0.02] ${
                     r.isMe ? "bg-[var(--color-gold-soft)]/40" : ""
                   }`}
                 >
@@ -192,7 +202,8 @@ export default async function LeaderboardPage({
                     </span>
                   )}
                   <span className="text-sm font-semibold text-[var(--color-muted)]">0 pts</span>
-                </div>
+                  <span className="text-[var(--color-muted)]">›</span>
+                </Link>
               ))}
             </div>
           </div>

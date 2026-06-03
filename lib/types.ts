@@ -112,6 +112,8 @@ export type ScoreBreakdown = {
 export type LeaderboardRow = {
   rank: number;
   name: string;
+  /** Public handle → /copa/[slug], so rows link to each member's bracket. */
+  slug: string;
   rootingCountry: string | null;
   total: number;
   /** Rank change since the last scoring run: + climbed, − dropped, 0 = none/new. */

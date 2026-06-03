@@ -158,6 +158,7 @@ export async function getLeaderboardData(
       rank: scores[p.id]?.rank ?? 0,
       previousRank: scores[p.id]?.previousRank ?? 0,
       name: p.name,
+      slug: p.slug,
       rootingCountry: p.rootingCountry,
       total: scores[p.id]?.total ?? 0,
     }))
@@ -184,6 +185,7 @@ export async function getLeaderboardData(
   const withDelta = (r: (typeof rows)[number]): LeaderboardRow => ({
     rank: r.rank,
     name: r.name,
+    slug: r.slug,
     rootingCountry: r.rootingCountry,
     total: r.total,
     delta: r.previousRank > 0 ? r.previousRank - r.rank : 0,
