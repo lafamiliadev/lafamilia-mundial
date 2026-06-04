@@ -138,39 +138,6 @@ export default async function LeaderboardPage({
           {total > 0 && (
             <p className="mt-1 text-xs text-[var(--color-muted)]">Tap anyone to see their bracket.</p>
           )}
-
-          {/* Quiet, tap-to-expand scoring explainer — keeps the board clean. */}
-          <details className="mt-2">
-            <summary className="inline-flex cursor-pointer list-none items-center gap-1 text-xs font-semibold text-[var(--color-muted)] underline-offset-4 hover:underline [&::-webkit-details-marker]:hidden">
-              ⓘ How points work
-            </summary>
-            <div className="card mt-2 p-4 text-sm">
-              <ul className="space-y-1.5">
-                <li className="flex items-center justify-between gap-3">
-                  <span>🥇 Group winners</span>
-                  <span className="font-semibold">{w.groupWinner} each · up to {w.groupWinner * 12}</span>
-                </li>
-                <li className="flex items-center justify-between gap-3">
-                  <span>🎯 Final Four</span>
-                  <span className="font-semibold">{w.semifinalist} each · up to {w.semifinalist * 4}</span>
-                </li>
-                <li className="flex items-center justify-between gap-3">
-                  <span>🏆 Champion</span>
-                  <span className="font-semibold">{w.champion}</span>
-                </li>
-                <li className="flex items-center justify-between gap-3">
-                  <span>🧹 All 12 groups right</span>
-                  <span className="font-semibold">+{w.groupSweepBonus}</span>
-                </li>
-              </ul>
-              <p className="mt-3 text-xs text-[var(--color-muted)]">
-                Ties are broken by your goals-in-the-final guess.
-              </p>
-              <p className="mt-1 text-xs font-semibold text-[var(--color-ink)]">
-                Sharpest read across the whole tournament wins — not just the champion.
-              </p>
-            </div>
-          </details>
         </div>
 
         {/* Mission, front and center — supporting Siembra is why we play. */}
@@ -194,8 +161,44 @@ export default async function LeaderboardPage({
             <p className="text-xs font-bold uppercase tracking-wider text-[var(--color-gold-soft)]">
               ⚡ Next points drop · {nextDrop.pointsInPlay} pts in play
             </p>
-            <p className="mb-3 text-sm font-semibold">{nextDrop.label}</p>
-            <Countdown lockTime={nextDrop.dateIso} />
+            <p className="text-sm font-semibold">{nextDrop.label}</p>
+
+            {/* Quiet, tap-to-expand scoring explainer */}
+            <details className="mt-1">
+              <summary className="inline-flex cursor-pointer list-none items-center gap-1 text-xs font-semibold text-[var(--color-gold-soft)] underline-offset-4 hover:underline [&::-webkit-details-marker]:hidden">
+                ⓘ How points work
+              </summary>
+              <div className="mt-2 rounded-xl bg-white/10 p-3 text-sm">
+                <ul className="space-y-1.5">
+                  <li className="flex items-center justify-between gap-3">
+                    <span>🥇 Group winners</span>
+                    <span className="font-semibold">{w.groupWinner} each · up to {w.groupWinner * 12}</span>
+                  </li>
+                  <li className="flex items-center justify-between gap-3">
+                    <span>🎯 Final Four</span>
+                    <span className="font-semibold">{w.semifinalist} each · up to {w.semifinalist * 4}</span>
+                  </li>
+                  <li className="flex items-center justify-between gap-3">
+                    <span>🏆 Champion</span>
+                    <span className="font-semibold">{w.champion}</span>
+                  </li>
+                  <li className="flex items-center justify-between gap-3">
+                    <span>🧹 All 12 groups right</span>
+                    <span className="font-semibold">+{w.groupSweepBonus}</span>
+                  </li>
+                </ul>
+                <p className="mt-2 text-xs text-white/70">
+                  Ties are broken by your goals-in-the-final guess.
+                </p>
+                <p className="mt-1 text-xs font-semibold">
+                  Sharpest read across the whole tournament wins — not just the champion.
+                </p>
+              </div>
+            </details>
+
+            <div className="mt-3">
+              <Countdown lockTime={nextDrop.dateIso} />
+            </div>
           </div>
         )}
 
