@@ -72,8 +72,31 @@ export default async function Home() {
             )}
           </div>
 
-          {/* 4 — How the Familia plays (soft nested panel) */}
-          <div className="mt-7 rounded-2xl bg-white/10 p-5 text-left backdrop-blur">
+          {/* 4 — Predictions close in + primary CTA (the conversion area, high up) */}
+          <div className="mt-8">
+            <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-[var(--color-gold-soft)]">
+              Predictions close in
+            </p>
+            <div className="mt-3 flex justify-center">
+              <Countdown lockTime={settings.lockTime} />
+            </div>
+
+            {/* 5 — Primary CTA */}
+            <LinkButton href="/play" variant="gold" className="mt-6 w-full text-lg shadow-md">
+              Submit Predictions →
+            </LinkButton>
+
+            {/* 6 — Secondary link */}
+            <p className="mt-3 text-sm text-white/80">
+              Already played?{" "}
+              <Link href="/edit" className="font-semibold text-white underline underline-offset-4">
+                Edit your picks
+              </Link>
+            </p>
+          </div>
+
+          {/* 7 — How the Familia plays (soft nested panel, below the conversion area) */}
+          <div className="mt-8 rounded-2xl bg-white/10 p-5 text-left backdrop-blur">
             <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-white/60">
               How the Familia plays
             </p>
@@ -94,29 +117,6 @@ export default async function Home() {
                 </li>
               ))}
             </ul>
-          </div>
-
-          {/* 5 — Predictions close in */}
-          <div className="mt-7 border-t border-white/10 pt-7">
-            <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-[var(--color-gold-soft)]">
-              Predictions close in
-            </p>
-            <div className="mt-3 flex justify-center">
-              <Countdown lockTime={settings.lockTime} />
-            </div>
-
-            {/* 6 — Primary CTA */}
-            <LinkButton href="/play" variant="gold" className="mt-6 w-full text-lg shadow-md">
-              Submit Predictions →
-            </LinkButton>
-
-            {/* 7 — Secondary link */}
-            <p className="mt-3 text-sm text-white/80">
-              Already played?{" "}
-              <Link href="/edit" className="font-semibold text-white underline underline-offset-4">
-                Edit your picks
-              </Link>
-            </p>
           </div>
         </div>
       </section>
