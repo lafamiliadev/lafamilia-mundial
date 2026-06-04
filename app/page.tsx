@@ -16,6 +16,8 @@ import { teamFlag, teamName } from "@/lib/teams";
 
 export const dynamic = "force-dynamic";
 
+const SIEMBRA_URL = "https://givebutter.com/siembra-con-lafamilia-foundation";
+
 const STEPS = [
   {
     Icon: GroupsIcon,
@@ -67,10 +69,21 @@ export default async function Home() {
             {" ⚽"}
           </h1>
 
-          {/* 2 — Story line */}
-          <p className="mx-auto mt-3 max-w-sm text-base leading-relaxed text-white/85">
-            Five years of LaFamilia and Siembra — celebrated together by the Latine venture
-            ecosystem, over the World Cup.
+          {/* 2 — Subtitle */}
+          <p className="mx-auto mt-3 max-w-sm text-base leading-relaxed text-white/90">
+            The World Cup challenge for the Familia behind Latine innovation.
+          </p>
+          <p className="mx-auto mt-2 max-w-sm text-sm leading-relaxed text-white/65">
+            Free to play. Built to celebrate 5 years of LaFamilia and bring visibility to{" "}
+            <a
+              href={SIEMBRA_URL}
+              target="_blank"
+              rel="noreferrer"
+              className="font-semibold text-[var(--color-gold-soft)] underline underline-offset-2"
+            >
+              Siembra
+            </a>
+            , our optional fundraising campaign.
           </p>
 
           {/* 3 — Social proof */}
