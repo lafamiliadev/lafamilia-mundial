@@ -10,7 +10,7 @@ import {
   TrophyIcon,
 } from "@/components/icons";
 import { db } from "@/lib/db";
-import { getParticipantCount, getTopChampionPick } from "@/lib/services";
+import { getTopChampionPick } from "@/lib/services";
 import { teamFlag, teamName } from "@/lib/teams";
 
 export const dynamic = "force-dynamic";
@@ -36,18 +36,24 @@ const STEPS = [
     Icon: SproutIcon,
     text: "Support Siembra and help LaFamilia keep growing.",
     optional: true,
-    chip: "bg-[var(--color-siembra)]/12 text-[var(--color-siembra)]",
+    chip: "bg-[var(--color-pitch)]/10 text-[var(--color-pitch)]",
   },
 ];
 
+const ROLES = ["Founders", "Investors", "Angels", "Operators", "Ecosystem builders"];
 const FIESTA = "linear-gradient(135deg, #ff2d6f 0%, #ff6b1a 55%, #ffb627 100%)";
 
 export default async function Home() {
-  const [count, topPick, settings] = await Promise.all([
-    getParticipantCount(),
+  const repo = await db();
+  const [topPick, settings, participants] = await Promise.all([
     getTopChampionPick(),
-    (await db()).getSettings(),
+    repo.getSettings(),
+    repo.listParticipants(),
   ]);
+  const count = participants.length;
+  const rootingFlags = [
+    ...new Set(participants.map((p) => p.rootingCountry).filter(Boolean)),
+  ] as string[];
 
   return (
     <main className="flex flex-1 flex-col">
@@ -63,11 +69,11 @@ export default async function Home() {
             {"La Copa de LaFamilia ⚽"}
           </h1>
           <p className="mx-auto mt-3 max-w-sm text-base leading-relaxed text-white/85">
-            A World Cup challenge celebrating 5 years of LaFamilia — and the people building the
-            Latine venture ecosystem, together.
+            Five years of LaFamilia, celebrated the way we do best — together, with a little
+            friendly rivalry over the World Cup.
           </p>
 
-          {/* Social proof — the Familia is showing up */}
+          {/* The Familia is showing up */}
           <div className="mt-6 flex flex-wrap items-center justify-center gap-2">
             <span className="inline-flex items-center gap-2 rounded-full bg-white/12 px-4 py-2 text-sm font-bold backdrop-blur">
               <PeopleIcon className="h-4 w-4 text-[var(--color-gold-soft)]" />
@@ -83,9 +89,53 @@ export default async function Home() {
         </div>
       </section>
 
-      <section className="mx-auto w-full max-w-md px-4 pb-20 pt-6">
+      <section className="mx-auto w-full max-w-md px-5 pb-20 pt-10">
+        {/* The story */}
+        <p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--color-coral)]">
+          Celebrating five years
+        </p>
+        <h2 className="mt-2 text-2xl font-extrabold leading-tight tracking-tight">
+          More than a bracket. It&apos;s the Familia.
+        </h2>
+        <p className="mt-3 text-[15px] leading-relaxed text-[var(--color-muted)]">
+          LaFamilia started with one idea — when one of us gets in the room, we open the door for
+          the next. Five years later, we&apos;re founders, investors, angels, operators, and
+          builders across the Latine ecosystem. La Copa is how we celebrate that together, while
+          backing <span className="font-semibold text-[var(--color-pitch)]">Siembra</span> and the
+          founders coming up next.
+        </p>
+
+        {/* Roles — the whole community, in one bracket */}
+        <div className="mt-4 flex flex-wrap gap-2">
+          {ROLES.map((r) => (
+            <span
+              key={r}
+              className="rounded-full border border-[var(--color-line)] bg-[var(--color-cream)] px-3 py-1 text-xs font-semibold text-[var(--color-ink)]"
+            >
+              {r}
+            </span>
+          ))}
+        </div>
+
+        {/* Who's in the room — real flags from the Familia */}
+        {rootingFlags.length > 0 && (
+          <div className="mt-7 rounded-2xl border border-[var(--color-line)] bg-white p-4">
+            <p className="text-xs font-bold uppercase tracking-wider text-[var(--color-muted)]">
+              The Familia&apos;s rooting for {rootingFlags.length}{" "}
+              {rootingFlags.length === 1 ? "nation" : "nations"}
+            </p>
+            <div className="mt-3 flex flex-wrap gap-2 text-[1.7rem] leading-none">
+              {rootingFlags.map((code) => (
+                <span key={code} title={teamName(code)}>
+                  {teamFlag(code)}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* How the Familia plays */}
-        <div className="card p-5">
+        <div className="card mt-10 p-5">
           <p className="mb-4 text-xs font-bold uppercase tracking-wider text-[var(--color-muted)]">
             How the Familia plays
           </p>
@@ -123,7 +173,7 @@ export default async function Home() {
             href="/play"
             className="mt-7 flex min-h-[56px] w-full items-center justify-center gap-2 rounded-2xl bg-white px-6 text-lg font-bold text-[var(--color-pitch)] shadow-md transition active:scale-[0.98]"
           >
-            Submit Predictions →
+            Make your picks →
           </Link>
           <p className="mt-3 text-sm text-white/85">
             Already played?{" "}
@@ -144,7 +194,7 @@ export default async function Home() {
             </span>
             <p className="mt-3 font-bold">Leaderboard</p>
             <p className="mt-1 flex-1 text-sm text-[var(--color-muted)]">
-              See who&apos;s leading the tournament
+              See who&apos;s leading the Familia
             </p>
             <ArrowRightIcon className="mt-3 h-4 w-4 text-[var(--color-muted)] transition group-hover:translate-x-0.5 group-hover:text-[var(--color-pitch)]" />
           </Link>
@@ -158,18 +208,18 @@ export default async function Home() {
             </span>
             <p className="mt-3 font-bold">Community Insights</p>
             <p className="mt-1 flex-1 text-sm text-[var(--color-muted)]">
-              See how the community is predicting
+              See how the Familia is predicting
             </p>
             <ArrowRightIcon className="mt-3 h-4 w-4 text-[var(--color-muted)] transition group-hover:translate-x-0.5 group-hover:text-[var(--color-coral)]" />
           </Link>
         </div>
 
         {/* Belonging — the heart of it */}
-        <p className="mt-8 text-center text-base font-bold tracking-tight text-[var(--color-ink)]">
+        <p className="mt-10 text-center text-lg font-extrabold tracking-tight text-[var(--color-ink)]">
           When one of us wins, the Familia wins. 🌎
         </p>
         <p className="mt-1 text-center text-sm text-[var(--color-muted)]">
-          Made by the Familia, for the Familia.
+          Hecho por la Familia, para la Familia.
         </p>
       </section>
     </main>
