@@ -11,8 +11,11 @@ import {
 } from "@/components/icons";
 import { LinkButton } from "@/components/ui";
 import { db } from "@/lib/db";
-import { getTopChampionPick } from "@/lib/services";
+import { getLeaderboardData, getTopChampionPick } from "@/lib/services";
+import { getSessionParticipant } from "@/lib/session";
+import { BONUS_POINTS_AVAILABLE, pickStatus } from "@/lib/schedule";
 import { teamFlag, teamName } from "@/lib/teams";
+import { EMPTY_BONUS } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -27,12 +30,39 @@ const STEPS = [
 
 export default async function Home() {
   const repo = await db();
-  const [topPick, settings, participants] = await Promise.all([
+  const [topPick, settings, participants, me] = await Promise.all([
     getTopChampionPick(),
     repo.getSettings(),
     repo.listParticipants(),
+    getSessionParticipant(),
   ]);
   const count = participants.length;
+
+  // Returning member? Greet them and point at their next action.
+  if (me) {
+    const board = await getLeaderboardData(me.resumeToken);
+    const status = pickStatus(new Date(), settings.lockTime);
+    const bonusFilled = Object.values(me.predictions.bonus ?? EMPTY_BONUS).filter(Boolean).length;
+    const picksOpen = status.state === "bonus-open" ? 4 - bonusFilled : status.state === "round-open" ? 1 : 0;
+    const ptsAvailable = status.state === "bonus-open" ? BONUS_POINTS_AVAILABLE : status.state === "round-open" ? status.round.pointsInPlay : 0;
+    const rival = board.me && board.me.rank > 1 ? board.top.find((r) => r.rank === board.me!.rank - 1) : null;
+
+    return (
+      <main className="flex flex-1 flex-col">
+        <ReturningHero
+          name={me.name.split(" ")[0]}
+          rank={board.me?.rank ?? null}
+          total={board.total}
+          lockTime={settings.lockTime}
+          picksOpen={picksOpen}
+          ptsAvailable={ptsAvailable}
+          gapToNext={board.meGapToNext}
+          rivalName={rival?.name ?? null}
+        />
+        <HowAndExplore />
+      </main>
+    );
+  }
 
   return (
     <main className="flex flex-1 flex-col">
@@ -105,7 +135,14 @@ export default async function Home() {
         </div>
       </section>
 
-      {/* Below — how to play, then the deeper community story */}
+      <HowAndExplore />
+    </main>
+  );
+}
+
+/** Shared below-the-hero content (how to play + explore + belonging). */
+function HowAndExplore() {
+  return (
       <section className="mx-auto w-full max-w-md px-4 pb-20 pt-6">
         {/* How the Familia plays */}
         <div className="card p-5">
@@ -170,6 +207,97 @@ export default async function Home() {
           Hecho por LaFamilia, para LaFamilia.
         </p>
       </section>
-    </main>
+  );
+}
+
+/** Returning-member hero: greet, show rank + the next open action. */
+function ReturningHero({
+  name,
+  rank,
+  total,
+  lockTime,
+  picksOpen,
+  ptsAvailable,
+  gapToNext,
+  rivalName,
+}: {
+  name: string;
+  rank: number | null;
+  total: number;
+  lockTime: string;
+  picksOpen: number;
+  ptsAvailable: number;
+  gapToNext: number | null;
+  rivalName: string | null;
+}) {
+  const hasOpen = picksOpen > 0;
+  return (
+    <section className="bg-stadium px-5 pb-10 pt-14 text-left text-white">
+      <div className="mx-auto max-w-md">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/lafamilia-logo-white.svg" alt="LaFamilia" className="h-12 w-auto" />
+
+        <h1 className="mt-6 text-3xl font-black leading-tight tracking-tight">
+          Welcome back, {name} 👋
+        </h1>
+        <div className="mt-3 flex flex-wrap items-center gap-2 text-sm">
+          {rank ? (
+            <span className="inline-flex items-center gap-1.5 rounded-xl bg-white/12 px-3 py-2 font-bold backdrop-blur">
+              🏆 You&apos;re #{rank} of {total} in the Familia
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1.5 rounded-xl bg-white/12 px-3 py-2 font-bold backdrop-blur">
+              🏁 You&apos;re on the board with {total} of the Familia
+            </span>
+          )}
+        </div>
+
+        <div className="mt-6 rounded-2xl border border-white/15 bg-white/[0.06] px-5 py-6 backdrop-blur-sm">
+          {hasOpen ? (
+            <>
+              <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-[var(--color-gold-soft)]">
+                {picksOpen} {picksOpen === 1 ? "pick" : "picks"} open · {ptsAvailable} pts available
+              </p>
+              <div className="mt-3 flex justify-start">
+                <Countdown lockTime={lockTime} />
+              </div>
+              <LinkButton href="/picks" variant="gold" className="mt-6 w-full text-lg shadow-md">
+                Make My Picks →
+              </LinkButton>
+              {gapToNext != null && gapToNext > 0 && rivalName ? (
+                <p className="mt-3 text-sm text-white/80">
+                  {gapToNext} {gapToNext === 1 ? "pt" : "pts"} behind {rivalName}. Catchable. 🔥
+                </p>
+              ) : (
+                <p className="mt-3 text-sm text-white/80">
+                  Your picks count toward the Overall leaderboard.
+                </p>
+              )}
+            </>
+          ) : (
+            <>
+              <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-[var(--color-gold-soft)]">
+                You&apos;re all set for now
+              </p>
+              <p className="mt-2 text-sm text-white/85">
+                Your picks are locked in. Your next round of points opens soon — we&apos;ll let you know.
+              </p>
+              <LinkButton href="/picks" variant="gold" className="mt-5 w-full text-lg shadow-md">
+                See my picks →
+              </LinkButton>
+            </>
+          )}
+        </div>
+
+        <div className="mt-4 grid grid-cols-2 gap-2">
+          <LinkButton href="/leaderboard" variant="outline" className="w-full !bg-white/12 !border-white/15 !text-white backdrop-blur">
+            🏆 Leaderboard
+          </LinkButton>
+          <LinkButton href="/insights" variant="outline" className="w-full !bg-white/12 !border-white/15 !text-white backdrop-blur">
+            📊 Insights
+          </LinkButton>
+        </div>
+      </div>
+    </section>
   );
 }

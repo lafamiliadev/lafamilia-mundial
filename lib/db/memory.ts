@@ -3,7 +3,7 @@ import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { DEFAULT_SETTINGS, DEFAULT_WEIGHTS, EMPTY_RESULTS } from "../types";
 import { baseSlug, uniqueSlug } from "../slug";
-import type { Participant, Predictions, Results, Settings } from "../types";
+import type { DailyPick, LivePick, Participant, Predictions, Results, Settings } from "../types";
 import type {
   ContentItem,
   CreateParticipantInput,
@@ -20,6 +20,8 @@ type Shape = {
   participants: Participant[];
   results: Results;
   scores: Record<string, Omit<ScoreRow, "participantId">>;
+  livePicks: Record<string, LivePick[]>;
+  dailyPicks: Record<string, DailyPick[]>;
   content: ContentItem[];
 };
 
@@ -31,6 +33,8 @@ const EMPTY_SHAPE = (): Shape => ({
   participants: [],
   results: EMPTY_RESULTS,
   scores: {},
+  livePicks: {},
+  dailyPicks: {},
   content: [],
 });
 
@@ -76,12 +80,13 @@ function normalize(data: Shape): { data: Shape; mutated: boolean } {
     // Migrate predictions to the new shape: preserve champion (pre-fills on
     // re-pick), drop the old 6-pick fields, ensure new keys exist.
     const pred = p.predictions as Partial<Predictions> & Record<string, unknown>;
-    if (pred && (!("groupWinners" in pred) || !("semifinalists" in pred))) {
+    if (pred && (!("groupWinners" in pred) || !("semifinalists" in pred) || !("bonus" in pred))) {
       p.predictions = {
         groupWinners: (pred.groupWinners as Predictions["groupWinners"]) ?? null,
         semifinalists: (pred.semifinalists as Predictions["semifinalists"]) ?? null,
         champion: (pred.champion as string | null) ?? null,
         finalTotalGoals: (pred.finalTotalGoals as number | null) ?? null,
+        bonus: (pred.bonus as Predictions["bonus"]) ?? null,
       };
       mutated = true;
     }
@@ -232,8 +237,9 @@ export const memoryRepo: Repo = {
     const scores: Shape["scores"] = {};
     for (const r of rows) {
       scores[r.participantId] = {
-        base: r.base,
+        bracket: r.bracket,
         bonus: r.bonus,
+        live: r.live,
         total: r.total,
         rank: r.rank,
         previousRank: r.previousRank,
@@ -241,6 +247,26 @@ export const memoryRepo: Repo = {
       };
     }
     await persist({ ...data, scores });
+  },
+
+  async getLivePicks(participantId) {
+    return (await load()).livePicks?.[participantId] ?? [];
+  },
+  async saveLivePicks(participantId, picks) {
+    const data = await load();
+    const livePicks = { ...(data.livePicks ?? {}), [participantId]: picks };
+    await persist({ ...data, livePicks });
+  },
+  async listLivePicks() {
+    return (await load()).livePicks ?? {};
+  },
+  async getDailyPicks(participantId) {
+    return (await load()).dailyPicks?.[participantId] ?? [];
+  },
+  async saveDailyPicks(participantId, picks) {
+    const data = await load();
+    const dailyPicks = { ...(data.dailyPicks ?? {}), [participantId]: picks };
+    await persist({ ...data, dailyPicks });
   },
 
   async listContent() {

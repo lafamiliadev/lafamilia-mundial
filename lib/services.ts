@@ -10,14 +10,12 @@ import type { GroupMap, LeaderboardRow, Participant, Results } from "./types";
 function mergeResults(provider: Results, stored: Results): Results {
   return {
     champion: stored.champion ?? provider.champion,
-    groupWinners: {
-      ...provider.groupWinners,
-      ...stored.groupWinners, // admin-specified group winners take precedence
-    },
-    stageReached: {
-      ...provider.stageReached,
-      ...stored.stageReached, // admin-specified stages take precedence
-    },
+    groupWinners: { ...provider.groupWinners, ...stored.groupWinners },
+    stageReached: { ...provider.stageReached, ...stored.stageReached },
+    goldenBall: stored.goldenBall ?? provider.goldenBall,
+    goldenBoot: stored.goldenBoot ?? provider.goldenBoot,
+    goldenGlove: stored.goldenGlove ?? provider.goldenGlove,
+    matchWinners: { ...provider.matchWinners, ...stored.matchWinners },
   };
 }
 
@@ -82,28 +80,24 @@ export async function recomputeScores(
 
   const participants = await repo.listParticipants();
   const actualFinalGoals = null; // could be derived from results in future
-
-  // Snapshot each participant's CURRENT rank before recomputing — this becomes
-  // their "previous rank" so the board can show ▲/▼ movement.
   const prevScores = await repo.getScores();
+  const allLivePicks = await repo.listLivePicks(); // empty until Phase 2
 
   const scored = participants.map((p) => {
-    const s = scorePredictions(p.predictions, merged, settings);
+    const s = scorePredictions(p.predictions, merged, settings, allLivePicks[p.id] ?? []);
     return {
       participantId: p.id,
       name: p.name,
       total: s.total,
-      base: s.base,
+      bracket: s.bracket,
       bonus: s.bonus,
+      live: s.live,
       finalTotalGoals: p.predictions.finalTotalGoals,
     };
   });
 
   const ranks = rankParticipants(scored, actualFinalGoals);
   const rankById = new Map(ranks.map((r) => [r.participantId, r.rank]));
-
-  // Capture each entry's rank the FIRST time real points exist (group-stage end)
-  // so the Highest Climber award can measure the full-tournament climb.
   const scoringNow = scored.some((s) => s.total > 0);
 
   await repo.saveScores(
@@ -113,8 +107,9 @@ export async function recomputeScores(
       const existingStart = prev?.startRank ?? 0;
       return {
         participantId: s.participantId,
-        base: s.base,
+        bracket: s.bracket,
         bonus: s.bonus,
+        live: s.live,
         total: s.total,
         rank: newRank,
         previousRank: prev?.rank ?? 0,
@@ -143,14 +138,24 @@ export type LeaderboardData = {
   scoringStarted: boolean;
 };
 
-/** Build the leaderboard, optionally highlighting the viewer's row by token. */
+export type LeaderboardView = "overall" | "bracket" | "live";
+
+/** Build a leaderboard view ("overall" total, "bracket"-only, or "live"-only),
+ * optionally highlighting the viewer's row by token. `total` on each row is the
+ * points for the chosen view; movement (▲/▼) reflects the Overall rank. */
 export async function getLeaderboardData(
   token?: string | null,
   topN = 10,
+  view: LeaderboardView = "overall",
 ): Promise<LeaderboardData> {
   const repo = await db();
   const participants = await repo.listParticipants();
   const scores = await repo.getScores();
+  const pointsFor = (id: string) => {
+    const s = scores[id];
+    if (!s) return 0;
+    return view === "bracket" ? s.bracket : view === "live" ? s.live : s.total;
+  };
 
   const rows: (LeaderboardRow & { id: string; previousRank: number })[] = participants
     .map((p) => ({
@@ -161,7 +166,7 @@ export async function getLeaderboardData(
       slug: p.slug,
       rootingCountry: p.rootingCountry,
       champion: p.predictions.champion,
-      total: scores[p.id]?.total ?? 0,
+      total: pointsFor(p.id),
     }))
     .sort((a, b) => {
       if (b.total !== a.total) return b.total - a.total;

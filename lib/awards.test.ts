@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { computeAwards } from "./awards";
+import { EMPTY_RESULTS } from "./types";
 import type { Participant, Predictions, Results } from "./types";
 
 const LETTERS = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L"];
@@ -33,6 +34,7 @@ function participant(
 }
 
 const results: Results = {
+  ...EMPTY_RESULTS,
   champion: "ARG",
   groupWinners: groups(ACTUAL),
   stageReached: { sf: ["BRA", "FRA", "ESP", "ARG"] },
@@ -44,6 +46,7 @@ const maria = participant("p1", "Maria", "ARG", {
   semifinalists: ["BRA", "FRA", "ESP", "ARG"],
   champion: "ARG",
   finalTotalGoals: 3,
+  bonus: null,
 });
 // Carlos: 8/12 groups, 3/4 Final Four, champion BRA
 const carlos = participant("p2", "Carlos", "BRA", {
@@ -51,6 +54,7 @@ const carlos = participant("p2", "Carlos", "BRA", {
   semifinalists: ["BRA", "FRA", "ESP", "GER"],
   champion: "BRA",
   finalTotalGoals: 2,
+  bonus: null,
 });
 // Sofia: 12/12 groups, perfect Final Four, big climber, not LatAm
 const sofia = participant("p3", "Sofia", "USA", {
@@ -58,6 +62,7 @@ const sofia = participant("p3", "Sofia", "USA", {
   semifinalists: ["BRA", "FRA", "ESP", "ARG"],
   champion: "ESP",
   finalTotalGoals: 4,
+  bonus: null,
 });
 
 const scores = {

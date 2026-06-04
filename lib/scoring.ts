@@ -1,5 +1,15 @@
+import { playerName } from "./players";
 import { TEAM_BY_CODE } from "./teams";
-import type { Predictions, Results, ScoreBreakdown, Settings } from "./types";
+import {
+  LIVE_ROUND_POINTS,
+  type LivePick,
+  type Predictions,
+  type Results,
+  type ScoreLine,
+  type ScoreResult,
+  type Settings,
+  type Stage,
+} from "./types";
 
 function teamLabel(code: string): string {
   return TEAM_BY_CODE[code]?.name ?? code;
@@ -10,66 +20,97 @@ function actualSemifinalists(results: Results): string[] {
   return results.stageReached.sf ?? [];
 }
 
+const STAGE_ORDER: Stage[] = ["r16", "qf", "sf", "final", "champion"];
+function reachedAtLeast(results: Results, code: string | null, stage: Stage): boolean {
+  if (!code) return false;
+  const minIdx = STAGE_ORDER.indexOf(stage);
+  for (let i = minIdx; i < STAGE_ORDER.length; i++) {
+    if ((results.stageReached[STAGE_ORDER[i]] ?? []).includes(code)) return true;
+  }
+  return false;
+}
+
 /**
- * Pure scoring function for the "Group Winners + Final Four" format. Given one
- * participant's predictions, the actual results, and configured settings,
- * returns a full point breakdown. Deterministic + side-effect free → trivially
- * unit-testable and reused by both the cron route and admin "Recalculate".
- *
- * Scoring waves over the tournament:
- *  - group stage ends → group winners + (possible) clean-sweep bonus
- *  - semifinals       → each correct semifinalist
- *  - final            → champion
+ * Pure scoring for one participant across all competitions: the original
+ * bracket, the bonus picks, and (when supplied) the live knockout picks.
+ * Returns a per-slice breakdown so the Overall / Bracket / Live leaderboard
+ * views can each rank on their own number. Deterministic + side-effect free.
  */
 export function scorePredictions(
   predictions: Predictions,
   results: Results,
   settings: Settings,
-): Omit<ScoreBreakdown, "participantId"> {
+  livePicks: LivePick[] = [],
+): ScoreResult {
   const w = settings.weights;
-  const lines: { label: string; points: number }[] = [];
-  const bonusLines: { label: string; points: number }[] = [];
+  const lines: ScoreLine[] = [];
 
-  // --- Group winners (12 groups) ---
+  // ─── Original bracket ───
   const actualGroups = results.groupWinners ?? {};
   const picks = predictions.groupWinners ?? {};
   let groupHits = 0;
   for (const [letter, actualCode] of Object.entries(actualGroups)) {
-    if (!actualCode) continue; // group winner not known yet
+    if (!actualCode) continue;
     if (picks[letter] && picks[letter] === actualCode) {
       groupHits++;
-      lines.push({ label: `Group ${letter}: ${teamLabel(actualCode)}`, points: w.groupWinner });
+      lines.push({ label: `Group ${letter}: ${teamLabel(actualCode)}`, points: w.groupWinner, group: "bracket" });
     }
   }
-  // Clean-sweep bonus only once every group is decided and all 12 are correct.
   const groupsDecided = Object.values(actualGroups).filter(Boolean).length;
   if (groupsDecided >= 12 && groupHits >= 12) {
-    bonusLines.push({ label: "All 12 group winners! 🧹", points: w.groupSweepBonus });
+    lines.push({ label: "All 12 group winners! 🧹", points: w.groupSweepBonus, group: "bracket" });
+  }
+  const semis = actualSemifinalists(results);
+  for (const code of predictions.semifinalists ?? []) {
+    if (semis.includes(code)) {
+      lines.push({ label: `Semifinalist: ${teamLabel(code)}`, points: w.semifinalist, group: "bracket" });
+    }
+  }
+  if (predictions.champion && predictions.champion === results.champion) {
+    lines.push({ label: "Champion", points: w.champion, group: "bracket" });
   }
 
-  // --- Final Four (semifinalists) ---
-  const semis = actualSemifinalists(results);
-  const sfPicks = predictions.semifinalists ?? [];
-  for (const code of sfPicks) {
-    if (semis.includes(code)) {
-      lines.push({ label: `Semifinalist: ${teamLabel(code)}`, points: w.semifinalist });
+  // ─── Bonus Picks ───
+  const b = predictions.bonus;
+  if (b) {
+    if (b.goldenBall && results.goldenBall && b.goldenBall === results.goldenBall)
+      lines.push({ label: `Golden Ball: ${playerName(b.goldenBall)}`, points: w.goldenBall, group: "bonus" });
+    if (b.goldenBoot && results.goldenBoot && b.goldenBoot === results.goldenBoot)
+      lines.push({ label: `Golden Boot: ${playerName(b.goldenBoot)}`, points: w.goldenBoot, group: "bonus" });
+    if (b.goldenGlove && results.goldenGlove && b.goldenGlove === results.goldenGlove)
+      lines.push({ label: `Golden Glove: ${playerName(b.goldenGlove)}`, points: w.goldenGlove, group: "bonus" });
+    if (b.darkHorse) {
+      // By furthest stage reached (totals, not additive).
+      let pts = 0;
+      if (reachedAtLeast(results, b.darkHorse, "sf")) pts = w.darkHorseSf;
+      else if (reachedAtLeast(results, b.darkHorse, "qf")) pts = w.darkHorseQf;
+      else if (reachedAtLeast(results, b.darkHorse, "r16")) pts = w.darkHorseR16;
+      if (pts > 0)
+        lines.push({ label: `Dark Horse: ${teamLabel(b.darkHorse)}`, points: pts, group: "bonus" });
     }
   }
 
-  // --- Champion ---
-  if (predictions.champion && predictions.champion === results.champion) {
-    lines.push({ label: "Champion", points: w.champion });
+  // ─── Live Knockout Picks ───
+  for (const lp of livePicks) {
+    const winner = results.matchWinners[lp.matchId];
+    if (winner && winner === lp.team) {
+      const base = w[LIVE_ROUND_POINTS[lp.round]];
+      const points = lp.highConviction ? base * 2 : base;
+      lines.push({
+        label: `${lp.round.toUpperCase()}: ${teamLabel(lp.team)}${lp.highConviction ? " ⚡" : ""}`,
+        points,
+        group: "live",
+      });
+    }
   }
 
-  const base = lines.reduce((s, l) => s + l.points, 0);
-  const bonus = bonusLines.reduce((s, l) => s + l.points, 0);
+  const sum = (g: ScoreLine["group"]) =>
+    lines.filter((l) => l.group === g).reduce((s, l) => s + l.points, 0);
+  const bracket = sum("bracket");
+  const bonus = sum("bonus");
+  const live = sum("live");
 
-  return {
-    base,
-    bonus,
-    total: base + bonus,
-    lines: [...lines, ...bonusLines],
-  };
+  return { bracket, bonus, live, total: bracket + bonus + live, lines };
 }
 
 /**

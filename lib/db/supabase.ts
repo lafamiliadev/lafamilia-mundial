@@ -2,7 +2,7 @@ import "server-only";
 import { supabaseAdmin } from "../supabase/admin";
 import { baseSlug, uniqueSlug } from "../slug";
 import { DEFAULT_SETTINGS, EMPTY_RESULTS } from "../types";
-import type { Participant, Predictions, Results, Settings } from "../types";
+import type { BonusPicks, DailyPick, LivePick, Participant, Predictions, Results, Settings } from "../types";
 import type {
   ContentItem,
   CreateParticipantInput,
@@ -33,6 +33,7 @@ type PredictionRow = {
   semifinalists: string[] | null;
   champion: string | null;
   final_total_goals: number | null;
+  bonus: BonusPicks | null;
 };
 
 function toPredictions(row?: PredictionRow | null): Predictions {
@@ -41,6 +42,7 @@ function toPredictions(row?: PredictionRow | null): Predictions {
     semifinalists: row?.semifinalists ?? null,
     champion: row?.champion ?? null,
     finalTotalGoals: row?.final_total_goals ?? null,
+    bonus: row?.bonus ?? null,
   };
 }
 
@@ -67,6 +69,7 @@ function predictionColumns(participantId: string, p: Predictions): PredictionRow
     semifinalists: p.semifinalists,
     champion: p.champion,
     final_total_goals: p.finalTotalGoals,
+    bonus: p.bonus,
   };
 }
 
@@ -276,10 +279,11 @@ export const supabaseRepo: Repo = {
     const { data } = await db.from("scores").select("*");
     const out: Record<string, Omit<ScoreRow, "participantId">> = {};
     for (const r of data ?? []) {
-      const row = r as { base: number; bonus: number; total: number; rank: number; previous_rank: number | null; start_rank: number | null; participant_id: string };
+      const row = r as { bracket_points: number | null; bonus_points: number | null; live_points: number | null; total: number; rank: number; previous_rank: number | null; start_rank: number | null; participant_id: string };
       out[row.participant_id] = {
-        base: row.base,
-        bonus: row.bonus,
+        bracket: row.bracket_points ?? 0,
+        bonus: row.bonus_points ?? 0,
+        live: row.live_points ?? 0,
         total: row.total,
         rank: row.rank,
         previousRank: row.previous_rank ?? 0,
@@ -293,8 +297,9 @@ export const supabaseRepo: Repo = {
     await db.from("scores").upsert(
       rows.map((r) => ({
         participant_id: r.participantId,
-        base: r.base,
-        bonus: r.bonus,
+        bracket_points: r.bracket,
+        bonus_points: r.bonus,
+        live_points: r.live,
         total: r.total,
         rank: r.rank,
         previous_rank: r.previousRank,
@@ -302,6 +307,35 @@ export const supabaseRepo: Repo = {
       })),
       { onConflict: "participant_id" },
     );
+  },
+
+  async getLivePicks(participantId) {
+    const db = supabaseAdmin();
+    const { data } = await db.from("live_picks").select("picks").eq("participant_id", participantId).maybeSingle();
+    return (data?.picks as LivePick[]) ?? [];
+  },
+  async saveLivePicks(participantId, picks) {
+    const db = supabaseAdmin();
+    await db.from("live_picks").upsert({ participant_id: participantId, picks }, { onConflict: "participant_id" });
+  },
+  async listLivePicks() {
+    const db = supabaseAdmin();
+    const { data } = await db.from("live_picks").select("participant_id, picks");
+    const out: Record<string, LivePick[]> = {};
+    for (const r of data ?? []) {
+      const row = r as { participant_id: string; picks: LivePick[] };
+      out[row.participant_id] = row.picks ?? [];
+    }
+    return out;
+  },
+  async getDailyPicks(participantId) {
+    const db = supabaseAdmin();
+    const { data } = await db.from("daily_picks").select("picks").eq("participant_id", participantId).maybeSingle();
+    return (data?.picks as DailyPick[]) ?? [];
+  },
+  async saveDailyPicks(participantId, picks) {
+    const db = supabaseAdmin();
+    await db.from("daily_picks").upsert({ participant_id: participantId, picks }, { onConflict: "participant_id" });
   },
 
   async listContent() {

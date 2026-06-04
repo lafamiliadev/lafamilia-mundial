@@ -71,9 +71,9 @@ export function PageShell({ children }: { children: ReactNode }) {
   return <div className="mx-auto w-full max-w-md px-4 pb-24">{children}</div>;
 }
 
-export function TopNav({ active }: { active?: "play" | "leaderboard" | "insights" }) {
+export function TopNav({ active }: { active?: "picks" | "play" | "leaderboard" | "insights" }) {
   const items = [
-    { href: "/play", label: "Play", key: "play" },
+    { href: "/picks", label: "My Picks", key: "picks" },
     { href: "/leaderboard", label: "Leaderboard", key: "leaderboard" },
     { href: "/insights", label: "Insights", key: "insights" },
   ] as const;

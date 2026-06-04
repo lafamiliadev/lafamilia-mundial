@@ -12,15 +12,29 @@ export type GroupLetter = (typeof GROUP_LETTERS)[number];
  * from the football provider (source of truth), never hardcoded. */
 export type GroupMap = Record<string, string[]>;
 
+/** Knockout rounds for the Live Picks competition (note: includes r32). */
+export const KNOCKOUT_ROUNDS = ["r32", "r16", "qf", "sf", "final"] as const;
+export type KnockoutRound = (typeof KNOCKOUT_ROUNDS)[number];
+
 export type ScoringWeights = {
-  /** Per correctly-predicted group winner (12 groups). */
-  groupWinner: number;
-  /** Per correctly-predicted semifinalist (your Final Four). */
-  semifinalist: number;
-  /** Correct champion. */
+  // ── Original bracket ──
+  groupWinner: number; // per group winner (12 groups)
+  semifinalist: number; // per Final Four team
   champion: number;
-  /** Bonus for nailing all 12 group winners. */
-  groupSweepBonus: number;
+  groupSweepBonus: number; // all 12 group winners
+  // ── Bonus Picks ──
+  goldenBall: number;
+  goldenBoot: number;
+  goldenGlove: number;
+  darkHorseR16: number; // Dark Horse by furthest stage (totals, not additive)
+  darkHorseQf: number;
+  darkHorseSf: number;
+  // ── Live Knockout Picks (per correct match winner, by round) ──
+  liveR32: number;
+  liveR16: number;
+  liveQf: number;
+  liveSf: number;
+  liveFinal: number;
 };
 
 export const DEFAULT_WEIGHTS: ScoringWeights = {
@@ -28,6 +42,26 @@ export const DEFAULT_WEIGHTS: ScoringWeights = {
   semifinalist: 10, // max 40 across 4 picks
   champion: 20,
   groupSweepBonus: 10,
+  goldenBall: 12,
+  goldenBoot: 12,
+  goldenGlove: 8,
+  darkHorseR16: 3,
+  darkHorseQf: 7,
+  darkHorseSf: 12,
+  liveR32: 1,
+  liveR16: 2,
+  liveQf: 4,
+  liveSf: 8,
+  liveFinal: 16,
+};
+
+/** Points for a correct Live Pick in a given round. */
+export const LIVE_ROUND_POINTS: Record<KnockoutRound, keyof ScoringWeights> = {
+  r32: "liveR32",
+  r16: "liveR16",
+  qf: "liveQf",
+  sf: "liveSf",
+  final: "liveFinal",
 };
 
 export type Settings = {
@@ -51,6 +85,22 @@ export const DEFAULT_SETTINGS: Settings = {
   awardsRevealed: false,
 };
 
+/** The four pre-tournament Bonus Picks (the expected "second step" after the
+ * bracket; they count toward the Overall leaderboard). */
+export type BonusPicks = {
+  goldenBall: string | null; // player id — best player
+  goldenBoot: string | null; // player id — top scorer
+  goldenGlove: string | null; // player id — best goalkeeper
+  darkHorse: string | null; // team code — surprise team (fixed eligible list)
+};
+
+export const EMPTY_BONUS: BonusPicks = {
+  goldenBall: null,
+  goldenBoot: null,
+  goldenGlove: null,
+  darkHorse: null,
+};
+
 export type Predictions = {
   /** Group letter → predicted winning team code (12 entries when complete). */
   groupWinners: Record<string, string> | null;
@@ -60,6 +110,23 @@ export type Predictions = {
   champion: string | null;
   /** Tiebreaker: total goals scored in the final. */
   finalTotalGoals: number | null;
+  /** Optional Bonus Picks (Golden Ball/Boot/Glove + Dark Horse). */
+  bonus: BonusPicks | null;
+};
+
+/** A Live Knockout Pick — the winner of a specific knockout match (Phase 2). */
+export type LivePick = {
+  matchId: string;
+  round: KnockoutRound;
+  team: string; // picked team code
+  highConviction: boolean; // doubles this match if correct (1 per round)
+};
+
+/** La Jugada del Día — a one-tap daily group-stage prediction (Phase 2). */
+export type DailyPick = {
+  day: string; // YYYY-MM-DD
+  matchId: string;
+  pick: "home" | "draw" | "away";
 };
 
 export type Participant = {
@@ -93,20 +160,33 @@ export type Results = {
   groupWinners: Record<string, string>;
   /** Which teams reached each stage. Semifinalists = stageReached.sf. */
   stageReached: Partial<Record<Stage, string[]>>;
+  // ── Bonus Picks results (player ids) ──
+  goldenBall: string | null;
+  goldenBoot: string | null;
+  goldenGlove: string | null;
+  // ── Live Knockout results: match id → winning team code (Phase 2) ──
+  matchWinners: Record<string, string>;
 };
 
 export const EMPTY_RESULTS: Results = {
   champion: null,
   groupWinners: {},
   stageReached: {},
+  goldenBall: null,
+  goldenBoot: null,
+  goldenGlove: null,
+  matchWinners: {},
 };
 
-export type ScoreBreakdown = {
-  participantId: string;
-  base: number;
-  bonus: number;
+/** Per-competition slice of a participant's score. */
+export type ScoreLine = { label: string; points: number; group: "bracket" | "bonus" | "live" };
+
+export type ScoreResult = {
+  bracket: number; // original bracket points
+  bonus: number; // bonus picks points
+  live: number; // live knockout points
   total: number;
-  lines: { label: string; points: number }[];
+  lines: ScoreLine[];
 };
 
 export type LeaderboardRow = {

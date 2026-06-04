@@ -1,4 +1,4 @@
-import type { Participant, Predictions, Results, Settings } from "../types";
+import type { DailyPick, LivePick, Participant, Predictions, Results, Settings } from "../types";
 
 export type CreateParticipantInput = {
   name: string;
@@ -18,8 +18,10 @@ export type UpdateInput = {
 
 export type ScoreRow = {
   participantId: string;
-  base: number;
+  /** Per-competition slices (Overall = bracket + bonus + live). */
+  bracket: number;
   bonus: number;
+  live: number;
   total: number;
   rank: number;
   /** Rank at the previous scoring run — powers ▲/▼ movement (0 = no prior rank). */
@@ -62,6 +64,14 @@ export interface Repo {
 
   getScores(): Promise<Record<string, Omit<ScoreRow, "participantId">>>;
   saveScores(rows: ScoreRow[]): Promise<void>;
+
+  // ── Live Picks (Phase 2 backend; empty until the tournament) ──
+  getLivePicks(participantId: string): Promise<LivePick[]>;
+  saveLivePicks(participantId: string, picks: LivePick[]): Promise<void>;
+  /** All members' live picks, keyed by participant id — for scoring. */
+  listLivePicks(): Promise<Record<string, LivePick[]>>;
+  getDailyPicks(participantId: string): Promise<DailyPick[]>;
+  saveDailyPicks(participantId: string, picks: DailyPick[]): Promise<void>;
 
   listContent(): Promise<ContentItem[]>;
   addContent(items: Omit<ContentItem, "id" | "createdAt">[]): Promise<void>;

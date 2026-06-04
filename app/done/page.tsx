@@ -7,6 +7,7 @@ import { SiembraCTA } from "@/components/Siembra";
 import { Button, LinkButton } from "@/components/ui";
 import { db } from "@/lib/db";
 import { env } from "@/lib/env";
+import { BONUS_POINTS_AVAILABLE } from "@/lib/schedule";
 import { teamFlag, teamName } from "@/lib/teams";
 
 export const dynamic = "force-dynamic";
@@ -42,6 +43,8 @@ Think you can beat my bracket? 👇`;
   const communityLine = `🤝 Join the familia: https://nas.io/lafamilia-foundation`;
   const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(`${shareMessage}\n\n${copaUrl}\n\n${communityLine}`)}`;
   const cardFile = `la-copa-lafamilia-${me.name.split(" ")[0].toLowerCase()}.png`;
+
+  const bonusFilled = Object.values(me.predictions.bonus ?? {}).filter(Boolean).length;
 
   const summary = [
     { label: "Rooting for", value: `${teamFlag(me.rootingCountry)} ${teamName(me.rootingCountry)}` },
@@ -96,6 +99,33 @@ Think you can beat my bracket? 👇`;
             ))}
           </div>
         </div>
+
+        {/* Next step: Bonus Picks — a separate quick challenge on top of the
+            now-locked bracket. Encouraged (counts toward Overall), not required. */}
+        <Link href={`/picks/bonus?token=${me.resumeToken}`} className="mt-6 block">
+          <div className="card overflow-hidden border-2 border-[var(--color-gold)]">
+            <div className="flex items-center gap-4 p-4">
+              <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[var(--color-gold-soft)]/60 text-2xl">
+                {bonusFilled >= 4 ? "✅" : "🥇"}
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="font-bold">
+                  {bonusFilled > 0 ? "Edit your Bonus Picks" : "Next: add your Bonus Picks"}
+                </p>
+                <p className="text-sm text-[var(--color-muted)]">
+                  Golden Ball, Boot, Glove & a Dark Horse · {BONUS_POINTS_AVAILABLE} pts in play
+                </p>
+              </div>
+              <span className="shrink-0 text-[var(--color-muted)]">›</span>
+            </div>
+            <div className="bg-[var(--color-gold)] px-4 py-2 text-center text-sm font-bold text-[#3a2b00]">
+              {bonusFilled > 0 ? `${bonusFilled}/4 done — finish them →` : "Takes 30 seconds →"}
+            </div>
+          </div>
+        </Link>
+        <p className="mt-2 text-center text-xs text-[var(--color-muted)]">
+          Your next round of points opens June&nbsp;27 — we&apos;ll remind you.
+        </p>
 
         {/* One obvious next step: share with Familia on WhatsApp. */}
         <div className="mt-6 space-y-3">

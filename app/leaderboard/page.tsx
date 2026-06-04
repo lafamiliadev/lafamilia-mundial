@@ -3,10 +3,38 @@ import { Countdown } from "@/components/Countdown";
 import { SiembraBanner } from "@/components/Siembra";
 import { LinkButton, PageShell, SectionTitle, TopNav } from "@/components/ui";
 import { db } from "@/lib/db";
-import { getLeaderboardData } from "@/lib/services";
-import { nextScoringMilestone } from "@/lib/schedule";
+import { getLeaderboardData, type LeaderboardView } from "@/lib/services";
+import { LIVE_ROUNDS, nextScoringMilestone } from "@/lib/schedule";
 import { teamFlag } from "@/lib/teams";
 import { DEFAULT_WEIGHTS, type LeaderboardRow } from "@/lib/types";
+
+const VIEWS: { key: LeaderboardView; label: string }[] = [
+  { key: "overall", label: "Overall Race" },
+  { key: "bracket", label: "Bracket" },
+  { key: "live", label: "Live Picks" },
+];
+
+function ViewTabs({ active, token }: { active: LeaderboardView; token?: string }) {
+  const qs = (v: LeaderboardView) =>
+    `/leaderboard?${new URLSearchParams({ ...(token ? { me: token } : {}), ...(v !== "overall" ? { view: v } : {}) }).toString()}`;
+  return (
+    <div className="mb-5 flex gap-1 rounded-2xl bg-black/[0.04] p-1">
+      {VIEWS.map((v) => (
+        <Link
+          key={v.key}
+          href={qs(v.key)}
+          className={`flex-1 rounded-xl px-2 py-2 text-center text-sm font-bold transition ${
+            active === v.key
+              ? "bg-white text-[var(--color-ink)] shadow-sm"
+              : "text-[var(--color-muted)] hover:text-[var(--color-ink)]"
+          }`}
+        >
+          {v.label}
+        </Link>
+      ))}
+    </div>
+  );
+}
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Leaderboard · La Copa de LaFamilia 2026" };
@@ -117,16 +145,34 @@ function Podium({ rows }: { rows: LeaderboardRow[] }) {
 export default async function LeaderboardPage({
   searchParams,
 }: {
-  searchParams: Promise<{ me?: string }>;
+  searchParams: Promise<{ me?: string; view?: string }>;
 }) {
-  const { me: token } = await searchParams;
+  const { me: token, view: rawView } = await searchParams;
+  const view: LeaderboardView =
+    rawView === "bracket" || rawView === "live" ? rawView : "overall";
   const { total, top, me, leaderTotal, meGapToNext, scoringStarted } =
-    await getLeaderboardData(token);
+    await getLeaderboardData(token, 10, view);
   const nextDrop = nextScoringMilestone(new Date());
   const repo = await db();
   const settings = await repo.getSettings();
   const honorsLive = settings.awardsRevealed ?? false;
   const w = settings.weights ?? DEFAULT_WEIGHTS;
+
+  // Live Picks open at the first knockout round — until then, don't show an
+  // empty 0-point board; show a coming-soon state instead.
+  const liveOpened = Date.now() >= new Date(LIVE_ROUNDS[0].locksIso).getTime();
+  const liveComingSoon = view === "live" && !liveOpened;
+  const liveOpensLabel = new Date(LIVE_ROUNDS[0].opensIso).toLocaleDateString("en-US", {
+    month: "long",
+    day: "numeric",
+    timeZone: "America/New_York",
+  });
+
+  const viewBlurb: Record<LeaderboardView, string> = {
+    overall: "Bracket + Bonus + Live Picks combined.",
+    bracket: "Your original 3-minute bracket only.",
+    live: "Knockout-round Live Picks only.",
+  };
 
   const podiumRows = top.slice(0, 3);
   const chasers = top.slice(3);
@@ -140,12 +186,10 @@ export default async function LeaderboardPage({
           <p className="mt-1 text-sm text-[var(--color-muted)]">
             {total} predicting. <strong>Top 3 take home prizes</strong> 🏅
           </p>
-          {total > 0 && (
-            <p className="mt-1 text-xs text-[var(--color-muted)]">
-              🏆 = pick to win it all. Tap anyone to see their full bracket.
-            </p>
-          )}
         </div>
+
+        <ViewTabs active={view} token={token} />
+        <p className="-mt-2 mb-5 text-xs text-[var(--color-muted)]">{viewBlurb[view]}</p>
 
         {/* Mission, front and center — supporting Siembra is why we play. */}
         <div className="mb-5">
@@ -162,8 +206,8 @@ export default async function LeaderboardPage({
           </Link>
         )}
 
-        {/* Next points drop — the anticipation engine */}
-        {nextDrop && (
+        {/* Next points drop — the anticipation engine (bracket-driven milestones) */}
+        {nextDrop && view !== "live" && (
           <div className="mb-5 rounded-2xl bg-[var(--color-navy)] px-4 py-4 text-white">
             <p className="text-xs font-bold uppercase tracking-wider text-[var(--color-gold-soft)]">
               ⚡ Next points drop · {nextDrop.pointsInPlay} pts in play
@@ -173,7 +217,23 @@ export default async function LeaderboardPage({
           </div>
         )}
 
-        {total === 0 ? (
+        {liveComingSoon ? (
+          <div className="card overflow-hidden">
+            <div className="bg-[var(--color-navy)] px-4 py-6 text-center text-white">
+              <p className="text-3xl">⚡</p>
+              <p className="mt-2 font-black">Live Picks · Opens {liveOpensLabel}</p>
+              <p className="mt-1 text-sm text-white/85">
+                When the knockouts begin, pick each round&apos;s winners to earn points — even if your
+                champion is out. This board lights up then.
+              </p>
+            </div>
+            <div className="p-4">
+              <LinkButton href="/picks" variant="primary" className="w-full">
+                See how Live Picks work →
+              </LinkButton>
+            </div>
+          </div>
+        ) : total === 0 ? (
           <div className="card p-8 text-center">
             <div className="text-4xl">🫥</div>
             <p className="mt-3 font-bold">No predictors yet</p>

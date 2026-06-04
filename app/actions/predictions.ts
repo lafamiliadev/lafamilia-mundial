@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { sendPredictionConfirmation } from "@/lib/email";
 import { env } from "@/lib/env";
 import { recomputeScores } from "@/lib/services";
+import { setSessionToken } from "@/lib/session";
 import type { Predictions } from "@/lib/types";
 
 const code = z.string().trim().min(2).max(8);
@@ -57,6 +58,7 @@ export async function submitPredictions(
     semifinalists: d.semifinalists,
     champion: d.champion,
     finalTotalGoals: d.finalTotalGoals,
+    bonus: null,
   };
 
   try {
@@ -93,6 +95,9 @@ export async function submitPredictions(
       shareUrl: `${env.NEXT_PUBLIC_APP_URL}/copa/${participant.slug}`,
       deadlineIso: settings.lockTime,
     }).catch((e) => console.error("Confirmation email failed:", e));
+
+    // Remember this member so home/status-bar/picks can greet them on return.
+    await setSessionToken(participant.resumeToken).catch(() => {});
 
     return { ok: true, token: participant.resumeToken };
   } catch {
@@ -164,6 +169,7 @@ export async function updatePredictions(
     });
     if (!updated) return { ok: false, error: "Entry not found." };
     await recomputeScores({ pullFromProvider: false }).catch(() => {});
+    await setSessionToken(updated.resumeToken).catch(() => {});
     return { ok: true, token: updated.resumeToken };
   } catch {
     return { ok: false, error: "Something went wrong. Please try again." };

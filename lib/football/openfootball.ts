@@ -152,7 +152,7 @@ export class OpenFootballProvider implements FootballProvider {
         }
       }
 
-      return { champion, groupWinners, stageReached };
+      return { ...EMPTY_RESULTS, champion, groupWinners, stageReached };
     } catch {
       return EMPTY_RESULTS;
     }
