@@ -50,9 +50,6 @@ export default async function Home() {
     repo.listParticipants(),
   ]);
   const count = participants.length;
-  const rootingFlags = [
-    ...new Set(participants.map((p) => p.rootingCountry).filter(Boolean)),
-  ] as string[];
 
   return (
     <main className="flex flex-1 flex-col">
@@ -151,43 +148,8 @@ export default async function Home() {
           </ul>
         </div>
 
-        <h2 className="mt-10 text-2xl font-extrabold leading-tight tracking-tight">
-          More than a bracket. It&apos;s the Familia.
-        </h2>
-        <div className="mt-3 space-y-3 text-[15px] leading-relaxed text-[var(--color-muted)]">
-          <p>
-            LaFamilia is the largest community of Latine founders, investors, angels, and operators
-            — <span className="font-bold text-[var(--color-ink)]">1,400+ members</span> across the
-            venture ecosystem.
-          </p>
-          <p>
-            <span className="font-semibold text-[var(--color-pitch)]">Siembra</span> helps us keep
-            building the rooms where our people meet, fund, and open doors for each other.
-          </p>
-        </div>
-        <p className="mt-4 text-base font-bold tracking-tight text-[var(--color-ink)]">
-          Because when more of us are in the room, more of us get funded.
-        </p>
-
-        {/* Who's in the room — real flags from the Familia */}
-        {rootingFlags.length > 0 && (
-          <div className="mt-7 rounded-2xl border border-[var(--color-line)] bg-white p-4">
-            <p className="text-xs font-bold uppercase tracking-wider text-[var(--color-muted)]">
-              The Familia&apos;s rooting for {rootingFlags.length}{" "}
-              {rootingFlags.length === 1 ? "nation" : "nations"}
-            </p>
-            <div className="mt-3 flex flex-wrap gap-2 text-[1.7rem] leading-none">
-              {rootingFlags.map((code) => (
-                <span key={code} title={teamName(code)}>
-                  {teamFlag(code)}
-                </span>
-              ))}
-            </div>
-          </div>
-        )}
-
         {/* Leaderboard + Community Insights */}
-        <div className="mt-10 grid grid-cols-2 gap-3">
+        <div className="mt-6 grid grid-cols-2 gap-3">
           <Link
             href="/leaderboard"
             className="group flex flex-col rounded-2xl border border-[var(--color-line)] bg-white p-4 transition hover:border-[var(--color-pitch)] hover:shadow-sm"
