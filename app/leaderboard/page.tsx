@@ -6,7 +6,7 @@ import { db } from "@/lib/db";
 import { getLeaderboardData } from "@/lib/services";
 import { nextScoringMilestone } from "@/lib/schedule";
 import { teamFlag } from "@/lib/teams";
-import type { LeaderboardRow } from "@/lib/types";
+import { DEFAULT_WEIGHTS, type LeaderboardRow } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Leaderboard · La Copa de LaFamilia 2026" };
@@ -121,6 +121,7 @@ export default async function LeaderboardPage({
   const repo = await db();
   const settings = await repo.getSettings();
   const honorsLive = settings.awardsRevealed ?? false;
+  const w = settings.weights ?? DEFAULT_WEIGHTS;
 
   const podiumRows = top.slice(0, 3);
   const chasers = top.slice(3);
@@ -137,6 +138,39 @@ export default async function LeaderboardPage({
           {total > 0 && (
             <p className="mt-1 text-xs text-[var(--color-muted)]">Tap anyone to see their bracket.</p>
           )}
+
+          {/* Quiet, tap-to-expand scoring explainer — keeps the board clean. */}
+          <details className="mt-2">
+            <summary className="inline-flex cursor-pointer list-none items-center gap-1 text-xs font-semibold text-[var(--color-muted)] underline-offset-4 hover:underline [&::-webkit-details-marker]:hidden">
+              ⓘ How points work
+            </summary>
+            <div className="card mt-2 p-4 text-sm">
+              <ul className="space-y-1.5">
+                <li className="flex items-center justify-between gap-3">
+                  <span>🥇 Group winners</span>
+                  <span className="font-semibold">{w.groupWinner} each · up to {w.groupWinner * 12}</span>
+                </li>
+                <li className="flex items-center justify-between gap-3">
+                  <span>🎯 Final Four</span>
+                  <span className="font-semibold">{w.semifinalist} each · up to {w.semifinalist * 4}</span>
+                </li>
+                <li className="flex items-center justify-between gap-3">
+                  <span>🏆 Champion</span>
+                  <span className="font-semibold">{w.champion}</span>
+                </li>
+                <li className="flex items-center justify-between gap-3">
+                  <span>🧹 All 12 groups right</span>
+                  <span className="font-semibold">+{w.groupSweepBonus}</span>
+                </li>
+              </ul>
+              <p className="mt-3 text-xs text-[var(--color-muted)]">
+                Ties are broken by your goals-in-the-final guess.
+              </p>
+              <p className="mt-1 text-xs font-semibold text-[var(--color-ink)]">
+                Sharpest read across the whole tournament wins — not just the champion.
+              </p>
+            </div>
+          </details>
         </div>
 
         {/* Mission, front and center — supporting Siembra is why we play. */}
