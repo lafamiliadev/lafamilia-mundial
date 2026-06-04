@@ -62,11 +62,10 @@ export default async function Home() {
         <div className="mx-auto max-w-md">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/lafamilia-logo-white.svg" alt="LaFamilia" className="mx-auto h-20 w-auto" />
-          <p className="mt-6 text-sm font-bold uppercase tracking-[0.22em] text-[var(--color-gold-soft)]">
-            Bienvenidos a la Familia
-          </p>
-          <h1 className="mt-2 text-4xl font-black leading-[1.08] tracking-tight sm:text-[2.6rem]">
-            {"La Copa de LaFamilia ⚽"}
+          <h1 className="mt-7 text-4xl font-black leading-[1.08] tracking-tight sm:text-[2.6rem]">
+            La Copa de LaFamilia{" "}
+            <span className="text-[var(--color-gold)]">2026</span>
+            {" ⚽"}
           </h1>
           <p className="mx-auto mt-3 max-w-sm text-base leading-relaxed text-white/85">
             Five years of LaFamilia, celebrated the way we do best — together, with a little
