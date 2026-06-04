@@ -40,8 +40,6 @@ const STEPS = [
   },
 ];
 
-const ROLES = ["Founders", "Investors", "Angels", "Operators", "Ecosystem builders"];
-
 export default async function Home() {
   const repo = await db();
   const [topPick, settings, participants] = await Promise.all([
@@ -140,31 +138,23 @@ export default async function Home() {
           </ul>
         </div>
 
-        <p className="mt-10 text-xs font-bold uppercase tracking-[0.18em] text-[var(--color-coral)]">
-          Celebrating five years
-        </p>
-        <h2 className="mt-2 text-2xl font-extrabold leading-tight tracking-tight">
+        <h2 className="mt-10 text-2xl font-extrabold leading-tight tracking-tight">
           More than a bracket. It&apos;s the Familia.
         </h2>
-        <p className="mt-3 text-[15px] leading-relaxed text-[var(--color-muted)]">
-          LaFamilia started with one idea — when one of us gets in the room, we open the door for
-          the next. Five years later, we&apos;re founders, investors, angels, operators, and
-          builders across the Latine ecosystem. La Copa is how we celebrate that together, while
-          backing <span className="font-semibold text-[var(--color-pitch)]">Siembra</span> and the
-          founders coming up next.
-        </p>
-
-        {/* Roles — the whole community, in one bracket */}
-        <div className="mt-4 flex flex-wrap gap-2">
-          {ROLES.map((r) => (
-            <span
-              key={r}
-              className="rounded-full border border-[var(--color-line)] bg-[var(--color-cream)] px-3 py-1 text-xs font-semibold text-[var(--color-ink)]"
-            >
-              {r}
-            </span>
-          ))}
+        <div className="mt-3 space-y-3 text-[15px] leading-relaxed text-[var(--color-muted)]">
+          <p>
+            LaFamilia is the largest community of Latine founders, investors, angels, and operators
+            — <span className="font-bold text-[var(--color-ink)]">1,400+ members</span> across the
+            venture ecosystem.
+          </p>
+          <p>
+            <span className="font-semibold text-[var(--color-pitch)]">Siembra</span> helps us keep
+            building the rooms where our people meet, fund, and open doors for each other.
+          </p>
         </div>
+        <p className="mt-4 text-base font-bold tracking-tight text-[var(--color-ink)]">
+          Because when more of us are in the room, more of us get funded.
+        </p>
 
         {/* Who's in the room — real flags from the Familia */}
         {rootingFlags.length > 0 && (
