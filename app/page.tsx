@@ -17,10 +17,27 @@ import { teamFlag, teamName } from "@/lib/teams";
 export const dynamic = "force-dynamic";
 
 const STEPS = [
-  { Icon: GroupsIcon, text: "Pick the 12 group winners in just a few taps." },
-  { Icon: TrophyIcon, text: "Pick your Final Four and champion." },
-  { Icon: TrendingUpIcon, text: "Climb the leaderboard and earn prizes." },
-  { Icon: SproutIcon, text: "Support Siembra and help LaFamilia keep growing.", optional: true },
+  {
+    Icon: GroupsIcon,
+    text: "Pick the 12 group winners in just a few taps.",
+    chip: "bg-[var(--color-coral)]/12 text-[var(--color-coral)]",
+  },
+  {
+    Icon: TrophyIcon,
+    text: "Pick your Final Four and champion.",
+    chip: "bg-[var(--color-gold)]/20 text-[#a9760a]",
+  },
+  {
+    Icon: TrendingUpIcon,
+    text: "Climb the leaderboard and earn prizes.",
+    chip: "bg-[var(--color-pitch)]/10 text-[var(--color-pitch)]",
+  },
+  {
+    Icon: SproutIcon,
+    text: "Support Siembra and help LaFamilia keep growing.",
+    optional: true,
+    chip: "bg-[var(--color-pitch)]/10 text-[var(--color-pitch)]",
+  },
 ];
 
 const ROLES = ["Founders", "Investors", "Angels", "Operators", "Ecosystem builders"];
@@ -94,36 +111,36 @@ export default async function Home() {
               </Link>
             </p>
           </div>
-
-          {/* 7 — How the Familia plays (soft nested panel, below the conversion area) */}
-          <div className="mt-8 rounded-2xl bg-white/10 p-5 text-left backdrop-blur">
-            <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-white/60">
-              How the Familia plays
-            </p>
-            <ul className="mt-3 space-y-3">
-              {STEPS.map(({ Icon, text, optional }) => (
-                <li key={text} className="flex items-center gap-3">
-                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white/12 text-[var(--color-gold-soft)]">
-                    <Icon className="h-[18px] w-[18px]" />
-                  </span>
-                  <p className="text-sm font-medium leading-snug text-white/90">
-                    {optional && (
-                      <span className="mr-1.5 align-middle text-[10px] font-bold uppercase tracking-wide text-white/55">
-                        Optional ·
-                      </span>
-                    )}
-                    {text}
-                  </p>
-                </li>
-              ))}
-            </ul>
-          </div>
         </div>
       </section>
 
-      {/* Below — the deeper community story */}
-      <section className="mx-auto w-full max-w-md px-5 pb-20 pt-10">
-        <p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--color-coral)]">
+      {/* Below — how to play, then the deeper community story */}
+      <section className="mx-auto w-full max-w-md px-4 pb-20 pt-6">
+        {/* How the Familia plays */}
+        <div className="card p-5">
+          <p className="mb-4 text-xs font-bold uppercase tracking-wider text-[var(--color-muted)]">
+            How the Familia plays
+          </p>
+          <ul className="space-y-4">
+            {STEPS.map(({ Icon, text, optional, chip }) => (
+              <li key={text} className="flex items-center gap-3.5">
+                <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${chip}`}>
+                  <Icon className="h-5 w-5" />
+                </span>
+                <p className="text-[15px] font-medium leading-snug text-[var(--color-ink)]">
+                  {optional && (
+                    <span className="mr-1.5 align-middle text-[11px] font-bold uppercase tracking-wide text-[var(--color-muted)]">
+                      Optional ·
+                    </span>
+                  )}
+                  {text}
+                </p>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        <p className="mt-10 text-xs font-bold uppercase tracking-[0.18em] text-[var(--color-coral)]">
           Celebrating five years
         </p>
         <h2 className="mt-2 text-2xl font-extrabold leading-tight tracking-tight">
