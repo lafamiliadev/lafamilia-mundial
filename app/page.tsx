@@ -86,22 +86,8 @@ export default async function Home() {
             , our optional fundraising campaign.
           </p>
 
-          {/* 3 — Social proof */}
-          <div className="mt-6 flex flex-wrap items-center justify-center gap-2">
-            <span className="inline-flex items-center gap-2 rounded-full bg-white/12 px-4 py-2 text-sm font-bold backdrop-blur">
-              <PeopleIcon className="h-4 w-4 text-[var(--color-gold-soft)]" />
-              {count > 0 ? `${count} of the Familia are in` : "Be the first to join in"}
-            </span>
-            {topPick && (
-              <span className="inline-flex items-center gap-2 rounded-full bg-white/12 px-4 py-2 text-sm font-bold backdrop-blur">
-                <span className="text-base leading-none">{teamFlag(topPick.code)}</span>
-                Most are backing {teamName(topPick.code)} · {topPick.pct}%
-              </span>
-            )}
-          </div>
-
-          {/* 4 — Conversion area, grouped in one subtle container inside the hero */}
-          <div className="mt-8 rounded-2xl border border-white/15 bg-white/[0.06] px-5 py-6 backdrop-blur-sm">
+          {/* 3 — Conversion area, grouped in one subtle container inside the hero */}
+          <div className="mt-7 rounded-2xl border border-white/15 bg-white/[0.06] px-5 py-6 backdrop-blur-sm">
             <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-[var(--color-gold-soft)]">
               Predictions close in
             </p>
@@ -121,6 +107,20 @@ export default async function Home() {
                 Edit your picks
               </Link>
             </p>
+          </div>
+
+          {/* 4 — Social proof, side by side under the conversion area */}
+          <div className="mt-4 grid grid-cols-2 gap-2">
+            <span className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-white/12 px-3 py-2.5 text-center text-xs font-bold leading-tight backdrop-blur">
+              <PeopleIcon className="h-4 w-4 shrink-0 text-[var(--color-gold-soft)]" />
+              {count > 0 ? `${count} of the Familia are in` : "Be the first to join in"}
+            </span>
+            {topPick && (
+              <span className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-white/12 px-3 py-2.5 text-center text-xs font-bold leading-tight backdrop-blur">
+                <span className="shrink-0 text-base leading-none">{teamFlag(topPick.code)}</span>
+                Most back {teamName(topPick.code)} · {topPick.pct}%
+              </span>
+            )}
           </div>
         </div>
       </section>
