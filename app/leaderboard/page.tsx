@@ -46,7 +46,7 @@ function Lane({ r, leaderTotal }: { r: LeaderboardRow; leaderTotal: number }) {
           {r.rank}
         </div>
         <div className="flex min-w-0 flex-1 items-center gap-2">
-          <span className="shrink-0 text-base leading-none">{teamFlag(r.rootingCountry)}</span>
+          <span className="shrink-0 text-base leading-none">{teamFlag(r.champion)}</span>
           <span className="truncate font-semibold">{r.name}</span>
           {r.isMe && (
             <span className="shrink-0 rounded-full bg-[var(--color-pitch)] px-2 py-0.5 text-[10px] font-bold text-white">
@@ -95,7 +95,9 @@ function Podium({ rows }: { rows: LeaderboardRow[] }) {
             <p className="max-w-full truncate text-center text-sm font-bold underline-offset-4 hover:underline">
               {r.name}
             </p>
-            <p className="text-xs font-semibold text-[var(--color-muted)]">{r.total} pts</p>
+            <p className="text-xs font-semibold text-[var(--color-muted)]">
+              {teamFlag(r.champion)} {r.total} pts
+            </p>
             <div
               className={`mt-2 flex w-full ${p.bar} items-start justify-center rounded-t-xl pt-2 text-lg font-black text-white`}
               style={{ background: p.color }}
@@ -136,7 +138,9 @@ export default async function LeaderboardPage({
             {total} predicting. <strong>Top 3 take home prizes</strong> 🏅
           </p>
           {total > 0 && (
-            <p className="mt-1 text-xs text-[var(--color-muted)]">Tap anyone to see their bracket.</p>
+            <p className="mt-1 text-xs text-[var(--color-muted)]">
+              🏆 = pick to win it all. Tap anyone to see their full bracket.
+            </p>
           )}
         </div>
 
@@ -228,7 +232,7 @@ export default async function LeaderboardPage({
                     r.isMe ? "bg-[var(--color-gold-soft)]/40" : ""
                   }`}
                 >
-                  <span className="text-base leading-none">{teamFlag(r.rootingCountry)}</span>
+                  <span className="text-base leading-none">{teamFlag(r.champion)}</span>
                   <span className="min-w-0 flex-1 truncate font-semibold">{r.name}</span>
                   {r.isMe && (
                     <span className="rounded-full bg-[var(--color-pitch)] px-2 py-0.5 text-[10px] font-bold text-white">

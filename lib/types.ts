@@ -115,6 +115,8 @@ export type LeaderboardRow = {
   /** Public handle → /copa/[slug], so rows link to each member's bracket. */
   slug: string;
   rootingCountry: string | null;
+  /** Their pick to win it all (the headline bet shown on the board). */
+  champion: string | null;
   total: number;
   /** Rank change since the last scoring run: + climbed, − dropped, 0 = none/new. */
   delta?: number;

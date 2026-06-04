@@ -160,6 +160,7 @@ export async function getLeaderboardData(
       name: p.name,
       slug: p.slug,
       rootingCountry: p.rootingCountry,
+      champion: p.predictions.champion,
       total: scores[p.id]?.total ?? 0,
     }))
     .sort((a, b) => {
@@ -187,6 +188,7 @@ export async function getLeaderboardData(
     name: r.name,
     slug: r.slug,
     rootingCountry: r.rootingCountry,
+    champion: r.champion,
     total: r.total,
     delta: r.previousRank > 0 ? r.previousRank - r.rank : 0,
     isMe: r.id === meId,
