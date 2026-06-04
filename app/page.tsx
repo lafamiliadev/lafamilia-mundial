@@ -87,8 +87,8 @@ export default async function Home() {
             )}
           </div>
 
-          {/* 4 — Predictions close in + primary CTA (the conversion area, high up) */}
-          <div className="mt-8">
+          {/* 4 — Conversion area, grouped in one subtle container inside the hero */}
+          <div className="mt-8 rounded-2xl border border-white/15 bg-white/[0.06] px-5 py-6 backdrop-blur-sm">
             <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-[var(--color-gold-soft)]">
               Predictions close in
             </p>
