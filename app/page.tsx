@@ -19,27 +19,10 @@ export const dynamic = "force-dynamic";
 const SIEMBRA_URL = "https://givebutter.com/siembra-con-lafamilia-foundation";
 
 const STEPS = [
-  {
-    Icon: GroupsIcon,
-    text: "Pick the 12 group winners in just a few taps.",
-    chip: "bg-[var(--color-coral)]/12 text-[var(--color-coral)]",
-  },
-  {
-    Icon: TrophyIcon,
-    text: "Pick your Final Four and champion.",
-    chip: "bg-[var(--color-gold)]/20 text-[#a9760a]",
-  },
-  {
-    Icon: TrendingUpIcon,
-    text: "Climb the leaderboard and earn prizes.",
-    chip: "bg-[var(--color-pitch)]/10 text-[var(--color-pitch)]",
-  },
-  {
-    Icon: SproutIcon,
-    text: "Support Siembra and help LaFamilia keep growing.",
-    optional: true,
-    chip: "bg-[var(--color-pitch)]/10 text-[var(--color-pitch)]",
-  },
+  { Icon: GroupsIcon, text: "Pick the 12 group winners in just a few taps." },
+  { Icon: TrophyIcon, text: "Pick your Final Four and champion." },
+  { Icon: TrendingUpIcon, text: "Climb the leaderboard and earn prizes." },
+  { Icon: SproutIcon, text: "Support Siembra and help LaFamilia keep growing.", optional: true },
 ];
 
 export default async function Home() {
@@ -130,10 +113,10 @@ export default async function Home() {
             How the Familia plays
           </p>
           <ul className="space-y-4">
-            {STEPS.map(({ Icon, text, optional, chip }) => (
+            {STEPS.map(({ Icon, text, optional }) => (
               <li key={text} className="flex items-center gap-3.5">
-                <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${chip}`}>
-                  <Icon className="h-5 w-5" />
+                <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[var(--color-cream)]">
+                  <Icon className="h-7 w-7" />
                 </span>
                 <p className="text-[15px] font-medium leading-snug text-[var(--color-ink)]">
                   {optional && (
@@ -154,8 +137,8 @@ export default async function Home() {
             href="/leaderboard"
             className="group flex flex-col rounded-2xl border border-[var(--color-line)] bg-white p-4 transition hover:border-[var(--color-pitch)] hover:shadow-sm"
           >
-            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--color-pitch)]/10 text-[var(--color-pitch)]">
-              <TrendingUpIcon className="h-5 w-5" />
+            <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[var(--color-cream)]">
+              <TrendingUpIcon className="h-7 w-7" />
             </span>
             <p className="mt-3 font-bold">Leaderboard</p>
             <p className="mt-1 flex-1 text-sm text-[var(--color-muted)]">
@@ -168,8 +151,8 @@ export default async function Home() {
             href="/insights"
             className="group flex flex-col rounded-2xl border border-[var(--color-line)] bg-white p-4 transition hover:border-[var(--color-coral)] hover:shadow-sm"
           >
-            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--color-coral)]/12 text-[var(--color-coral)]">
-              <InsightsIcon className="h-5 w-5" />
+            <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[var(--color-cream)]">
+              <InsightsIcon className="h-7 w-7" />
             </span>
             <p className="mt-3 font-bold">Community Insights</p>
             <p className="mt-1 flex-1 text-sm text-[var(--color-muted)]">
