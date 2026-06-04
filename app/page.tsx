@@ -54,10 +54,10 @@ export default async function Home() {
   return (
     <main className="flex flex-1 flex-col">
       {/* Green hero — the full conversion area, all in one place */}
-      <section className="bg-stadium px-5 pb-10 pt-14 text-center text-white">
+      <section className="bg-stadium px-5 pb-10 pt-14 text-left text-white">
         <div className="mx-auto max-w-md">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/lafamilia-logo-white.svg" alt="LaFamilia" className="mx-auto h-20 w-auto" />
+          <img src="/lafamilia-logo-white.svg" alt="LaFamilia" className="h-20 w-auto" />
 
           {/* 1 — Title */}
           <h1 className="mt-7 text-4xl font-black leading-[1.08] tracking-tight sm:text-[2.6rem]">
@@ -67,10 +67,10 @@ export default async function Home() {
           </h1>
 
           {/* 2 — Subtitle */}
-          <p className="mx-auto mt-3 max-w-sm text-base leading-relaxed text-white/90">
+          <p className="mt-3 text-lg leading-relaxed text-white/90">
             The World Cup challenge for the Familia behind Latine innovation.
           </p>
-          <p className="mx-auto mt-2 max-w-sm text-sm leading-relaxed text-white/65">
+          <p className="mt-2 text-sm leading-relaxed text-white/65">
             Free to play. Built to celebrate 5 years of LaFamilia and bring visibility to{" "}
             <a
               href={SIEMBRA_URL}
@@ -88,7 +88,7 @@ export default async function Home() {
             <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-[var(--color-gold-soft)]">
               Predictions close in
             </p>
-            <div className="mt-3 flex justify-center">
+            <div className="mt-3 flex justify-start">
               <Countdown lockTime={settings.lockTime} />
             </div>
 
@@ -184,7 +184,7 @@ export default async function Home() {
           When one of us wins, the Familia wins. 🌎
         </p>
         <p className="mt-1 text-center text-sm text-[var(--color-muted)]">
-          Hecho por la Familia, para la Familia.
+          Hecho por LaFamilia, para LaFamilia.
         </p>
       </section>
     </main>
