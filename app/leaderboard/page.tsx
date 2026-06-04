@@ -46,7 +46,6 @@ function Lane({ r, leaderTotal }: { r: LeaderboardRow; leaderTotal: number }) {
           {r.rank}
         </div>
         <div className="flex min-w-0 flex-1 items-center gap-2">
-          <span className="shrink-0 text-base leading-none">{teamFlag(r.champion)}</span>
           <span className="truncate font-semibold">{r.name}</span>
           {r.isMe && (
             <span className="shrink-0 rounded-full bg-[var(--color-pitch)] px-2 py-0.5 text-[10px] font-bold text-white">
@@ -54,7 +53,10 @@ function Lane({ r, leaderTotal }: { r: LeaderboardRow; leaderTotal: number }) {
             </span>
           )}
         </div>
-        <div className="w-8 shrink-0 text-right">
+        <span className="shrink-0 text-sm leading-none" title="Pick to win">
+          🏆&nbsp;{teamFlag(r.champion)}
+        </span>
+        <div className="w-7 shrink-0 text-right">
           <Move delta={r.delta} />
         </div>
         <div className="w-12 shrink-0 text-right text-lg font-black tabular-nums">{r.total}</div>
@@ -95,9 +97,10 @@ function Podium({ rows }: { rows: LeaderboardRow[] }) {
             <p className="max-w-full truncate text-center text-sm font-bold underline-offset-4 hover:underline">
               {r.name}
             </p>
-            <p className="text-xs font-semibold text-[var(--color-muted)]">
-              {teamFlag(r.champion)} {r.total} pts
+            <p className="text-xs text-[var(--color-muted)]" title="Pick to win">
+              🏆 {teamFlag(r.champion)}
             </p>
+            <p className="text-sm font-black tabular-nums">{r.total} pts</p>
             <div
               className={`mt-2 flex w-full ${p.bar} items-start justify-center rounded-t-xl pt-2 text-lg font-black text-white`}
               style={{ background: p.color }}
@@ -232,15 +235,17 @@ export default async function LeaderboardPage({
                     r.isMe ? "bg-[var(--color-gold-soft)]/40" : ""
                   }`}
                 >
-                  <span className="text-base leading-none">{teamFlag(r.champion)}</span>
                   <span className="min-w-0 flex-1 truncate font-semibold">{r.name}</span>
                   {r.isMe && (
                     <span className="rounded-full bg-[var(--color-pitch)] px-2 py-0.5 text-[10px] font-bold text-white">
                       YOU
                     </span>
                   )}
-                  <span className="text-sm font-semibold text-[var(--color-muted)]">0 pts</span>
-                  <span className="text-[var(--color-muted)]">›</span>
+                  <span className="shrink-0 text-sm leading-none" title="Pick to win">
+                    🏆&nbsp;{teamFlag(r.champion)}
+                  </span>
+                  <span className="shrink-0 text-sm font-semibold text-[var(--color-muted)]">0 pts</span>
+                  <span className="shrink-0 text-[var(--color-muted)]">›</span>
                 </Link>
               ))}
             </div>
