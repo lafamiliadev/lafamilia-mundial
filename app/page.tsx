@@ -13,7 +13,7 @@ import { LinkButton } from "@/components/ui";
 import { db } from "@/lib/db";
 import { getLeaderboardData, getTopChampionPick } from "@/lib/services";
 import { getSessionParticipant } from "@/lib/session";
-import { BONUS_POINTS_AVAILABLE, pickStatus } from "@/lib/schedule";
+import { bonusPointsRemaining, pickStatus } from "@/lib/schedule";
 import { teamFlag, teamName } from "@/lib/teams";
 import { EMPTY_BONUS } from "@/lib/types";
 
@@ -44,7 +44,12 @@ export default async function Home() {
     const status = pickStatus(new Date(), settings.lockTime);
     const bonusFilled = Object.values(me.predictions.bonus ?? EMPTY_BONUS).filter(Boolean).length;
     const picksOpen = status.state === "bonus-open" ? 4 - bonusFilled : status.state === "round-open" ? 1 : 0;
-    const ptsAvailable = status.state === "bonus-open" ? BONUS_POINTS_AVAILABLE : status.state === "round-open" ? status.round.pointsInPlay : 0;
+    const ptsAvailable =
+      status.state === "bonus-open"
+        ? bonusPointsRemaining(me.predictions.bonus, settings.weights)
+        : status.state === "round-open"
+          ? status.round.pointsInPlay
+          : 0;
     const rival = board.me && board.me.rank > 1 ? board.top.find((r) => r.rank === board.me!.rank - 1) : null;
 
     return (

@@ -13,41 +13,42 @@ export type Player = {
   featured?: boolean;
 };
 
-// ── Forwards / strikers — the Golden Boot (top scorer) shortlist (~40). ──
+// ── Forwards / strikers — the Golden Boot (top scorer) shortlist. The
+// `featured` ones are shown by default; the rest appear via search. ──
 export const STRIKERS: Player[] = [
-  { id: "messi", name: "Lionel Messi", teamCode: "ARG", pos: "FW" },
-  { id: "julian-alvarez", name: "Julián Álvarez", teamCode: "ARG", pos: "FW" },
-  { id: "lautaro", name: "Lautaro Martínez", teamCode: "ARG", pos: "FW" },
-  { id: "vinicius", name: "Vinícius Júnior", teamCode: "BRA", pos: "FW" },
+  { id: "messi", name: "Lionel Messi", teamCode: "ARG", pos: "FW", featured: true },
+  { id: "julian-alvarez", name: "Julián Álvarez", teamCode: "ARG", pos: "FW", featured: true },
+  { id: "lautaro", name: "Lautaro Martínez", teamCode: "ARG", pos: "FW", featured: true },
+  { id: "vinicius", name: "Vinícius Júnior", teamCode: "BRA", pos: "FW", featured: true },
   { id: "rodrygo", name: "Rodrygo", teamCode: "BRA", pos: "FW" },
-  { id: "raphinha", name: "Raphinha", teamCode: "BRA", pos: "FW" },
+  { id: "raphinha", name: "Raphinha", teamCode: "BRA", pos: "FW", featured: true },
   { id: "endrick", name: "Endrick", teamCode: "BRA", pos: "FW" },
-  { id: "mbappe", name: "Kylian Mbappé", teamCode: "FRA", pos: "FW" },
+  { id: "mbappe", name: "Kylian Mbappé", teamCode: "FRA", pos: "FW", featured: true },
   { id: "dembele", name: "Ousmane Dembélé", teamCode: "FRA", pos: "FW" },
-  { id: "kane", name: "Harry Kane", teamCode: "ENG", pos: "FW" },
+  { id: "kane", name: "Harry Kane", teamCode: "ENG", pos: "FW", featured: true },
   { id: "saka", name: "Bukayo Saka", teamCode: "ENG", pos: "FW" },
   { id: "foden", name: "Phil Foden", teamCode: "ENG", pos: "FW" },
-  { id: "yamal", name: "Lamine Yamal", teamCode: "ESP", pos: "FW" },
+  { id: "yamal", name: "Lamine Yamal", teamCode: "ESP", pos: "FW", featured: true },
   { id: "morata", name: "Álvaro Morata", teamCode: "ESP", pos: "FW" },
   { id: "olmo", name: "Dani Olmo", teamCode: "ESP", pos: "FW" },
-  { id: "ronaldo", name: "Cristiano Ronaldo", teamCode: "POR", pos: "FW" },
+  { id: "ronaldo", name: "Cristiano Ronaldo", teamCode: "POR", pos: "FW", featured: true },
   { id: "leao", name: "Rafael Leão", teamCode: "POR", pos: "FW" },
   { id: "havertz", name: "Kai Havertz", teamCode: "GER", pos: "FW" },
   { id: "depay", name: "Memphis Depay", teamCode: "NED", pos: "FW" },
   { id: "gakpo", name: "Cody Gakpo", teamCode: "NED", pos: "FW" },
   { id: "lukaku", name: "Romelu Lukaku", teamCode: "BEL", pos: "FW" },
-  { id: "haaland", name: "Erling Haaland", teamCode: "NOR", pos: "FW" },
-  { id: "salah", name: "Mohamed Salah", teamCode: "EGY", pos: "FW" },
+  { id: "haaland", name: "Erling Haaland", teamCode: "NOR", pos: "FW", featured: true },
+  { id: "salah", name: "Mohamed Salah", teamCode: "EGY", pos: "FW", featured: true },
   { id: "en-nesyri", name: "Youssef En-Nesyri", teamCode: "MAR", pos: "FW" },
-  { id: "nunez", name: "Darwin Núñez", teamCode: "URU", pos: "FW" },
-  { id: "luis-diaz", name: "Luis Díaz", teamCode: "COL", pos: "FW" },
+  { id: "nunez", name: "Darwin Núñez", teamCode: "URU", pos: "FW", featured: true },
+  { id: "luis-diaz", name: "Luis Díaz", teamCode: "COL", pos: "FW", featured: true },
   { id: "james", name: "James Rodríguez", teamCode: "COL", pos: "FW" },
   { id: "raul-jimenez", name: "Raúl Jiménez", teamCode: "MEX", pos: "FW" },
-  { id: "pulisic", name: "Christian Pulisic", teamCode: "USA", pos: "FW" },
+  { id: "pulisic", name: "Christian Pulisic", teamCode: "USA", pos: "FW", featured: true },
   { id: "balogun", name: "Folarin Balogun", teamCode: "USA", pos: "FW" },
   { id: "kudus", name: "Mohammed Kudus", teamCode: "GHA", pos: "FW" },
   { id: "mitoma", name: "Kaoru Mitoma", teamCode: "JPN", pos: "FW" },
-  { id: "son", name: "Son Heung-min", teamCode: "KOR", pos: "FW" },
+  { id: "son", name: "Son Heung-min", teamCode: "KOR", pos: "FW", featured: true },
 ];
 
 // ── Midfielders (for Golden Ball). ──

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { db } from "@/lib/db";
 import { getSessionParticipant } from "@/lib/session";
-import { BONUS_POINTS_AVAILABLE, pickStatus } from "@/lib/schedule";
+import { bonusPointsRemaining, pickStatus } from "@/lib/schedule";
 
 function whenLabel(iso: string): string {
   const days = Math.ceil((new Date(iso).getTime() - Date.now()) / 86_400_000);
@@ -26,7 +26,8 @@ export async function StatusBar() {
   let label: string;
   let live = false;
   if (status.state === "bonus-open") {
-    label = `Bonus Picks open · ${BONUS_POINTS_AVAILABLE} pts available`;
+    const left = bonusPointsRemaining(me.predictions.bonus, settings.weights);
+    label = left > 0 ? `Bonus Picks open · ${left} pts available` : "Bonus Picks in — edit until kickoff";
     live = true;
   } else if (status.state === "round-open") {
     label = `${status.round.label} picks open · ${status.round.pointsInPlay} pts`;

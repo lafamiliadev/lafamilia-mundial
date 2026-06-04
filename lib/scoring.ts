@@ -114,8 +114,10 @@ export function scorePredictions(
 }
 
 /**
- * Rank a set of scored participants. Ties broken by closeness of the
- * final-total-goals prediction to the actual figure (when known), then name.
+ * Rank a set of scored participants. Ranks are standard competition ranking on
+ * the total (1,2,2,4). The listed ORDER within equal totals follows the full
+ * tie-break chain: correct champion → most correct Live Picks → closest
+ * final-goals guess → earliest submission → name.
  */
 export function rankParticipants(
   scored: {
@@ -123,15 +125,34 @@ export function rankParticipants(
     name: string;
     total: number;
     finalTotalGoals: number | null;
+    /** Did they pick the actual champion? (false until the Final resolves.) */
+    championCorrect?: boolean;
+    /** How many Live Picks they got right (more = better). */
+    liveCorrect?: number;
+    /** Submission time (ISO) — earlier wins a dead-heat. */
+    submittedAt?: string;
   }[],
   actualFinalGoals: number | null,
 ): { participantId: string; rank: number }[] {
   const sorted = [...scored].sort((a, b) => {
     if (b.total !== a.total) return b.total - a.total;
+    // 1) Correct champion beats no champion.
+    const ac = a.championCorrect ? 1 : 0;
+    const bc = b.championCorrect ? 1 : 0;
+    if (ac !== bc) return bc - ac;
+    // 2) More correct Live Picks.
+    const al = a.liveCorrect ?? 0;
+    const bl = b.liveCorrect ?? 0;
+    if (al !== bl) return bl - al;
+    // 3) Closest goals-in-the-final guess (when the actual figure is known).
     if (actualFinalGoals != null) {
       const da = a.finalTotalGoals == null ? Infinity : Math.abs(a.finalTotalGoals - actualFinalGoals);
       const db = b.finalTotalGoals == null ? Infinity : Math.abs(b.finalTotalGoals - actualFinalGoals);
       if (da !== db) return da - db;
+    }
+    // 4) Earliest submission.
+    if (a.submittedAt && b.submittedAt && a.submittedAt !== b.submittedAt) {
+      return a.submittedAt.localeCompare(b.submittedAt);
     }
     return a.name.localeCompare(b.name);
   });

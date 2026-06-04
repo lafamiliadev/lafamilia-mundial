@@ -33,7 +33,7 @@ export function nextScoringMilestone(now: Date): ScoringMilestone | null {
 // Dates follow the official 2026 knockout calendar. Picks for a round open once
 // its matchups are confirmed and lock at the round's first kickoff. Base points
 // in play are equal each round (16): 16×1, 8×2, 4×4, 2×8, 1×16.
-import type { KnockoutRound } from "./types";
+import type { BonusPicks, KnockoutRound, ScoringWeights } from "./types";
 
 export type LiveRound = {
   round: KnockoutRound;
@@ -54,6 +54,20 @@ export const LIVE_ROUNDS: LiveRound[] = [
 
 /** Total points available in the Bonus Picks (Golden Ball 12 + Boot 12 + Glove 8 + Dark Horse 12). */
 export const BONUS_POINTS_AVAILABLE = 44;
+
+/** Points still on the table for a member — the value of the Bonus Picks they
+ * haven't made yet (Dark Horse counted at its max, the SF value). */
+export function bonusPointsRemaining(
+  bonus: BonusPicks | null,
+  w: ScoringWeights,
+): number {
+  let pts = 0;
+  if (!bonus?.goldenBall) pts += w.goldenBall;
+  if (!bonus?.goldenBoot) pts += w.goldenBoot;
+  if (!bonus?.goldenGlove) pts += w.goldenGlove;
+  if (!bonus?.darkHorse) pts += w.darkHorseSf;
+  return pts;
+}
 
 export type PickStatus =
   | { state: "bonus-open"; pointsAvailable: number; closesIso: string }

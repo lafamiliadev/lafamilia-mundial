@@ -196,4 +196,21 @@ describe("rankParticipants — ties", () => {
     expect(byId.b).toBe(1);
     expect(byId.c).toBe(3);
   });
+
+  it("orders equal totals by the spec chain: champion → live → goals → submission", () => {
+    const ranked = rankParticipants(
+      [
+        // All tied on total; differ only on tie-break inputs.
+        { participantId: "late", name: "Z", total: 50, finalTotalGoals: 3, championCorrect: true, liveCorrect: 5, submittedAt: "2026-06-10T00:00:00Z" },
+        { participantId: "early", name: "A", total: 50, finalTotalGoals: 3, championCorrect: true, liveCorrect: 5, submittedAt: "2026-06-01T00:00:00Z" },
+        { participantId: "fewerlive", name: "M", total: 50, finalTotalGoals: 3, championCorrect: true, liveCorrect: 2, submittedAt: "2026-06-01T00:00:00Z" },
+        { participantId: "nochamp", name: "B", total: 50, finalTotalGoals: 3, championCorrect: false, liveCorrect: 9, submittedAt: "2026-05-01T00:00:00Z" },
+      ],
+      3,
+    );
+    const order = ranked.map((r) => r.participantId);
+    // champion-correct first (3 of them), nochamp last despite most live picks;
+    // among champions: more live picks, then earliest submission breaks the dead heat.
+    expect(order).toEqual(["early", "late", "fewerlive", "nochamp"]);
+  });
 });

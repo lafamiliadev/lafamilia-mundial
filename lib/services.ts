@@ -93,6 +93,10 @@ export async function recomputeScores(
       bonus: s.bonus,
       live: s.live,
       finalTotalGoals: p.predictions.finalTotalGoals,
+      // Tie-break inputs (spec order): champion → live picks → goals → submission.
+      championCorrect: Boolean(merged.champion) && p.predictions.champion === merged.champion,
+      liveCorrect: s.lines.filter((l) => l.group === "live").length,
+      submittedAt: p.createdAt,
     };
   });
 

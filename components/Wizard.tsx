@@ -7,7 +7,7 @@ import { GroupWinners } from "./GroupWinners";
 import { MultiPickGrid } from "./MultiPickGrid";
 import { PickGrid, type PickOption } from "./PickGrid";
 import { Button, cn } from "./ui";
-import { TEAMS, teamFlag, teamName } from "@/lib/teams";
+import { LATAM_TEAMS, TEAMS, teamFlag, teamName } from "@/lib/teams";
 import { submitPredictions, updatePredictions } from "@/app/actions/predictions";
 import type { GroupMap } from "@/lib/types";
 
@@ -35,6 +35,18 @@ const STORAGE_KEY = "mundial26:draft:v2";
 
 const teamOptions: PickOption[] = [...TEAMS]
   .sort((a, b) => Number(b.qualified) - Number(a.qualified) || a.name.localeCompare(b.name))
+  .map((t) => ({ key: t.code, label: t.name, flag: t.flag }));
+
+// "Rooting for" offers the Familia's Latine + Hispanic nations actually in the
+// Cup — reliable data from lib/teams.ts (official 48 qualified teams, curated
+// `isLatam` flag), plus Spain (Hispanic — shares the heritage, though not Latin
+// America). Built from the team list, never hardcoded names/flags.
+const ROOTING_EXTRA_CODES = ["ESP"]; // Spain — Hispanic
+const rootingOptions: PickOption[] = [
+  ...LATAM_TEAMS,
+  ...TEAMS.filter((t) => ROOTING_EXTRA_CODES.includes(t.code) && t.qualified),
+]
+  .sort((a, b) => a.name.localeCompare(b.name))
   .map((t) => ({ key: t.code, label: t.name, flag: t.flag }));
 
 export function Wizard({
@@ -152,16 +164,14 @@ export function Wizard({
         ),
       },
       {
-        title: "Who are you rooting for? 🌎",
-        hint: "Your team — win or lose, you're with them. (Just for flavor, not scored.)",
+        title: "¿A quién le vas? 🌎",
+        hint: "Pick from our Latine and Hispanic nations in the Cup — win or lose, you're with them. (Just for flavor, not scored.)",
         canNext: !!s.rootingCountry,
         body: (
           <PickGrid
-            options={teamOptions}
+            options={rootingOptions}
             value={s.rootingCountry}
             onChange={(v) => pick("rootingCountry", v)}
-            searchable
-            searchPlaceholder="Search countries…"
           />
         ),
       },

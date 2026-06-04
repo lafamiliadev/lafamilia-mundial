@@ -48,8 +48,10 @@ function FeaturedPlayerGrid({
   const needle = fold(q.trim());
   const list = useMemo(() => {
     if (!needle) {
-      // Always include the current pick even if it's outside the featured set.
-      const base = featured.slice();
+      // Default view: the featured shortlist. Guard against an empty featured
+      // set (would render a blank screen) by falling back to the full list.
+      const base = (featured.length ? featured : all.slice(0, 12)).slice();
+      // Always include the current pick even if it's outside the default set.
       if (value && !base.some((p) => p.id === value)) {
         const extra = all.find((p) => p.id === value);
         if (extra) base.unshift(extra);
@@ -99,7 +101,7 @@ function FeaturedPlayerGrid({
             </button>
           );
         })}
-        {list.length === 0 && (
+        {needle && list.length === 0 && (
           <p className="col-span-full py-8 text-center text-sm text-[var(--color-muted)]">
             No matches for “{q}”.
           </p>
