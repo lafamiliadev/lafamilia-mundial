@@ -81,7 +81,7 @@ Think you can beat my bracket? 👇`;
             Challenge 3 Familia members to beat your picks.
           </p>
           <div className="grid grid-cols-2 gap-3">
-            <CopyShareLink url={copaUrl} text={shareMessage} />
+            <CopyShareLink url={copaUrl} />
             <SavePredictionCard
               cardUrl={cardUrl}
               fileName={cardFile}
