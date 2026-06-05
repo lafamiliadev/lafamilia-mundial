@@ -234,9 +234,9 @@ export default async function LeaderboardPage({
               <p className="text-3xl">⚡</p>
               <p className="mt-2 font-black">Live Picks · Opens {liveOpensLabel}</p>
               <p className="mt-3 text-sm leading-relaxed text-white/85">
-                Once the knockout rounds begin, you&apos;ll pick the winner of each match — Round of 32
-                all the way to the Final. Get them right to earn points (worth more every round), so you
-                can keep climbing even if your champion gets knocked out.
+                Starting June 28, you&apos;ll make quick picks for each knockout match. Just choose who
+                you think will win. Every correct pick earns points, and later rounds are worth more, so
+                you can still climb the leaderboard even if your champion is out.
               </p>
             </div>
             <div className="border-t border-[var(--color-line)] px-5 py-3 text-center text-xs font-semibold text-[var(--color-muted)]">

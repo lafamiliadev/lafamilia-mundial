@@ -25,8 +25,10 @@ const schema = z.object({
 
   // Optional email (magic resume + milestone nudges).
   RESEND_API_KEY: z.string().optional(),
-  // Must be a Resend-verified domain/address in production.
-  EMAIL_FROM: z.string().default("La Copa de LaFamilia <noreply@vcfamilia.com>"),
+  // Must be a Resend-verified domain/address in production. We send from the
+  // wc26 subdomain so the game's sending reputation stays isolated from
+  // LaFamilia's main email domain. Override per-env with the EMAIL_FROM var.
+  EMAIL_FROM: z.string().default("La Copa de LaFamilia <noreply@wc26.lafamiliafoundation.com>"),
 });
 
 const parsed = schema.safeParse(process.env);
