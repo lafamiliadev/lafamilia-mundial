@@ -60,6 +60,7 @@ export const MIDFIELDERS: Player[] = [
   { id: "wirtz", name: "Florian Wirtz", teamCode: "GER", pos: "MF" },
   { id: "musiala", name: "Jamal Musiala", teamCode: "GER", pos: "MF" },
   { id: "b-fernandes", name: "Bruno Fernandes", teamCode: "POR", pos: "MF" },
+  { id: "vitinha", name: "Vitinha", teamCode: "POR", pos: "MF" },
   { id: "valverde", name: "Federico Valverde", teamCode: "URU", pos: "MF" },
   { id: "mac-allister", name: "Alexis Mac Allister", teamCode: "ARG", pos: "MF" },
   { id: "enzo", name: "Enzo Fernández", teamCode: "ARG", pos: "MF" },
@@ -68,7 +69,8 @@ export const MIDFIELDERS: Player[] = [
   { id: "modric", name: "Luka Modrić", teamCode: "CRO", pos: "MF" },
 ];
 
-// ── Defenders (for Golden Ball). ──
+// ── Defenders — kept for name lookups only (not eligible for any Bonus Pick:
+// the Golden Ball is an attacker/playmaker award). ──
 export const DEFENDERS: Player[] = [
   { id: "van-dijk", name: "Virgil van Dijk", teamCode: "NED", pos: "DF" },
   { id: "saliba", name: "William Saliba", teamCode: "FRA", pos: "DF" },
@@ -117,12 +119,17 @@ export const GOLDEN_BOOT_PLAYERS = STRIKERS;
 export const GOLDEN_GLOVE_FEATURED = GOALKEEPERS.filter((p) => p.featured);
 export const GOLDEN_GLOVE_ALL = GOALKEEPERS;
 
-const BALL_ALL = [...STRIKERS, ...MIDFIELDERS, ...DEFENDERS, ...GOLDEN_GLOVE_FEATURED];
-/** Golden Ball featured contenders (across positions); search spans BALL_ALL. */
+// Golden Ball = best player of the tournament. In practice this goes to an
+// attacker or playmaker — forwards and attacking midfielders. Goalkeepers play
+// for the Golden Glove and top scorers for the Golden Boot, so we keep keepers
+// and defenders out of this pool (a keeper has won exactly once, in 2002).
+const BALL_ALL = [...STRIKERS, ...MIDFIELDERS];
+/** Golden Ball featured contenders; search still spans the full BALL_ALL pool. */
 export const GOLDEN_BALL_FEATURED: Player[] = [
-  "messi", "mbappe", "yamal", "bellingham", "vinicius", "haaland", "kane",
-  "rodri", "musiala", "debruyne", "van-dijk", "hakimi", "e-martinez", "salah",
-  "julian-alvarez", "pedri",
+  "messi", "ronaldo", "mbappe", "yamal", "bellingham", "vinicius", "haaland",
+  "kane", "pedri", "musiala", "vitinha", "b-fernandes", "modric", "salah",
+  "valverde", "julian-alvarez", "son", "pulisic", "rodri", "wirtz",
+  "lautaro", "raphinha",
 ]
   .map((id) => BALL_ALL.find((p) => p.id === id))
   .filter((p): p is Player => Boolean(p));

@@ -12,6 +12,7 @@ import {
   GOLDEN_BOOT_PLAYERS,
   GOLDEN_GLOVE_ALL,
   GOLDEN_GLOVE_FEATURED,
+  playerName,
   type Player,
 } from "@/lib/players";
 import { teamFlag, teamName } from "@/lib/teams";
@@ -30,8 +31,8 @@ const teamOpt = (code: string): PickOption => ({
 /**
  * A player picker that shows a short featured shortlist by default, but searches
  * the full eligible pool the moment the member types. Keeps the mobile flow fast
- * while still letting people find anyone (past Golden Ball winners include
- * midfielders and keepers, not just strikers).
+ * while still letting people find anyone (Golden Ball winners include
+ * playmaking midfielders, not just strikers).
  */
 function FeaturedPlayerGrid({
   featured,
@@ -260,7 +261,7 @@ export function BonusWizard({
                     ? `${teamFlag(v)} ${teamName(v)}`
                     : (GOLDEN_BALL_ALL.find((p) => p.id === v) ??
                         GOLDEN_BOOT_PLAYERS.find((p) => p.id === v) ??
-                        GOLDEN_GLOVE_ALL.find((p) => p.id === v))?.name ?? v
+                        GOLDEN_GLOVE_ALL.find((p) => p.id === v))?.name ?? playerName(v)
                   : "— skipped";
                 return (
                   <button
