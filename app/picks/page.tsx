@@ -80,26 +80,34 @@ export default async function PicksHubPage({
         {bonusOpen ? (
           <Link
             href="/picks/bonus"
-            className="card mb-3 block overflow-hidden transition hover:shadow-sm"
+            className="card mb-3 block overflow-hidden border-2 border-[var(--color-gold)] shadow-sm transition hover:shadow-md"
           >
             <div className="flex items-center gap-4 p-4">
-              <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[var(--color-gold-soft)]/60 text-2xl">
-                🥇
+              <span
+                className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl text-3xl shadow-sm"
+                style={{ background: "linear-gradient(135deg, var(--color-gold-soft) 0%, var(--color-gold) 100%)" }}
+              >
+                {bonusFilled >= 4 ? "🎉" : "🎁"}
               </span>
               <div className="min-w-0 flex-1">
-                <p className="font-bold">Bonus Picks</p>
-                <p className="text-sm text-[var(--color-muted)]">
-                  Golden Ball, Boot, Glove & a Dark Horse · {BONUS_POINTS_AVAILABLE} pts in play
+                <div className="flex items-center gap-2">
+                  <p className="font-bold">Bonus Picks</p>
+                  <span className="shrink-0 rounded-full bg-[var(--color-gold-soft)]/70 px-2 py-0.5 text-xs font-extrabold text-[#3a2b00]">
+                    +{BONUS_POINTS_AVAILABLE} pts
+                  </span>
+                </div>
+                <p className="mt-0.5 text-sm text-[var(--color-muted)]">
+                  Golden Ball, Boot, Glove &amp; a Dark Horse
                 </p>
               </div>
               <span className="shrink-0 text-right">
                 <span className="block text-xs font-bold text-[var(--color-pitch)]">
                   {bonusFilled}/4 done
                 </span>
-                <span className="text-[var(--color-muted)]">›</span>
+                <span className="text-lg text-[var(--color-gold)]">›</span>
               </span>
             </div>
-            <div className="bg-[var(--color-pitch)] px-4 py-2 text-center text-sm font-bold text-white">
+            <div className="bg-[var(--color-gold)] px-4 py-2.5 text-center text-sm font-bold text-[#3a2b00]">
               {bonusFilled === 0 ? "Add your Bonus Picks →" : bonusFilled < 4 ? "Finish your Bonus Picks →" : "Edit your Bonus Picks →"}
             </div>
           </Link>
@@ -179,14 +187,11 @@ export default async function PicksHubPage({
           You can climb even if your champion is eliminated. New points open every round.
         </p>
 
-        <div className="mt-6 grid grid-cols-2 gap-3">
-          <LinkButton href={`/leaderboard?me=${me.resumeToken}`} variant="outline" className="w-full">
-            🏆 Leaderboard
-          </LinkButton>
-          <LinkButton href={`/copa/${me.slug}`} variant="outline" className="w-full">
-            📣 Share card
-          </LinkButton>
-        </div>
+        {/* Single, clear action — grow the competition. Leaderboard lives in
+            the header nav, so it isn't duplicated here. */}
+        <LinkButton href={`/done?token=${me.resumeToken}`} variant="primary" className="mt-6 w-full">
+          🔥 Challenge a Friend
+        </LinkButton>
       </PageShell>
     </main>
   );

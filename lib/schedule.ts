@@ -6,6 +6,10 @@
 export type ScoringMilestone = {
   /** Short label for the banner. */
   label: string;
+  /** Plain-language "what happens at zero" for someone new to soccer/fantasy. */
+  whenLabel: string;
+  /** Which of the member's picks get scored here. */
+  fromPicks: string;
   /** When the points become live (ISO, with timezone). */
   dateIso: string;
   /** How many points are in play at this milestone (across all 12 groups, etc.). */
@@ -14,11 +18,11 @@ export type ScoringMilestone = {
 
 export const SCORING_MILESTONES: ScoringMilestone[] = [
   // Group winners are decided when the group stage finishes.
-  { label: "Group stage finishes", dateIso: "2026-06-27T23:59:00-04:00", pointsInPlay: 36 },
+  { label: "Group stage finishes", whenLabel: "When the group stage ends", fromPicks: "your group-winner picks", dateIso: "2026-06-27T23:59:00-04:00", pointsInPlay: 36 },
   // Your Final Four is locked once the quarterfinals are played.
-  { label: "Final Four is set", dateIso: "2026-07-11T23:59:00-04:00", pointsInPlay: 40 },
+  { label: "Final Four is set", whenLabel: "When the quarterfinals finish", fromPicks: "your Final Four picks", dateIso: "2026-07-11T23:59:00-04:00", pointsInPlay: 40 },
   // Champion (and the goals tiebreaker) resolves at the final.
-  { label: "The Final", dateIso: "2026-07-19T23:59:00-04:00", pointsInPlay: 20 },
+  { label: "The Final", whenLabel: "When the final is played", fromPicks: "your champion pick", dateIso: "2026-07-19T23:59:00-04:00", pointsInPlay: 20 },
 ];
 
 /** The next milestone strictly after `now`, or null if the tournament is done. */

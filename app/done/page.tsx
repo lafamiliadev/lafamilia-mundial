@@ -1,13 +1,11 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { CopyShareLink } from "@/components/CopyShareLink";
 import { ResumeLink } from "@/components/ResumeLink";
 import { SavePredictionCard } from "@/components/SavePredictionCard";
 import { SiembraCTA } from "@/components/Siembra";
-import { Button, LinkButton } from "@/components/ui";
+import { Button, TopNav } from "@/components/ui";
 import { db } from "@/lib/db";
 import { env } from "@/lib/env";
-import { BONUS_POINTS_AVAILABLE } from "@/lib/schedule";
 import { teamFlag, teamName } from "@/lib/teams";
 
 export const dynamic = "force-dynamic";
@@ -30,11 +28,8 @@ export default async function DonePage({
   // Personalized public share page — friends land here, see the card, and make
   // their own bracket (attributed back via ?ref). This is the viral loop.
   const copaUrl = `${env.NEXT_PUBLIC_APP_URL}/copa/${me.slug}`;
+  const firstName = me.name.split(" ")[0];
   const finalFour = me.predictions.semifinalists ?? [];
-  const winnerFlags = Object.keys(me.predictions.groupWinners ?? {})
-    .sort()
-    .map((l) => (me.predictions.groupWinners ?? {})[l])
-    .filter(Boolean);
   const shareMessage = `My Final Four 🔥 ${finalFour.map((c) => teamFlag(c)).join(" ")} — and ${teamName(me.predictions.champion)} to lift it. 🏆
 
 La Copa de LaFamilia is a little World Cup challenge from LaFamilia, the largest Latine venture community, in support of Siembra. When one of us gets in the room, we open the door for the next.
@@ -44,137 +39,68 @@ Think you can beat my bracket? 👇`;
   const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(`${shareMessage}\n\n${copaUrl}\n\n${communityLine}`)}`;
   const cardFile = `la-copa-lafamilia-${me.name.split(" ")[0].toLowerCase()}.png`;
 
-  const bonusFilled = Object.values(me.predictions.bonus ?? {}).filter(Boolean).length;
-
-  const summary = [
-    { label: "Rooting for", value: `${teamFlag(me.rootingCountry)} ${teamName(me.rootingCountry)}` },
-    {
-      label: "Final Four",
-      value: finalFour.length ? finalFour.map((c) => teamFlag(c)).join(" ") : "—",
-    },
-    {
-      label: "Group winners",
-      value: winnerFlags.length ? `${winnerFlags.length} / 12 picked` : "—",
-    },
-    { label: "Goals in final", value: String(me.predictions.finalTotalGoals ?? "—") },
-  ];
-
   return (
     <main className="flex flex-1 flex-col">
-      <section className="bg-stadium px-5 pb-8 pt-12 text-center text-white">
+      <TopNav active="picks" />
+
+      {/* Success + card framing — green extends a little past the text so the
+          collectible card can overlap it and feel like it floats. */}
+      <section className="bg-stadium px-5 pb-16 pt-9 text-center text-white">
         <div className="mx-auto max-w-md">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/lafamilia-logo-white.svg" alt="LaFamilia" className="mx-auto h-10 w-auto" />
-          <div className="mt-5 text-5xl">🎉</div>
-          <h1 className="mt-3 text-3xl font-black tracking-tight">You&apos;re in, {me.name.split(" ")[0]}!</h1>
-          <p className="mt-2 text-white/85">
-            Your bracket is locked in. Now bring the Familia — share your card and challenge your crew.
+          <div className="text-5xl">🎉</div>
+          <h1 className="mt-2 text-3xl font-black tracking-tight">You&apos;re in, {firstName}!</h1>
+          <p className="mt-4 text-lg font-extrabold tracking-tight text-[var(--color-gold-soft)]">
+            🏆 Your Collectible Prediction Card
+          </p>
+          <p className="mx-auto mt-1.5 max-w-xs text-sm leading-relaxed text-white/85">
+            Save it, share it, and see if anyone in the Familia can beat your picks.
           </p>
         </div>
       </section>
 
-      <section className="mx-auto -mt-6 w-full max-w-md px-4 pb-24">
-        {/* Bracket summary — fiesta header for branding, clean list for scanning */}
-        <div className="card overflow-hidden">
-          <div
-            className="p-5 text-white"
-            style={{ background: "linear-gradient(135deg, #ff2d6f 0%, #ff6b1a 55%, #ffb627 100%)" }}
-          >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/lafamilia-logo-white.svg" alt="LaFamilia" className="h-11 w-auto" />
-            <p className="mt-3 text-xs font-bold uppercase tracking-wider text-white/85">
-              La Copa de LaFamilia 2026 ⚽
-            </p>
-            <p className="mt-3 text-sm text-white/90">{me.name}&apos;s pick to win it all</p>
-            <p className="mt-1 text-4xl font-black drop-shadow-sm">
-              {teamFlag(me.predictions.champion)} {teamName(me.predictions.champion)}
-            </p>
-          </div>
-          <div className="divide-y divide-[var(--color-line)]">
-            {summary.map((row) => (
-              <div key={row.label} className="flex items-center justify-between px-4 py-3">
-                <span className="text-sm text-[var(--color-muted)]">{row.label}</span>
-                <span className="font-semibold">{row.value}</span>
-              </div>
-            ))}
-          </div>
+      <section className="relative z-10 mx-auto -mt-10 w-full max-w-md px-4 pb-24">
+        {/* ── The collectible card — hero, floating over the hero boundary ── */}
+        <div className="overflow-hidden rounded-3xl shadow-2xl ring-1 ring-black/5">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={cardUrl}
+            alt={`${me.name}'s World Cup bracket — ${teamName(me.predictions.champion)} to win`}
+            width={1080}
+            height={1350}
+            className="w-full"
+          />
         </div>
 
-        {/* Next step: Bonus Picks — a separate quick challenge on top of the
-            now-locked bracket. Encouraged (counts toward Overall), not required. */}
-        <Link href={`/picks/bonus?token=${me.resumeToken}`} className="mt-6 block">
-          <div className="card overflow-hidden border-2 border-[var(--color-gold)]">
-            <div className="flex items-center gap-4 p-4">
-              <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[var(--color-gold-soft)]/60 text-2xl">
-                {bonusFilled >= 4 ? "✅" : "🥇"}
-              </span>
-              <div className="min-w-0 flex-1">
-                <p className="font-bold">
-                  {bonusFilled > 0 ? "Edit your Bonus Picks" : "Next: add your Bonus Picks"}
-                </p>
-                <p className="text-sm text-[var(--color-muted)]">
-                  Golden Ball, Boot, Glove & a Dark Horse · {BONUS_POINTS_AVAILABLE} pts in play
-                </p>
-              </div>
-              <span className="shrink-0 text-[var(--color-muted)]">›</span>
-            </div>
-            <div className="bg-[var(--color-gold)] px-4 py-2 text-center text-sm font-bold text-[#3a2b00]">
-              {bonusFilled > 0 ? `${bonusFilled}/4 done — finish them →` : "Takes 30 seconds →"}
-            </div>
-          </div>
-        </Link>
-        <p className="mt-2 text-center text-xs text-[var(--color-muted)]">
-          Your next round of points opens June&nbsp;27 — we&apos;ll remind you.
-        </p>
-
-        {/* One obvious next step: share with Familia on WhatsApp. */}
-        <div className="mt-6 space-y-3">
-          {/* PRIMARY CTA */}
+        {/* ── Share — one clear primary action, then side-by-side secondaries ── */}
+        <div className="mt-7 space-y-3">
           <a href={whatsappUrl} target="_blank" rel="noreferrer" className="block">
             <Button variant="primary" className="w-full py-5 text-lg shadow-md">
-              📲 Share with Familia on WhatsApp
+              📲 Share on WhatsApp
             </Button>
           </a>
           <p className="text-center text-xs text-[var(--color-muted)]">
-            Share your card and challenge 3 Familia members to beat it.
+            Challenge 3 Familia members to beat your picks.
           </p>
-
-          {/* secondary: copy the share link (same action as before) */}
-          <CopyShareLink url={copaUrl} text={shareMessage} />
-
-          {/* supporting secondary actions */}
-          <SavePredictionCard
-            cardUrl={cardUrl}
-            fileName={cardFile}
-            shareText={shareMessage}
-            shareUrl={copaUrl}
-            secondary
-          />
           <div className="grid grid-cols-2 gap-3">
-            <LinkButton href={`/leaderboard?me=${me.resumeToken}`} variant="outline" className="w-full">
-              🏆 Leaderboard
-            </LinkButton>
-            <LinkButton href={`/r/${me.resumeToken}`} variant="outline" className="w-full">
-              ✏️ Edit picks
-            </LinkButton>
+            <CopyShareLink url={copaUrl} text={shareMessage} />
+            <SavePredictionCard
+              cardUrl={cardUrl}
+              fileName={cardFile}
+              shareText={shareMessage}
+              shareUrl={copaUrl}
+              secondary
+              idleLabel="📥 Download Card"
+            />
           </div>
         </div>
 
-        {/* Siembra mission CTA — below the summary + share actions */}
+        {/* ── Background — mission + private return link ── */}
         <div className="mt-8">
           <SiembraCTA />
         </div>
-
-        {/* Private return link — available, but no longer a primary CTA */}
         <div className="mt-6">
           <ResumeLink url={resumeUrl} />
         </div>
-
-        <p className="mt-6 text-center text-sm text-[var(--color-muted)]">
-          <Link href="/insights" className="underline underline-offset-4">
-            See what the rest of Familia predicted →
-          </Link>
-        </p>
       </section>
     </main>
   );

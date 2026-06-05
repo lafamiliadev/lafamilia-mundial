@@ -206,14 +206,19 @@ export default async function LeaderboardPage({
           </Link>
         )}
 
-        {/* Next points drop — the anticipation engine (bracket-driven milestones) */}
+        {/* Next points drop — explained for someone new to soccer/fantasy. */}
         {nextDrop && view !== "live" && (
-          <div className="mb-5 rounded-2xl bg-[var(--color-navy)] px-4 py-4 text-white">
+          <div className="mb-5 rounded-2xl bg-[var(--color-navy)] px-4 py-5 text-center text-white">
             <p className="text-xs font-bold uppercase tracking-wider text-[var(--color-gold-soft)]">
-              ⚡ Next points drop · {nextDrop.pointsInPlay} pts in play
+              ⚡ {scoringStarted ? "Next points awarded in" : "First points awarded in"}
             </p>
-            <p className="mb-3 text-sm font-semibold">{nextDrop.label}</p>
-            <Countdown lockTime={nextDrop.dateIso} />
+            <div className="mt-3 flex justify-center">
+              <Countdown lockTime={nextDrop.dateIso} />
+            </div>
+            <p className="mt-3 text-sm font-semibold">{nextDrop.whenLabel}</p>
+            <p className="mt-1 text-xs text-white/75">
+              Up to {nextDrop.pointsInPlay} points available from {nextDrop.fromPicks}
+            </p>
           </div>
         )}
 
@@ -247,10 +252,11 @@ export default async function LeaderboardPage({
           <div className="card overflow-hidden">
             <div className="bg-[var(--color-pitch)] px-4 py-4 text-center text-white">
               <p className="text-2xl">🏁</p>
-              <p className="mt-1 font-black">At the starting line</p>
+              <p className="mt-1 font-black">Before kickoff</p>
               <p className="mt-1 text-sm text-white/85">
-                Everyone&apos;s at zero. The race starts when the first points land
-                {nextDrop ? `, ${nextDrop.label.toLowerCase()}.` : " soon."}
+                Everyone starts at 0 points. The leaderboard comes alive
+                {nextDrop ? ` ${nextDrop.whenLabel.toLowerCase()}` : " when the tournament begins"} and
+                the first predictions are scored.
               </p>
 
               {/* Quiet, tap-to-expand scoring explainer */}

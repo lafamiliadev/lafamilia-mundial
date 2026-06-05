@@ -29,6 +29,7 @@ export function SavePredictionCard({
   shareText,
   shareUrl,
   secondary = false,
+  idleLabel = "📸 Save card image",
 }: {
   cardUrl: string;
   fileName: string;
@@ -36,6 +37,8 @@ export function SavePredictionCard({
   shareUrl: string;
   /** Render as a quiet secondary action (download is no longer the headline). */
   secondary?: boolean;
+  /** Idle label for the secondary variant. */
+  idleLabel?: string;
 }) {
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState<"" | "saved" | "shared">("");
@@ -96,7 +99,7 @@ export function SavePredictionCard({
       ? "✓ Shared!"
       : done === "saved"
         ? "✓ Saved!"
-        : "📸 Save card image";
+        : idleLabel;
 
   if (secondary) {
     return (

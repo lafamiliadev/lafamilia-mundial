@@ -13,7 +13,7 @@ import { LinkButton } from "@/components/ui";
 import { db } from "@/lib/db";
 import { getLeaderboardData, getTopChampionPick } from "@/lib/services";
 import { getSessionParticipant } from "@/lib/session";
-import { bonusPointsRemaining, pickStatus } from "@/lib/schedule";
+import { bonusPointsRemaining, pickStatus, SCORING_MILESTONES } from "@/lib/schedule";
 import { teamFlag, teamName } from "@/lib/teams";
 import { EMPTY_BONUS } from "@/lib/types";
 
@@ -64,7 +64,10 @@ export default async function Home() {
           gapToNext={board.meGapToNext}
           rivalName={rival?.name ?? null}
         />
-        <HowAndExplore />
+        <WhatHappensNext
+          kickoffIso={settings.lockTime}
+          firstPointsIso={SCORING_MILESTONES[0].dateIso}
+        />
       </main>
     );
   }
@@ -102,11 +105,11 @@ export default async function Home() {
           </p>
 
           {/* 3 — Conversion area, grouped in one subtle container inside the hero */}
-          <div className="mt-7 rounded-2xl border border-white/15 bg-white/[0.06] px-5 py-6 backdrop-blur-sm">
+          <div className="mt-7 rounded-2xl border border-white/15 bg-white/[0.06] px-5 py-6 text-center backdrop-blur-sm">
             <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-[var(--color-gold-soft)]">
               Predictions close in
             </p>
-            <div className="mt-3 flex justify-start">
+            <div className="mt-3 flex justify-center">
               <Countdown lockTime={settings.lockTime} />
             </div>
 
@@ -215,6 +218,67 @@ function HowAndExplore() {
   );
 }
 
+/** Welcome Back below-hero content: a plain, concrete "what comes next" for
+ * someone who already made their picks (and may not follow soccer at all). */
+function WhatHappensNext({
+  kickoffIso,
+  firstPointsIso,
+}: {
+  kickoffIso: string;
+  firstPointsIso: string;
+}) {
+  const started = Date.now() >= new Date(kickoffIso).getTime();
+  const fmt = (iso: string) =>
+    new Date(iso).toLocaleDateString("en-US", {
+      month: "long",
+      day: "numeric",
+      timeZone: "America/New_York",
+    });
+
+  const steps = started
+    ? [
+        { t: "The tournament is underway", d: "Matches are being played right now." },
+        { t: "We score your picks for you", d: "When a team you picked wins, you get points. You don't have to do a thing." },
+        { t: "Check your score anytime", d: "We update your points as games finish. See where you rank on the leaderboard." },
+      ]
+    : [
+        { t: `The World Cup starts ${fmt(kickoffIso)}`, d: "That's when the games begin." },
+        { t: "We score your picks for you", d: "When a team you picked wins, you get points. You don't have to do a thing." },
+        { t: "Come back to check your score", d: `Your first points come in around ${fmt(firstPointsIso)}. See where you rank on the leaderboard.` },
+      ];
+
+  return (
+    <section className="mx-auto w-full max-w-md px-4 pb-20 pt-6">
+      <div className="card p-5">
+        <p className="mb-5 text-xs font-bold uppercase tracking-wider text-[var(--color-muted)]">
+          What happens next
+        </p>
+        <ul className="space-y-5">
+          {steps.map((s, i) => (
+            <li key={i} className="flex items-start gap-3.5">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--color-pitch)] text-sm font-black text-white">
+                {i + 1}
+              </span>
+              <div>
+                <p className="font-bold leading-snug text-[var(--color-ink)]">{s.t}</p>
+                <p className="mt-0.5 text-sm leading-snug text-[var(--color-muted)]">{s.d}</p>
+              </div>
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      {/* Belonging — the heart of it */}
+      <p className="mt-10 text-center text-lg font-extrabold tracking-tight text-[var(--color-ink)]">
+        When one of us wins, the Familia wins. 🌎
+      </p>
+      <p className="mt-1 text-center text-sm text-[var(--color-muted)]">
+        Hecho por LaFamilia, para LaFamilia.
+      </p>
+    </section>
+  );
+}
+
 /** Returning-member hero: greet, show rank + the next open action. */
 function ReturningHero({
   name,
@@ -236,6 +300,7 @@ function ReturningHero({
   rivalName: string | null;
 }) {
   const hasOpen = picksOpen > 0;
+  const started = Date.now() >= new Date(lockTime).getTime();
   return (
     <section className="bg-stadium px-5 pb-10 pt-14 text-left text-white">
       <div className="mx-auto max-w-md">
@@ -257,13 +322,13 @@ function ReturningHero({
           )}
         </div>
 
-        <div className="mt-6 rounded-2xl border border-white/15 bg-white/[0.06] px-5 py-6 backdrop-blur-sm">
+        <div className="mt-6 rounded-2xl border border-white/15 bg-white/[0.06] px-5 py-6 text-center backdrop-blur-sm">
           {hasOpen ? (
             <>
               <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-[var(--color-gold-soft)]">
                 {picksOpen} {picksOpen === 1 ? "pick" : "picks"} open · {ptsAvailable} pts available
               </p>
-              <div className="mt-3 flex justify-start">
+              <div className="mt-3 flex justify-center">
                 <Countdown lockTime={lockTime} />
               </div>
               <LinkButton href="/picks" variant="gold" className="mt-6 w-full text-lg shadow-md">
@@ -282,10 +347,12 @@ function ReturningHero({
           ) : (
             <>
               <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-[var(--color-gold-soft)]">
-                You&apos;re all set for now
+                You&apos;re all set 🎉
               </p>
-              <p className="mt-2 text-sm text-white/85">
-                Your picks are locked in. Your next round of points opens soon — we&apos;ll let you know.
+              <p className="mt-2 text-sm leading-relaxed text-white/85">
+                {started
+                  ? "Your picks are saved. As the games are played, we'll score your predictions for you automatically. Come back any time to check the leaderboard."
+                  : "Your picks are saved, and the games haven't started yet. Once they kick off, we'll score your predictions for you automatically. Come back any time to check the leaderboard."}
               </p>
               <LinkButton href="/picks" variant="gold" className="mt-5 w-full text-lg shadow-md">
                 See my picks →
@@ -302,6 +369,24 @@ function ReturningHero({
             📊 Insights
           </LinkButton>
         </div>
+
+        {/* Calm Siembra nudge — community-first, never blocking the game. */}
+        <a
+          href={SIEMBRA_URL}
+          target="_blank"
+          rel="noreferrer"
+          className="mt-6 flex items-start gap-3 rounded-2xl border border-[var(--color-gold-soft)]/25 bg-white/[0.05] px-4 py-3.5 transition hover:bg-white/[0.08]"
+        >
+          <span className="mt-0.5 shrink-0 text-xl">🌱</span>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm leading-snug text-white/85">
+              La Copa&apos;s free to play. Siembra is how we keep building rooms where the Familia shows up for each other.
+            </p>
+            <span className="mt-1.5 inline-flex items-center gap-1 text-sm font-semibold text-[var(--color-gold-soft)]">
+              Support Siembra →
+            </span>
+          </div>
+        </a>
       </div>
     </section>
   );

@@ -3,7 +3,7 @@ import path from "node:path";
 import { ImageResponse } from "next/og";
 import { db } from "@/lib/db";
 import { cardTheme, darken, withAlpha } from "@/lib/card-theme";
-import { TEAM_BY_CODE, teamFlag, teamName } from "@/lib/teams";
+import { teamFlag, teamName } from "@/lib/teams";
 
 export const runtime = "nodejs";
 
@@ -26,18 +26,11 @@ async function asset(file: string): Promise<string | null> {
   }
 }
 
-function deriveBadge(order: number, champSeed: number): { emoji: string; label: string } {
-  if (order >= 0 && order < 25) return { emoji: "🏆", label: "Founding Predictor" };
-  if (champSeed >= 3) return { emoji: "🔥", label: "Bold Pick" };
-  return { emoji: "⚽", label: "Early Entry" };
-}
-
 export async function GET(_req: Request, ctx: { params: Promise<{ slug: string }> }) {
   const { slug } = await ctx.params;
   const repo = await db();
-  const [me, all, logo] = await Promise.all([
+  const [me, logo] = await Promise.all([
     repo.getBySlug(slug),
-    repo.listParticipants(),
     asset("lafamilia-logo-gold.svg"),
   ]);
 
@@ -46,13 +39,14 @@ export async function GET(_req: Request, ctx: { params: Promise<{ slug: string }
 
   const championCode = p?.champion ?? null;
   const champName = (championCode ? teamName(championCode) : "—").toUpperCase();
-  const champSeed = championCode ? (TEAM_BY_CODE[championCode]?.fifaSeed ?? 4) : 4;
-  const order = me ? all.findIndex((x) => x.slug === me.slug) : -1;
-  const badge = deriveBadge(order, champSeed);
   const theme = cardTheme(championCode);
 
+  // Name + flag share one line, so size for the combined width. The team name
+  // is the dominant element; the flag scales to sit just under its cap height.
+  const len = champName.length;
   const heroSize =
-    champName.length <= 7 ? 168 : champName.length <= 10 ? 136 : champName.length <= 14 ? 100 : 80;
+    len <= 7 ? 150 : len <= 10 ? 124 : len <= 13 ? 94 : len <= 16 ? 74 : 60;
+  const flagSize = Math.round(heroSize * 0.72);
 
   // The Final Four (prestige share artifact) + group-winner flag strip.
   const finalFour = (p?.semifinalists ?? []).slice(0, 4);
@@ -61,6 +55,7 @@ export async function GET(_req: Request, ctx: { params: Promise<{ slug: string }
     .map((l) => (p?.groupWinners ?? {})[l])
     .filter(Boolean);
   const rooting = me?.rootingCountry ?? null;
+  const finalGoals = p?.finalTotalGoals ?? null;
 
   return new ImageResponse(
     (
@@ -93,84 +88,99 @@ export async function GET(_req: Request, ctx: { params: Promise<{ slug: string }
         <div style={{ position: "relative", display: "flex", flexDirection: "column", width: "100%", height: "100%", padding: "66px 68px" }}>
           {/* ── Header ── */}
           <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <div style={{ display: "flex", alignItems: "center" }}>
               {logo ? (
                 <img src={logo} width={216} height={108} style={{ objectFit: "contain" }} alt="LaFamilia" />
               ) : (
                 <div style={{ display: "flex", fontSize: "52px", fontWeight: 800, color: GOLD }}>LaFamilia</div>
               )}
-              <div style={{ display: "flex", alignItems: "center", gap: "10px", border: `1.5px solid ${theme.accent}`, background: withAlpha(theme.accent, 0.12), borderRadius: "999px", padding: "9px 18px" }}>
-                <span style={{ fontSize: "24px" }}>{badge.emoji}</span>
-                <span style={{ display: "flex", fontSize: "19px", fontWeight: 700, color: CREAM, letterSpacing: "1px", textTransform: "uppercase" }}>
-                  {badge.label}
-                </span>
-              </div>
             </div>
             <div style={{ display: "flex", fontSize: "22px", fontWeight: 700, color: SAND, letterSpacing: "6px" }}>
-              LA COPA DE LAFAMILIA · 2026
+              LA COPA DE LAFAMILIA · WORLD CUP 2026
             </div>
             <div style={{ display: "flex", fontSize: "38px", fontWeight: 800, color: CREAM, letterSpacing: "1px" }}>
               {name}&apos;s predictions
             </div>
-            <div style={{ display: "flex", height: "2px", background: `linear-gradient(90deg, ${theme.accent} 0%, rgba(0,0,0,0) 100%)` }} />
+            {rooting && (
+              <div style={{ display: "flex", alignItems: "center", gap: "10px", fontSize: "20px", fontWeight: 700, color: SAND }}>
+                <span style={{ display: "flex" }}>Rooting for {teamFlag(rooting)}</span>
+                <span style={{ display: "flex" }}>{teamName(rooting)}</span>
+              </div>
+            )}
+            <div style={{ display: "flex", height: "2px", marginTop: "4px", background: `linear-gradient(90deg, ${theme.accent} 0%, rgba(0,0,0,0) 100%)` }} />
           </div>
 
-          {/* ── Champion hero ── */}
+          {/* ── Champion hero — flag + name on one line, name dominant ── */}
           <div style={{ position: "relative", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", flex: 1 }}>
-            <div style={{ position: "absolute", display: "flex", fontSize: "400px", opacity: 0.09 }}>{teamFlag(championCode)}</div>
-
-            <div style={{ display: "flex", fontSize: "27px", fontWeight: 800, color: theme.accent, letterSpacing: "7px" }}>
-              🏆 PICK TO WIN IT ALL
+            <div style={{ display: "flex", fontSize: "25px", fontWeight: 800, color: theme.accent, letterSpacing: "6px", marginBottom: "18px" }}>
+              🏆 MY CHAMPION PICK
             </div>
-            <div style={{ display: "flex", fontSize: `${heroSize}px`, fontWeight: 900, color: CREAM, letterSpacing: "2px", lineHeight: 1, marginTop: "8px" }}>
-              {champName}
+            <div style={{ display: "flex", alignItems: "center", gap: "30px" }}>
+              <span style={{ display: "flex", fontSize: `${flagSize}px`, lineHeight: 1 }}>{teamFlag(championCode)}</span>
+              <span style={{ display: "flex", fontSize: `${heroSize}px`, fontWeight: 900, color: CREAM, letterSpacing: "1px", lineHeight: 1 }}>
+                {champName}
+              </span>
             </div>
-            <div style={{ display: "flex", marginTop: "20px", fontSize: "96px", lineHeight: 1 }}>{teamFlag(championCode)}</div>
           </div>
 
-          {/* ── My Final Four ── */}
-          <div style={{ display: "flex", flexDirection: "column", borderTop: `1px solid ${withAlpha(SAND, 0.35)}`, paddingTop: "28px" }}>
-            <span style={{ display: "flex", fontSize: "24px", fontWeight: 800, color: GOLD, letterSpacing: "5px", textTransform: "uppercase", marginBottom: "18px" }}>
-              🔥 My Final Four
+          {/* ── Final Four — medium weight: smaller than the champion ── */}
+          <div style={{ display: "flex", flexDirection: "column", borderTop: `1px solid ${withAlpha(SAND, 0.35)}`, paddingTop: "46px" }}>
+            <span style={{ display: "flex", fontSize: "21px", fontWeight: 800, color: GOLD, letterSpacing: "4px", textTransform: "uppercase", marginBottom: "20px" }}>
+              Final Four
             </span>
             <div style={{ display: "flex", justifyContent: "space-between" }}>
               {finalFour.map((code) => (
-                <div key={code} style={{ display: "flex", flexDirection: "column", alignItems: "center", width: "224px", gap: "10px" }}>
-                  <span style={{ display: "flex", fontSize: "76px", lineHeight: 1 }}>{teamFlag(code)}</span>
+                <div key={code} style={{ display: "flex", flexDirection: "column", alignItems: "center", width: "224px", gap: "12px" }}>
+                  <span style={{ display: "flex", fontSize: "74px", lineHeight: 1 }}>{teamFlag(code)}</span>
                   <span style={{ display: "flex", fontSize: "26px", fontWeight: 800, color: CREAM, textAlign: "center" }}>{teamName(code)}</span>
                 </div>
               ))}
             </div>
           </div>
 
-          {/* ── Group winners strip + rooting ── */}
-          <div style={{ display: "flex", flexDirection: "column", borderTop: `1px solid ${withAlpha(SAND, 0.35)}`, borderBottom: `1px solid ${withAlpha(SAND, 0.35)}`, paddingTop: "22px", paddingBottom: "22px", marginTop: "26px" }}>
-            <span style={{ display: "flex", fontSize: "19px", fontWeight: 700, color: GOLD, letterSpacing: "3px", textTransform: "uppercase", marginBottom: "14px" }}>
-              {`12 Group Winners${rooting ? `   ·   Rooting ${teamFlag(rooting)} ${teamName(rooting)}` : ""}`}
+          {/* ── Group winners — lightest weight: a clean flag strip, no box ── */}
+          <div style={{ display: "flex", flexDirection: "column", borderTop: `1px solid ${withAlpha(SAND, 0.35)}`, paddingTop: "40px", marginTop: "42px" }}>
+            <span style={{ display: "flex", fontSize: "21px", fontWeight: 800, color: GOLD, letterSpacing: "4px", textTransform: "uppercase", marginBottom: "16px" }}>
+              Group Winners
             </span>
             <div style={{ display: "flex", flexWrap: "wrap" }}>
               {winnerFlags.map((code, i) => (
-                <span key={i} style={{ display: "flex", justifyContent: "center", fontSize: "48px", width: "78px" }}>{teamFlag(code)}</span>
+                <span key={i} style={{ display: "flex", justifyContent: "center", fontSize: "50px", width: "78px" }}>{teamFlag(code)}</span>
               ))}
             </div>
           </div>
 
-          {/* ── Challenge ── */}
-          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "14px", marginTop: "30px" }}>
-            <div style={{ display: "flex", fontSize: "40px", fontWeight: 800, color: CREAM, lineHeight: 1.05 }}>
-              Can you beat my bracket?
-            </div>
-            <div style={{ display: "flex", alignItems: "center", border: `1.5px solid ${GOLD}`, borderRadius: "999px", padding: "12px 28px", fontSize: "22px", fontWeight: 800, color: GOLD_LT, letterSpacing: "1px" }}>
-              Make your picks ⚽
-            </div>
-            {/* Brand + community invite */}
-            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "5px", marginTop: "4px" }}>
-              <span style={{ display: "flex", fontSize: "19px", fontWeight: 700, color: SAND }}>
-                Built by LaFamilia · the largest Latine venture community
+          {/* ── Tiebreaker: goals in the final — a small, collectible stat ── */}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", borderTop: `1px solid ${withAlpha(SAND, 0.35)}`, paddingTop: "30px", marginTop: "34px" }}>
+            <div style={{ display: "flex", flexDirection: "column" }}>
+              <span style={{ display: "flex", fontSize: "21px", fontWeight: 800, color: GOLD, letterSpacing: "4px", textTransform: "uppercase" }}>
+                Goals in the Final
               </span>
-              <span style={{ display: "flex", fontSize: "20px", fontWeight: 800, color: GOLD_LT, letterSpacing: "0.5px" }}>
-                Join the familia → nas.io/lafamilia-foundation
+              <span style={{ display: "flex", fontSize: "16px", color: SAND, marginTop: "6px" }}>
+                My tiebreaker guess
               </span>
+            </div>
+            <span style={{ display: "flex", fontSize: "62px", fontWeight: 900, color: CREAM, lineHeight: 1 }}>
+              {finalGoals ?? "—"}
+            </span>
+          </div>
+
+          {/* Modest breathing room before the supporting invite. */}
+          <div style={{ display: "flex", flex: 0.2 }} />
+
+          {/* ── Challenge — supporting, left-aligned, compact ── */}
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: "15px", marginTop: "30px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "22px" }}>
+              <div style={{ display: "flex", fontSize: "33px", fontWeight: 800, color: CREAM, lineHeight: 1 }}>
+                Can you beat my bracket?
+              </div>
+              <div style={{ display: "flex", alignItems: "center", border: `1.5px solid ${GOLD}`, borderRadius: "999px", padding: "11px 26px", fontSize: "22px", fontWeight: 800, color: GOLD_LT, letterSpacing: "0.5px" }}>
+                Make your picks ⚽
+              </div>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: "9px", fontSize: "19px", fontWeight: 700 }}>
+              <span style={{ display: "flex", color: SAND }}>Built by LaFamilia ·</span>
+              <span style={{ display: "flex", color: GOLD_LT }}>join the familia → nas.io/lafamilia-foundation</span>
             </div>
           </div>
         </div>
