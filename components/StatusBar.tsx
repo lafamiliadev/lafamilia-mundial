@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { db } from "@/lib/db";
+import { LIVE_PICKS_ENABLED } from "@/lib/flags";
 import { getSessionParticipant } from "@/lib/session";
 import { now } from "@/lib/preview";
 import { bonusPointsRemaining, pickStatus } from "@/lib/schedule";
@@ -31,13 +32,14 @@ export async function StatusBar() {
     const left = bonusPointsRemaining(me.predictions.bonus, settings.weights);
     label = left > 0 ? `Make your Bonus Picks · ${left} pts` : "Bonus Picks done — edit until kickoff";
     live = true;
-  } else if (status.state === "round-open") {
+  } else if (LIVE_PICKS_ENABLED && status.state === "round-open") {
     label = `${status.round.label} Live Picks open · ${status.round.pointsInPlay} pts`;
     live = true;
-  } else if (status.state === "round-soon") {
+  } else if (LIVE_PICKS_ENABLED && status.state === "round-soon") {
     label = `Next picks open ${whenLabel(status.round.opensIso, nowD.getTime())} · ${status.round.pointsInPlay} pts`;
   } else {
-    return null; // tournament done
+    // No actionable bar (tournament done, or Live Picks not yet playable).
+    return null;
   }
 
   return (

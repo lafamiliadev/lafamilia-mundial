@@ -2,6 +2,7 @@
 // per member. Pure (no secrets / no I/O) so it can be unit-tested and dry-run.
 // The cron (app/api/cron/reminders) walks these and sends the due ones once.
 
+import { LIVE_PICKS_ENABLED } from "./flags";
 import { LIVE_ROUNDS, SCORING_MILESTONES } from "./schedule";
 import {
   renderFinalFour,
@@ -57,7 +58,9 @@ export function allReminderCampaigns(ctx: ReminderContext): ReminderCampaign[] {
   const picks = `${ctx.appUrl}/picks`;
   const board = `${ctx.appUrl}/leaderboard`;
 
-  const roundEmails: ReminderCampaign[] = LIVE_ROUNDS.map((r) =>
+  // Per-round "picks are open" emails — only when Live Picks is actually
+  // playable. While the feature is off they'd link to a dead end, so suppress.
+  const roundEmails: ReminderCampaign[] = !LIVE_PICKS_ENABLED ? [] : LIVE_ROUNDS.map((r) =>
     r.round === "final"
       ? {
           key: "round-open-final",

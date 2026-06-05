@@ -173,12 +173,12 @@ export function renderFirstPoints(p: { firstName: string; rank: number; total: n
   ${emailIntro({
     heading: `You're on the board, ${p.firstName}.`,
     paras: [
-      "The group stage is done and your picks just scored. The knockouts start tomorrow, and that's where it gets fun.",
+      "The group stage is done and your picks just scored. Here's where you landed.",
     ],
   })}
   ${standings(p.rank, p.total)}
   ${cta(p.leaderboardUrl, "See the leaderboard")}
-  ${nextLine("Round of 32 picks open tomorrow. We'll let you know.")}`;
+  ${nextLine("Your card keeps scoring through the knockouts — we'll let you know when you move.")}`;
   return emailShell({ preheader: `You're #${p.rank} of ${p.total} in the Familia.`, body });
 }
 

@@ -3,6 +3,7 @@ import { Countdown } from "@/components/Countdown";
 import { SiembraBanner } from "@/components/Siembra";
 import { LinkButton, PageShell, SectionTitle, TopNav } from "@/components/ui";
 import { db } from "@/lib/db";
+import { LIVE_PICKS_ENABLED } from "@/lib/flags";
 import { getSessionToken } from "@/lib/session";
 import { now } from "@/lib/preview";
 import { getLeaderboardData, type LeaderboardView } from "@/lib/services";
@@ -164,20 +165,16 @@ export default async function LeaderboardPage({
   const honorsLive = settings.awardsRevealed ?? false;
   const w = settings.weights ?? DEFAULT_WEIGHTS;
 
-  // Live Picks open at the first knockout round — until then, don't show an
-  // empty 0-point board; show a coming-soon state instead.
+  // Live Picks isn't playable yet (LIVE_PICKS_ENABLED) — and even once it is, the
+  // board is empty until the first knockout round locks. Either way, show a calm
+  // "coming later" state instead of an empty/broken board.
   const liveOpened = nowMs >= new Date(LIVE_ROUNDS[0].locksIso).getTime();
-  const liveComingSoon = view === "live" && !liveOpened;
-  const liveOpensLabel = new Date(LIVE_ROUNDS[0].opensIso).toLocaleDateString("en-US", {
-    month: "long",
-    day: "numeric",
-    timeZone: "America/New_York",
-  });
+  const liveComingSoon = view === "live" && (!LIVE_PICKS_ENABLED || !liveOpened);
 
   const viewBlurb: Record<LeaderboardView, string> = {
-    overall: "Bracket + Bonus + Live Picks combined.",
+    overall: LIVE_PICKS_ENABLED ? "Bracket + Bonus + Live Picks combined." : "Bracket + Bonus picks combined.",
     bracket: "Your original 3-minute bracket only.",
-    live: "Knockout-round Live Picks only.",
+    live: "Coming later in the tournament.",
   };
 
   const podiumRows = top.slice(0, 3);
@@ -230,17 +227,13 @@ export default async function LeaderboardPage({
 
         {liveComingSoon ? (
           <div className="card overflow-hidden">
-            <div className="bg-[var(--color-navy)] px-5 py-6 text-center text-white">
+            <div className="bg-[var(--color-navy)] px-5 py-7 text-center text-white">
               <p className="text-3xl">⚡</p>
-              <p className="mt-2 font-black">Live Picks · Opens {liveOpensLabel}</p>
+              <p className="mt-2 font-black">More ways to play are coming</p>
               <p className="mt-3 text-sm leading-relaxed text-white/85">
-                Starting June 28, you&apos;ll make quick picks for each knockout match. Just choose who
-                you think will win. Every correct pick earns points, and later rounds are worth more, so
-                you can still climb the leaderboard even if your champion is out.
+                We&apos;re adding a new way to earn points during the tournament. For now, every point
+                from your bracket and Bonus Picks counts in the Overall race.
               </p>
-            </div>
-            <div className="border-t border-[var(--color-line)] px-5 py-3 text-center text-xs font-semibold text-[var(--color-muted)]">
-              No action needed yet — they&apos;ll open right here on {liveOpensLabel}.
             </div>
           </div>
         ) : total === 0 ? (

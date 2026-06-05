@@ -11,6 +11,7 @@ import {
 } from "@/components/icons";
 import { LinkButton } from "@/components/ui";
 import { db } from "@/lib/db";
+import { LIVE_PICKS_ENABLED } from "@/lib/flags";
 import { getLeaderboardData, getTopChampionPick } from "@/lib/services";
 import { getSessionParticipant } from "@/lib/session";
 import { now } from "@/lib/preview";
@@ -67,7 +68,7 @@ export default async function Home() {
               action: bonusFilled === 0 ? "Make my Bonus Picks" : "Finish my Bonus Picks",
               href: "/picks/bonus",
             };
-    } else if (status.state === "round-open") {
+    } else if (LIVE_PICKS_ENABLED && status.state === "round-open") {
       open = {
         title: `${status.round.label} Live Picks are open`,
         detail: `Pick the winners of ${status.round.plain}`,
