@@ -230,18 +230,17 @@ export default async function LeaderboardPage({
 
         {liveComingSoon ? (
           <div className="card overflow-hidden">
-            <div className="bg-[var(--color-navy)] px-4 py-6 text-center text-white">
+            <div className="bg-[var(--color-navy)] px-5 py-6 text-center text-white">
               <p className="text-3xl">⚡</p>
               <p className="mt-2 font-black">Live Picks · Opens {liveOpensLabel}</p>
-              <p className="mt-1 text-sm text-white/85">
-                When the knockouts begin, pick each round&apos;s winners to earn points — even if your
-                champion is out. This board lights up then.
+              <p className="mt-3 text-sm leading-relaxed text-white/85">
+                Once the knockout rounds begin, you&apos;ll pick the winner of each match — Round of 32
+                all the way to the Final. Get them right to earn points (worth more every round), so you
+                can keep climbing even if your champion gets knocked out.
               </p>
             </div>
-            <div className="p-4">
-              <LinkButton href="/picks" variant="primary" className="w-full">
-                See how Live Picks work →
-              </LinkButton>
+            <div className="border-t border-[var(--color-line)] px-5 py-3 text-center text-xs font-semibold text-[var(--color-muted)]">
+              No action needed yet — they&apos;ll open right here on {liveOpensLabel}.
             </div>
           </div>
         ) : total === 0 ? (
