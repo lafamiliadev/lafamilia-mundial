@@ -2,6 +2,7 @@ import Link from "next/link";
 import { LinkButton, PageShell, SectionTitle, TopNav } from "@/components/ui";
 import { db } from "@/lib/db";
 import { getSessionParticipant } from "@/lib/session";
+import { now } from "@/lib/preview";
 import { BONUS_POINTS_AVAILABLE, LIVE_ROUNDS, pickStatus } from "@/lib/schedule";
 import { EMPTY_BONUS } from "@/lib/types";
 
@@ -159,7 +160,7 @@ export default async function PicksHubPage({
         <div className="card divide-y divide-[var(--color-line)] overflow-hidden">
           {LIVE_ROUNDS.map((r) => {
             const open = status.state === "round-open" && status.round.round === r.round;
-            const done = Date.now() >= new Date(r.locksIso).getTime();
+            const done = nowMs >= new Date(r.locksIso).getTime();
             return (
               <div key={r.round} className="flex items-center gap-3 px-4 py-3.5">
                 <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--color-cream)] text-sm font-black">

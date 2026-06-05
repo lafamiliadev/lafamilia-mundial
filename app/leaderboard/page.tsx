@@ -4,6 +4,7 @@ import { SiembraBanner } from "@/components/Siembra";
 import { LinkButton, PageShell, SectionTitle, TopNav } from "@/components/ui";
 import { db } from "@/lib/db";
 import { getSessionToken } from "@/lib/session";
+import { now } from "@/lib/preview";
 import { getLeaderboardData, type LeaderboardView } from "@/lib/services";
 import { LIVE_ROUNDS, nextScoringMilestone } from "@/lib/schedule";
 import { teamFlag } from "@/lib/teams";
@@ -156,7 +157,8 @@ export default async function LeaderboardPage({
     rawView === "bracket" || rawView === "live" ? rawView : "overall";
   const { total, top, me, leaderTotal, meGapToNext, scoringStarted } =
     await getLeaderboardData(token, 10, view);
-  const nextDrop = nextScoringMilestone(new Date());
+  const nowMs = (await now()).getTime();
+  const nextDrop = nextScoringMilestone(new Date(nowMs));
   const repo = await db();
   const settings = await repo.getSettings();
   const honorsLive = settings.awardsRevealed ?? false;
@@ -164,7 +166,7 @@ export default async function LeaderboardPage({
 
   // Live Picks open at the first knockout round — until then, don't show an
   // empty 0-point board; show a coming-soon state instead.
-  const liveOpened = Date.now() >= new Date(LIVE_ROUNDS[0].locksIso).getTime();
+  const liveOpened = nowMs >= new Date(LIVE_ROUNDS[0].locksIso).getTime();
   const liveComingSoon = view === "live" && !liveOpened;
   const liveOpensLabel = new Date(LIVE_ROUNDS[0].opensIso).toLocaleDateString("en-US", {
     month: "long",
