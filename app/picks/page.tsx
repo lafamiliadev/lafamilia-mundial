@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { LinkButton, PageShell, SectionTitle, TopNav } from "@/components/ui";
 import { db } from "@/lib/db";
+import { LIVE_PICKS_ENABLED } from "@/lib/flags";
 import { getSessionParticipant } from "@/lib/session";
 import { now } from "@/lib/preview";
 import { BONUS_POINTS_AVAILABLE, LIVE_ROUNDS, pickStatus } from "@/lib/schedule";
@@ -113,7 +114,7 @@ export default async function PicksHubPage({
               {bonusFilled === 0 ? "Add your Bonus Picks →" : bonusFilled < 4 ? "Finish your Bonus Picks →" : "Edit your Bonus Picks →"}
             </div>
           </Link>
-        ) : status.state === "round-open" ? (
+        ) : LIVE_PICKS_ENABLED && status.state === "round-open" ? (
           <div className="card mb-3 overflow-hidden">
             <div className="flex items-center gap-4 p-4">
               <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[var(--color-navy)]/10 text-2xl">
@@ -132,7 +133,7 @@ export default async function PicksHubPage({
           </div>
         ) : (
           <div className="card mb-3 p-4 text-sm text-[var(--color-muted)]">
-            Nothing open right now. Your next round is below — we&apos;ll remind you when it opens.
+            Your bracket is locked and scoring as the games play out. Follow the race on the leaderboard.
           </div>
         )}
 
@@ -153,41 +154,53 @@ export default async function PicksHubPage({
           {bonusOpen && <span className="shrink-0 text-sm font-semibold text-[var(--color-pitch)]">Edit ›</span>}
         </Link>
 
-        {/* ── Coming next ── */}
-        <p className="mb-2 text-xs font-bold uppercase tracking-wider text-[var(--color-muted)]">
-          Coming next
-        </p>
-        <div className="card divide-y divide-[var(--color-line)] overflow-hidden">
-          {LIVE_ROUNDS.map((r) => {
-            const open = status.state === "round-open" && status.round.round === r.round;
-            const done = nowMs >= new Date(r.locksIso).getTime();
-            return (
-              <div key={r.round} className="flex items-center gap-3 px-4 py-3.5">
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--color-cream)] text-sm font-black">
-                  {r.round === "final" ? "🏆" : r.round.toUpperCase()}
-                </span>
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-bold">{r.label}</p>
-                  <p className="text-xs text-[var(--color-muted)]">Pick the winners of {r.plain}</p>
-                </div>
-                <span
-                  className={
-                    done
-                      ? "shrink-0 text-xs font-semibold text-[var(--color-muted)]"
-                      : open
-                        ? "shrink-0 rounded-full bg-[var(--color-pitch)] px-2.5 py-1 text-xs font-bold text-white"
-                        : "shrink-0 text-xs font-semibold text-[var(--color-muted)]"
-                  }
-                >
-                  {done ? "Closed" : open ? "Open" : `Opens ${fmtDate(r.opensIso)}`}
-                </span>
-              </div>
-            );
-          })}
-        </div>
-        <p className="mt-3 text-center text-xs text-[var(--color-muted)]">
-          You can climb even if your champion is eliminated. New points open every round.
-        </p>
+        {/* ── Coming next — only when Live Picks is actually playable. While it's
+            off we don't list rounds users can't pick yet (no broken promises). ── */}
+        {LIVE_PICKS_ENABLED ? (
+          <>
+            <p className="mb-2 text-xs font-bold uppercase tracking-wider text-[var(--color-muted)]">
+              Coming next
+            </p>
+            <div className="card divide-y divide-[var(--color-line)] overflow-hidden">
+              {LIVE_ROUNDS.map((r) => {
+                const open = status.state === "round-open" && status.round.round === r.round;
+                const done = nowMs >= new Date(r.locksIso).getTime();
+                return (
+                  <div key={r.round} className="flex items-center gap-3 px-4 py-3.5">
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--color-cream)] text-sm font-black">
+                      {r.round === "final" ? "🏆" : r.round.toUpperCase()}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-bold">{r.label}</p>
+                      <p className="text-xs text-[var(--color-muted)]">Pick the winners of {r.plain}</p>
+                    </div>
+                    <span
+                      className={
+                        done
+                          ? "shrink-0 text-xs font-semibold text-[var(--color-muted)]"
+                          : open
+                            ? "shrink-0 rounded-full bg-[var(--color-pitch)] px-2.5 py-1 text-xs font-bold text-white"
+                            : "shrink-0 text-xs font-semibold text-[var(--color-muted)]"
+                      }
+                    >
+                      {done ? "Closed" : open ? "Open" : `Opens ${fmtDate(r.opensIso)}`}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+            <p className="mt-3 text-center text-xs text-[var(--color-muted)]">
+              You can climb even if your champion is eliminated. New points open every round.
+            </p>
+          </>
+        ) : (
+          <div className="card p-5 text-center">
+            <p className="text-sm font-semibold">More ways to play are coming during the tournament.</p>
+            <p className="mt-1 text-xs text-[var(--color-muted)]">
+              For now, your bracket and Bonus Picks are scored on the leaderboard.
+            </p>
+          </div>
+        )}
 
         {/* Single, clear action — grow the competition. Leaderboard lives in
             the header nav, so it isn't duplicated here. */}
