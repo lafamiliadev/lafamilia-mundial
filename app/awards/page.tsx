@@ -65,7 +65,7 @@ export default async function AwardsPage() {
               Announced when the final whistle blows. Make your picks count.
             </p>
             <div className="mt-6 flex justify-center">
-              <Countdown lockTime={finale.dateIso} />
+              <Countdown lockTime={finale.dateIso} doneLabel="🏆 The final whistle blew — Honors coming soon." />
             </div>
           </div>
           <div className="mt-6 text-center">

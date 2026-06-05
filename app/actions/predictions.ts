@@ -4,11 +4,21 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { sendPredictionConfirmation } from "@/lib/email";
 import { env } from "@/lib/env";
+import { now } from "@/lib/preview";
 import { recomputeScores } from "@/lib/services";
 import { setSessionToken } from "@/lib/session";
-import type { Predictions } from "@/lib/types";
+import { teamName } from "@/lib/teams";
+import type { Predictions, Settings } from "@/lib/types";
 
 const code = z.string().trim().min(2).max(8);
+
+/** True once predictions have locked (kickoff). Uses the preview-aware clock. */
+async function predictionsLocked(settings: Settings): Promise<boolean> {
+  return (await now()).getTime() >= new Date(settings.lockTime).getTime();
+}
+
+const LOCKED_MESSAGE =
+  "Predictions are closed — the tournament has started. You can still follow the race on the leaderboard.";
 
 const predictionBase = z.object({
   name: z.string().trim().min(1, "Add your name").max(80),
@@ -63,6 +73,12 @@ export async function submitPredictions(
 
   try {
     const repo = await db();
+    const settings = await repo.getSettings();
+    // Hard gate: once the tournament kicks off, no new brackets (fair play —
+    // the countdown promised a lock, so enforce it server-side).
+    if (await predictionsLocked(settings)) {
+      return { ok: false, error: LOCKED_MESSAGE };
+    }
     // One entry per email. If this email already has a bracket, don't create a
     // second one or overwrite it — send them to the editor instead. (Fair play:
     // no double entries, and nobody can clobber someone else's bracket.)
@@ -87,11 +103,12 @@ export async function submitPredictions(
     await recomputeScores({ pullFromProvider: false }).catch(() => {});
 
     // Confirmation email — best-effort (never blocks the submission).
-    const settings = await repo.getSettings();
     await sendPredictionConfirmation({
       to: participant.email,
       firstName: participant.name.split(" ")[0] || participant.name,
+      champion: teamName(participant.predictions.champion),
       editUrl: `${env.NEXT_PUBLIC_APP_URL}/r/${participant.resumeToken}`,
+      bonusUrl: `${env.NEXT_PUBLIC_APP_URL}/picks/bonus?token=${participant.resumeToken}`,
       shareUrl: `${env.NEXT_PUBLIC_APP_URL}/copa/${participant.slug}`,
       deadlineIso: settings.lockTime,
     }).catch((e) => console.error("Confirmation email failed:", e));
@@ -164,6 +181,10 @@ export async function updatePredictions(
     parsed.data;
   try {
     const repo = await db();
+    // Same hard gate as new submissions — edits close at kickoff too.
+    if (await predictionsLocked(await repo.getSettings())) {
+      return { ok: false, error: LOCKED_MESSAGE };
+    }
     const updated = await repo.updateByToken(token, {
       name,
       rootingCountry: rootingCountry ?? undefined,

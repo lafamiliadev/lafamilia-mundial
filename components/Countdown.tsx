@@ -22,7 +22,14 @@ const Cell = ({ value, label }: { value: number; label: string }) => (
   </div>
 );
 
-export function Countdown({ lockTime }: { lockTime: string }) {
+export function Countdown({
+  lockTime,
+  doneLabel = "🔒 Predictions are locked — the tournament is underway!",
+}: {
+  lockTime: string;
+  /** Shown when the countdown hits zero — varies by what it's counting to. */
+  doneLabel?: string;
+}) {
   const target = new Date(lockTime).getTime();
   // Start null so SSR and the first client paint match (the clock only differs
   // once mounted) — avoids a hydration mismatch on the ticking digits.
@@ -47,9 +54,7 @@ export function Countdown({ lockTime }: { lockTime: string }) {
 
   if (t.done) {
     return (
-      <p className="text-sm font-semibold text-[var(--color-gold-soft)]">
-        🔒 Predictions are locked — the tournament is underway!
-      </p>
+      <p className="text-sm font-semibold text-[var(--color-gold-soft)]">{doneLabel}</p>
     );
   }
 

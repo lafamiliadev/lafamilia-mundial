@@ -50,18 +50,30 @@ export default async function Home() {
     let open: OpenAction | null = null;
     if (status.state === "bonus-open") {
       const remaining = 4 - bonusFilled;
-      open = {
-        title: bonusFilled === 0 ? "Make your Bonus Picks" : `${remaining} Bonus ${remaining === 1 ? "Pick" : "Picks"} left`,
-        detail: "Golden Ball, Boot, Glove & a Dark Horse",
-        pts: bonusPointsRemaining(me.predictions.bonus, settings.weights),
-        action: bonusFilled === 0 ? "Make my Bonus Picks" : "Finish my Bonus Picks",
-      };
+      open =
+        bonusFilled >= 4
+          ? {
+              // Already submitted, still editable before kickoff → "Edit", not "Finish".
+              title: "Bonus Picks submitted ✓",
+              detail: "Golden Ball, Boot, Glove & a Dark Horse — all set",
+              pts: 0,
+              action: "Edit my Bonus Picks",
+              href: "/picks/bonus",
+            }
+          : {
+              title: bonusFilled === 0 ? "Make your Bonus Picks" : `${remaining} Bonus ${remaining === 1 ? "Pick" : "Picks"} left`,
+              detail: "Golden Ball, Boot, Glove & a Dark Horse",
+              pts: bonusPointsRemaining(me.predictions.bonus, settings.weights),
+              action: bonusFilled === 0 ? "Make my Bonus Picks" : "Finish my Bonus Picks",
+              href: "/picks/bonus",
+            };
     } else if (status.state === "round-open") {
       open = {
         title: `${status.round.label} Live Picks are open`,
         detail: `Pick the winners of ${status.round.plain}`,
         pts: status.round.pointsInPlay,
         action: "Make my Live Picks",
+        href: "/picks",
       };
     }
 
@@ -83,6 +95,10 @@ export default async function Home() {
       </main>
     );
   }
+
+  // New visitor: once the tournament kicks off there's nothing to submit, so the
+  // hero stops inviting picks and points them at the race instead.
+  const started = (await now()).getTime() >= new Date(settings.lockTime).getTime();
 
   return (
     <main className="flex flex-1 flex-col">
@@ -118,19 +134,36 @@ export default async function Home() {
 
           {/* 3 — Conversion area, grouped in one subtle container inside the hero */}
           <div className="mt-7 rounded-2xl border border-white/15 bg-white/[0.06] px-5 py-6 text-center backdrop-blur-sm">
-            <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-[var(--color-gold-soft)]">
-              Predictions close in
-            </p>
-            <div className="mt-3 flex justify-center">
-              <Countdown lockTime={settings.lockTime} />
-            </div>
+            {started ? (
+              <>
+                <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-[var(--color-gold-soft)]">
+                  🔒 Predictions are closed
+                </p>
+                <p className="mx-auto mt-2 max-w-xs text-sm leading-relaxed text-white/85">
+                  The tournament&apos;s underway. Follow the race and see who&apos;s leading the Familia.
+                </p>
+                <LinkButton href="/leaderboard" variant="gold" className="mt-5 w-full text-lg shadow-md">
+                  See the leaderboard →
+                </LinkButton>
+              </>
+            ) : (
+              <>
+                <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-[var(--color-gold-soft)]">
+                  Predictions close in
+                </p>
+                <div className="mt-3 flex justify-center">
+                  <Countdown
+                    lockTime={settings.lockTime}
+                    doneLabel="🔒 Predictions are closed — the tournament's underway!"
+                  />
+                </div>
+                <LinkButton href="/play" variant="gold" className="mt-6 w-full text-lg shadow-md">
+                  Submit Predictions →
+                </LinkButton>
+              </>
+            )}
 
-            {/* 5 — Primary CTA */}
-            <LinkButton href="/play" variant="gold" className="mt-6 w-full text-lg shadow-md">
-              Submit Predictions →
-            </LinkButton>
-
-            {/* 6 — Secondary link — returning members who aren't recognized */}
+            {/* Secondary link — returning members who aren't recognized */}
             <p className="mt-3 text-sm text-white/80">
               Already played?{" "}
               <Link href="/edit" className="font-semibold text-white underline underline-offset-4">
@@ -294,7 +327,7 @@ function WhatHappensNext({
 }
 
 /** A clearly-named action the member can take right now (e.g. Bonus Picks). */
-type OpenAction = { title: string; detail: string; pts: number; action: string };
+type OpenAction = { title: string; detail: string; pts: number; action: string; href: string };
 
 /** Returning-member hero: greet, show rank + the next open action. */
 function ReturningHero({
@@ -348,7 +381,7 @@ function ReturningHero({
               <div className="mt-2 flex justify-center">
                 <Countdown lockTime={lockTime} />
               </div>
-              <LinkButton href="/picks" variant="gold" className="mt-6 w-full text-lg shadow-md">
+              <LinkButton href={open.href} variant="gold" className="mt-6 w-full text-lg shadow-md">
                 {open.action} →
               </LinkButton>
             </>
