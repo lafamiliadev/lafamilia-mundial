@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { CopyShareLink } from "@/components/CopyShareLink";
+import { JoinFamiliaNudge } from "@/components/JoinFamilia";
 import { SavePredictionCard } from "@/components/SavePredictionCard";
 import { SiembraCTA } from "@/components/Siembra";
 import { Button, TopNav } from "@/components/ui";
@@ -95,6 +96,11 @@ Think you can beat my bracket? 👇`;
         {/* ── Background — the mission ── */}
         <div className="mt-8">
           <SiembraCTA />
+        </div>
+
+        {/* Quiet, community-first invite for non-members who arrived via a friend. */}
+        <div className="mt-6">
+          <JoinFamiliaNudge />
         </div>
       </section>
     </main>
