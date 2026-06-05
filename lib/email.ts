@@ -6,11 +6,14 @@ import {
   type ConfirmationParams,
 } from "./email-template";
 
-// Sends the post-submission confirmation email via Resend's HTTP API (no SDK).
-// Safe no-op until RESEND_API_KEY is configured, so submissions never fail
-// because email isn't set up yet.
-export async function sendPredictionConfirmation(params: ConfirmationParams): Promise<void> {
-  if (!env.RESEND_API_KEY) return; // email not configured yet — no-op
+// Sends email via Resend's HTTP API (no SDK). Safe no-op until RESEND_API_KEY
+// is configured, so submissions never fail because email isn't set up yet.
+export async function sendEmail(opts: {
+  to: string;
+  subject: string;
+  html: string;
+}): Promise<boolean> {
+  if (!env.RESEND_API_KEY) return false; // email not configured yet — no-op
 
   const res = await fetch("https://api.resend.com/emails", {
     method: "POST",
@@ -20,13 +23,24 @@ export async function sendPredictionConfirmation(params: ConfirmationParams): Pr
     },
     body: JSON.stringify({
       from: env.EMAIL_FROM,
-      to: [params.to],
-      subject: CONFIRMATION_SUBJECT,
-      html: renderConfirmationEmailHtml(params),
+      to: [opts.to],
+      subject: opts.subject,
+      html: opts.html,
     }),
   });
 
   if (!res.ok) {
     console.error("Resend send failed:", res.status, await res.text().catch(() => ""));
+    return false;
   }
+  return true;
+}
+
+/** The post-submission confirmation email. */
+export async function sendPredictionConfirmation(params: ConfirmationParams): Promise<void> {
+  await sendEmail({
+    to: params.to,
+    subject: CONFIRMATION_SUBJECT,
+    html: renderConfirmationEmailHtml(params),
+  });
 }

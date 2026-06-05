@@ -74,6 +74,8 @@ export type Settings = {
   groupsSyncedAt: string | null;
   /** When true, the La Familia Honors (awards) are public on /awards. */
   awardsRevealed: boolean;
+  /** Reminder-email campaign keys already sent (idempotency for the cron). */
+  sentReminders: string[];
 };
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -83,6 +85,7 @@ export const DEFAULT_SETTINGS: Settings = {
   groups: {},
   groupsSyncedAt: null,
   awardsRevealed: false,
+  sentReminders: [],
 };
 
 /** The four pre-tournament Bonus Picks (the expected "second step" after the
