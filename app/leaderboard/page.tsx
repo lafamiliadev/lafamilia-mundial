@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Countdown } from "@/components/Countdown";
+import { Lane, LeaderboardList } from "@/components/LeaderboardList";
 import { SiembraBanner } from "@/components/Siembra";
 import { LinkButton, PageShell, SectionTitle, TopNav } from "@/components/ui";
 import { db } from "@/lib/db";
@@ -47,65 +48,6 @@ const PODIUM = [
   { medal: "🥈", color: "#c2c7d0", bar: "h-16", ring: "ring-[#c2c7d0]" },
   { medal: "🥉", color: "#cd7f32", bar: "h-12", ring: "ring-[#cd7f32]" },
 ];
-
-/** ▲/▼ movement since the last scoring run. */
-function Move({ delta }: { delta?: number }) {
-  if (!delta) return <span className="text-xs font-semibold text-[var(--color-muted)]">–</span>;
-  const up = delta > 0;
-  return (
-    <span
-      className={`text-xs font-bold tabular-nums ${
-        up ? "text-[var(--color-pitch)]" : "text-[var(--color-coral)]"
-      }`}
-    >
-      {up ? "▲" : "▼"}
-      {Math.abs(delta)}
-    </span>
-  );
-}
-
-/** A race "lane": name + flag + movement, a progress bar, and the score. */
-function Lane({ r, leaderTotal }: { r: LeaderboardRow; leaderTotal: number }) {
-  const pct = leaderTotal > 0 ? Math.max(4, Math.round((r.total / leaderTotal) * 100)) : 0;
-  return (
-    <Link
-      href={`/copa/${r.slug}`}
-      className={`block px-4 py-3 transition hover:bg-black/[0.02] ${r.isMe ? "bg-[var(--color-gold-soft)]/40" : ""}`}
-    >
-      <div className="flex items-center gap-3">
-        <div className="w-6 text-center text-sm font-black tabular-nums text-[var(--color-muted)]">
-          {r.rank}
-        </div>
-        <div className="flex min-w-0 flex-1 items-center gap-2">
-          <span className="truncate font-semibold">{r.name}</span>
-          {r.isMe && (
-            <span className="shrink-0 rounded-full bg-[var(--color-pitch)] px-2 py-0.5 text-[10px] font-bold text-white">
-              YOU
-            </span>
-          )}
-        </div>
-        <span className="shrink-0 text-sm leading-none" title="Pick to win">
-          🏆&nbsp;{teamFlag(r.champion)}
-        </span>
-        <div className="w-7 shrink-0 text-right">
-          <Move delta={r.delta} />
-        </div>
-        <div className="w-12 shrink-0 text-right text-lg font-black tabular-nums">{r.total}</div>
-        <span className="shrink-0 text-[var(--color-muted)]">›</span>
-      </div>
-      {/* race track */}
-      <div className="mt-2 ml-9 mr-5 h-2 overflow-hidden rounded-full bg-[var(--color-line)]">
-        <div
-          className="h-full rounded-full transition-all duration-500"
-          style={{
-            width: `${pct}%`,
-            background: r.rank === 1 ? "var(--color-gold)" : "var(--color-pitch)",
-          }}
-        />
-      </div>
-    </Link>
-  );
-}
 
 function Podium({ rows }: { rows: LeaderboardRow[] }) {
   // Visual order places #1 in the center: [2nd, 1st, 3rd].
@@ -156,7 +98,7 @@ export default async function LeaderboardPage({
   const token = meParam ?? (await getSessionToken()) ?? undefined;
   const view: LeaderboardView =
     rawView === "bracket" || rawView === "live" ? rawView : "overall";
-  const { total, top, me, leaderTotal, meGapToNext, scoringStarted } =
+  const { total, all, me, leaderTotal, meGapToNext, scoringStarted } =
     await getLeaderboardData(token, 10, view);
   const nowMs = (await now()).getTime();
   const nextDrop = nextScoringMilestone(new Date(nowMs));
@@ -177,8 +119,8 @@ export default async function LeaderboardPage({
     live: "Coming later in the tournament.",
   };
 
-  const podiumRows = top.slice(0, 3);
-  const chasers = top.slice(3);
+  const podiumRows = all.slice(0, 3);
+  const chasers = all.slice(3);
 
   return (
     <main className="flex flex-1 flex-col">
@@ -291,27 +233,7 @@ export default async function LeaderboardPage({
               </details>
             </div>
             <div className="divide-y divide-[var(--color-line)]">
-              {top.map((r) => (
-                <Link
-                  href={`/copa/${r.slug}`}
-                  key={`${r.rank}-${r.name}`}
-                  className={`flex items-center gap-3 px-4 py-3 transition hover:bg-black/[0.02] ${
-                    r.isMe ? "bg-[var(--color-gold-soft)]/40" : ""
-                  }`}
-                >
-                  <span className="min-w-0 flex-1 truncate font-semibold">{r.name}</span>
-                  {r.isMe && (
-                    <span className="rounded-full bg-[var(--color-pitch)] px-2 py-0.5 text-[10px] font-bold text-white">
-                      YOU
-                    </span>
-                  )}
-                  <span className="shrink-0 text-sm leading-none" title="Pick to win">
-                    🏆&nbsp;{teamFlag(r.champion)}
-                  </span>
-                  <span className="shrink-0 text-sm font-semibold text-[var(--color-muted)]">0 pts</span>
-                  <span className="shrink-0 text-[var(--color-muted)]">›</span>
-                </Link>
-              ))}
+              <LeaderboardList rows={all} variant="start" initial={10} />
             </div>
           </div>
         ) : (
@@ -331,9 +253,13 @@ export default async function LeaderboardPage({
                 <div className="bg-black/[0.03] px-4 py-2 text-xs font-bold uppercase tracking-wider text-[var(--color-muted)]">
                   The chase
                 </div>
-                {chasers.map((r) => (
-                  <Lane key={`${r.rank}-${r.name}`} r={r} leaderTotal={leaderTotal} />
-                ))}
+                <LeaderboardList
+                  rows={chasers}
+                  variant="race"
+                  leaderTotal={leaderTotal}
+                  initial={7}
+                  pinMe={false}
+                />
               </div>
             )}
 

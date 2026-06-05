@@ -132,7 +132,11 @@ export async function recomputeScores(
 
 export type LeaderboardData = {
   total: number;
+  /** The first `topN` ranked rows (podium + first chasers). */
   top: LeaderboardRow[];
+  /** Every ranked row, in order — lets the UI page through the full field so the
+   * visible list matches the `total` count instead of stopping at `topN`. */
+  all: LeaderboardRow[];
   me: LeaderboardRow | null;
   /** Highest score on the board — bars are drawn relative to this. */
   leaderTotal: number;
@@ -203,7 +207,8 @@ export async function getLeaderboardData(
     isMe: r.id === meId,
   });
 
-  const top = rows.slice(0, topN).map(withDelta);
+  const all = rows.map(withDelta);
+  const top = all.slice(0, topN);
 
   let me: LeaderboardRow | null = null;
   let meGapToNext: number | null = null;
@@ -215,7 +220,7 @@ export async function getLeaderboardData(
     }
   }
 
-  return { total: participants.length, top, me, leaderTotal, meGapToNext, scoringStarted };
+  return { total: participants.length, top, all, me, leaderTotal, meGapToNext, scoringStarted };
 }
 
 /** La Familia Honors — derived from everyone's picks + final scores. */
