@@ -32,6 +32,8 @@ const predictionBase = z.object({
   champion: code.nullable(),
   finalTotalGoals: z.number().int().min(0).max(20).nullable(),
   crewCode: z.string().trim().max(40).nullable().optional(),
+  // Optional free-text city — powers city/chapter community insights.
+  city: z.string().trim().max(80).nullable().optional(),
   ref: z.string().trim().max(40).nullable().optional(),
 });
 
@@ -96,6 +98,7 @@ export async function submitPredictions(
       email: d.email,
       rootingCountry: d.rootingCountry,
       crewCode: d.crewCode ?? null,
+      city: d.city ?? null,
       referredBy: d.ref || null,
       predictions,
     });
@@ -177,7 +180,7 @@ export async function updatePredictions(
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid input" };
   }
-  const { token, name, rootingCountry, groupWinners, semifinalists, champion, finalTotalGoals } =
+  const { token, name, rootingCountry, city, groupWinners, semifinalists, champion, finalTotalGoals } =
     parsed.data;
   try {
     const repo = await db();
@@ -188,6 +191,7 @@ export async function updatePredictions(
     const updated = await repo.updateByToken(token, {
       name,
       rootingCountry: rootingCountry ?? undefined,
+      city: city ?? undefined,
       predictions: { groupWinners, semifinalists, champion, finalTotalGoals },
     });
     if (!updated) return { ok: false, error: "Entry not found." };

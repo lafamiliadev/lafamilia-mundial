@@ -77,6 +77,10 @@ function normalize(data: Shape): { data: Shape; mutated: boolean } {
       p.referralVisits = 0;
       mutated = true;
     }
+    if (p.city === undefined) {
+      p.city = null;
+      mutated = true;
+    }
     // Migrate predictions to the new shape: preserve champion (pre-fills on
     // re-pick), drop the old 6-pick fields, ensure new keys exist.
     const pred = p.predictions as Partial<Predictions> & Record<string, unknown>;
@@ -144,6 +148,7 @@ export const memoryRepo: Repo = {
         name: input.name,
         rootingCountry: input.rootingCountry,
         crewCode: input.crewCode,
+        ...(input.city !== undefined ? { city: input.city } : {}),
         predictions: input.predictions,
       };
       await persist(data);
@@ -163,6 +168,7 @@ export const memoryRepo: Repo = {
       referredBy: input.referredBy ?? null,
       referralVisits: 0,
       crewCode: input.crewCode,
+      city: input.city ?? null,
       createdAt: new Date().toISOString(),
       predictions: input.predictions,
     };
@@ -213,6 +219,7 @@ export const memoryRepo: Repo = {
         input.rootingCountry !== undefined
           ? input.rootingCountry
           : p.rootingCountry,
+      city: input.city !== undefined ? input.city : p.city ?? null,
       predictions: { ...p.predictions, ...(input.predictions ?? {}) },
     };
     await persist(data);

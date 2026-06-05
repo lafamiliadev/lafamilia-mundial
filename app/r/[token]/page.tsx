@@ -51,6 +51,7 @@ export default async function ResumePage({
         initial={{
           name: me.name,
           email: me.email,
+          city: me.city ?? "",
           rootingCountry: me.rootingCountry,
           groupWinners: me.predictions.groupWinners ?? {},
           semifinalists: me.predictions.semifinalists ?? [],

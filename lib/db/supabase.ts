@@ -24,6 +24,7 @@ type ParticipantRow = {
   referred_by: string | null;
   referral_visits: number | null;
   crew_code: string | null;
+  city: string | null;
   created_at: string;
 };
 
@@ -57,6 +58,7 @@ function toParticipant(row: ParticipantRow, pred?: PredictionRow | null): Partic
     referredBy: row.referred_by,
     referralVisits: row.referral_visits ?? 0,
     crewCode: row.crew_code,
+    city: row.city ?? null,
     createdAt: row.created_at,
     predictions: toPredictions(pred),
   };
@@ -109,6 +111,7 @@ export const supabaseRepo: Repo = {
           name: input.name,
           rooting_country: input.rootingCountry,
           crew_code: input.crewCode,
+          ...(input.city !== undefined ? { city: input.city } : {}),
         })
         .eq("id", existing.id)
         .select()
@@ -131,6 +134,7 @@ export const supabaseRepo: Repo = {
           email,
           rooting_country: input.rootingCountry,
           crew_code: input.crewCode,
+          city: input.city ?? null,
           slug,
           referred_by: input.referredBy ?? null,
         })
@@ -230,7 +234,11 @@ export const supabaseRepo: Repo = {
     const current = await this.getByToken(token);
     if (!current) return null;
 
-    if (input.name !== undefined || input.rootingCountry !== undefined) {
+    if (
+      input.name !== undefined ||
+      input.rootingCountry !== undefined ||
+      input.city !== undefined
+    ) {
       await db
         .from("participants")
         .update({
@@ -238,6 +246,7 @@ export const supabaseRepo: Repo = {
           ...(input.rootingCountry !== undefined
             ? { rooting_country: input.rootingCountry }
             : {}),
+          ...(input.city !== undefined ? { city: input.city } : {}),
         })
         .eq("id", current.id);
     }

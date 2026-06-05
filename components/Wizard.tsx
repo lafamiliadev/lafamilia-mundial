@@ -8,12 +8,14 @@ import { MultiPickGrid } from "./MultiPickGrid";
 import { PickGrid, type PickOption } from "./PickGrid";
 import { Button, cn } from "./ui";
 import { LATAM_TEAMS, TEAMS, teamFlag, teamName } from "@/lib/teams";
+import { CHAPTERS, OTHER_CHAPTER } from "@/lib/chapters";
 import { submitPredictions, updatePredictions } from "@/app/actions/predictions";
 import type { GroupMap } from "@/lib/types";
 
 type State = {
   name: string;
   email: string;
+  city: string;
   rootingCountry: string | null;
   groupWinners: Record<string, string>;
   semifinalists: string[];
@@ -24,6 +26,7 @@ type State = {
 const EMPTY: State = {
   name: "",
   email: "",
+  city: "",
   rootingCountry: null,
   groupWinners: {},
   semifinalists: [],
@@ -166,6 +169,22 @@ export function Wizard({
               placeholder="you@email.com"
               className="w-full rounded-2xl border border-[var(--color-line)] bg-white px-4 py-4 text-lg outline-none focus:border-[var(--color-pitch)]"
             />
+            <select
+              value={s.city}
+              onChange={(e) => set("city", e.target.value)}
+              className="w-full rounded-2xl border border-[var(--color-line)] bg-white px-4 py-4 text-lg outline-none focus:border-[var(--color-pitch)]"
+            >
+              <option value="">Your LaFamilia chapter (optional)</option>
+              {CHAPTERS.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+              <option value={OTHER_CHAPTER}>Other / not listed</option>
+            </select>
+            <p className="px-1 text-xs text-[var(--color-muted)]">
+              Optional — powers city leaderboards and chapter rivalries 🌎
+            </p>
           </div>
         ),
       },
@@ -269,6 +288,7 @@ export function Wizard({
         name: s.name,
         email: s.email,
         rootingCountry: s.rootingCountry,
+        city: s.city.trim() ? s.city.trim() : null,
         groupWinners: Object.keys(s.groupWinners).length ? s.groupWinners : null,
         semifinalists: s.semifinalists.length ? s.semifinalists : null,
         champion: s.champion,

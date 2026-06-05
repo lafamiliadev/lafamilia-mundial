@@ -28,6 +28,7 @@ function participant(
     referredBy: null,
     referralVisits: 0,
     crewCode: null,
+    city: null,
     createdAt: "2026-06-03T00:00:00Z",
     predictions,
   };

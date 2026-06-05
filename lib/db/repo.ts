@@ -5,6 +5,8 @@ export type CreateParticipantInput = {
   email: string;
   rootingCountry: string | null;
   crewCode: string | null;
+  /** Optional free-text city (for community insights). */
+  city?: string | null;
   /** Slug of the referrer whose share link brought this person in. */
   referredBy?: string | null;
   predictions: Predictions;
@@ -13,6 +15,7 @@ export type CreateParticipantInput = {
 export type UpdateInput = {
   name?: string;
   rootingCountry?: string | null;
+  city?: string | null;
   predictions?: Partial<Predictions>;
 };
 

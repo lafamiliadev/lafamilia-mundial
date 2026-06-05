@@ -145,6 +145,8 @@ export type Participant = {
   /** Approximate count of real-browser visits to this participant's share page. */
   referralVisits: number;
   crewCode: string | null;
+  /** Optional free-text city — powers city/chapter community insights. */
+  city: string | null;
   createdAt: string;
   predictions: Predictions;
 };
