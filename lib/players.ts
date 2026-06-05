@@ -29,7 +29,7 @@ export const STRIKERS: Player[] = [
   { id: "saka", name: "Bukayo Saka", teamCode: "ENG", pos: "FW" },
   { id: "foden", name: "Phil Foden", teamCode: "ENG", pos: "FW" },
   { id: "yamal", name: "Lamine Yamal", teamCode: "ESP", pos: "FW", featured: true },
-  { id: "morata", name: "Álvaro Morata", teamCode: "ESP", pos: "FW" },
+  { id: "oyarzabal", name: "Mikel Oyarzabal", teamCode: "ESP", pos: "FW" },
   { id: "olmo", name: "Dani Olmo", teamCode: "ESP", pos: "FW" },
   { id: "ronaldo", name: "Cristiano Ronaldo", teamCode: "POR", pos: "FW", featured: true },
   { id: "leao", name: "Rafael Leão", teamCode: "POR", pos: "FW" },
@@ -46,8 +46,8 @@ export const STRIKERS: Player[] = [
   { id: "raul-jimenez", name: "Raúl Jiménez", teamCode: "MEX", pos: "FW" },
   { id: "pulisic", name: "Christian Pulisic", teamCode: "USA", pos: "FW", featured: true },
   { id: "balogun", name: "Folarin Balogun", teamCode: "USA", pos: "FW" },
-  { id: "kudus", name: "Mohammed Kudus", teamCode: "GHA", pos: "FW" },
-  { id: "mitoma", name: "Kaoru Mitoma", teamCode: "JPN", pos: "FW" },
+  { id: "semenyo", name: "Antoine Semenyo", teamCode: "GHA", pos: "FW" },
+  { id: "ueda", name: "Ayase Ueda", teamCode: "JPN", pos: "FW" },
   { id: "son", name: "Son Heung-min", teamCode: "KOR", pos: "FW", featured: true },
 ];
 
@@ -61,6 +61,7 @@ export const MIDFIELDERS: Player[] = [
   { id: "musiala", name: "Jamal Musiala", teamCode: "GER", pos: "MF" },
   { id: "b-fernandes", name: "Bruno Fernandes", teamCode: "POR", pos: "MF" },
   { id: "vitinha", name: "Vitinha", teamCode: "POR", pos: "MF" },
+  { id: "kubo", name: "Takefusa Kubo", teamCode: "JPN", pos: "MF" },
   { id: "valverde", name: "Federico Valverde", teamCode: "URU", pos: "MF" },
   { id: "mac-allister", name: "Alexis Mac Allister", teamCode: "ARG", pos: "MF" },
   { id: "enzo", name: "Enzo Fernández", teamCode: "ARG", pos: "MF" },
