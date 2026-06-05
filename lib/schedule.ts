@@ -65,11 +65,13 @@ export function bonusPointsRemaining(
   bonus: BonusPicks | null,
   w: ScoringWeights,
 ): number {
+  // `?? 0` guards against an old settings row missing these weights (would
+  // otherwise produce NaN). getSettings also merges defaults — this is a backstop.
   let pts = 0;
-  if (!bonus?.goldenBall) pts += w.goldenBall;
-  if (!bonus?.goldenBoot) pts += w.goldenBoot;
-  if (!bonus?.goldenGlove) pts += w.goldenGlove;
-  if (!bonus?.darkHorse) pts += w.darkHorseSf;
+  if (!bonus?.goldenBall) pts += w.goldenBall ?? 0;
+  if (!bonus?.goldenBoot) pts += w.goldenBoot ?? 0;
+  if (!bonus?.goldenGlove) pts += w.goldenGlove ?? 0;
+  if (!bonus?.darkHorse) pts += w.darkHorseSf ?? 0;
   return pts;
 }
 

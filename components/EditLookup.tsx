@@ -5,8 +5,9 @@ import { useRouter } from "next/navigation";
 import { findResumeToken } from "@/app/actions/predictions";
 import { Button } from "@/components/ui";
 
-// Email lookup → drops a returning member into their pre-filled editor
-// (/r/[token]) so they can change picks without their original resume link.
+// Email lookup → returns a member to the game (My Picks hub: their picks,
+// leaderboard via the nav, and their card). The lookup also sets the
+// returning-member cookie so the homepage recognizes them next time.
 export function EditLookup() {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -22,7 +23,7 @@ export function EditLookup() {
         setError(res.error);
         return;
       }
-      router.push(`/r/${res.token}`);
+      router.push("/picks");
     });
   }
 
@@ -40,7 +41,7 @@ export function EditLookup() {
         className="w-full rounded-2xl border border-[var(--color-line)] bg-white px-4 py-4 text-lg outline-none focus:border-[var(--color-pitch)]"
       />
       <Button type="submit" variant="primary" disabled={pending} className="w-full">
-        {pending ? "Finding your bracket…" : "Find my picks →"}
+        {pending ? "Finding your entry…" : "Take me to my picks →"}
       </Button>
       {error && (
         <p className="rounded-2xl bg-[var(--color-coral)]/10 px-4 py-3 text-sm font-semibold text-[var(--color-coral)]">

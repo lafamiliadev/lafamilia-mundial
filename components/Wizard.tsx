@@ -122,6 +122,12 @@ export function Wizard({
 
   const groupCount = Object.keys(groups).length;
   const groupsFilled = Object.keys(groups).filter((l) => s.groupWinners[l]).length;
+  // The member's just-picked group winners (group order) — surfaced first on the
+  // Final Four step so the chain from the previous step is obvious.
+  const winnerCodes = Object.keys(groups)
+    .sort()
+    .map((l) => s.groupWinners[l])
+    .filter(Boolean);
 
   const championOptions: PickOption[] = s.semifinalists.map((code) => ({
     key: code,
@@ -189,7 +195,7 @@ export function Wizard({
       },
       {
         title: "Pick your Final Four 🔥",
-        hint: "Choose 4 teams you think reach the semifinals.",
+        hint: "The 4 teams you think reach the semifinals — the last 4 standing. Your group winners show first, but any team can make it there.",
         canNext: s.semifinalists.length === 4,
         body: (
           <MultiPickGrid
@@ -197,7 +203,10 @@ export function Wizard({
             selected={s.semifinalists}
             onToggle={toggleSemifinalist}
             max={4}
-            searchPlaceholder="Search teams…"
+            prioritize={winnerCodes}
+            prioritizeLabel="Your group winners"
+            restLabel="Everyone else"
+            searchPlaceholder="Search any team…"
           />
         ),
       },

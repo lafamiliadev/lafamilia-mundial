@@ -3,6 +3,7 @@ import { Countdown } from "@/components/Countdown";
 import { SiembraBanner } from "@/components/Siembra";
 import { LinkButton, PageShell, SectionTitle, TopNav } from "@/components/ui";
 import { db } from "@/lib/db";
+import { getSessionToken } from "@/lib/session";
 import { getLeaderboardData, type LeaderboardView } from "@/lib/services";
 import { LIVE_ROUNDS, nextScoringMilestone } from "@/lib/schedule";
 import { teamFlag } from "@/lib/teams";
@@ -147,7 +148,10 @@ export default async function LeaderboardPage({
 }: {
   searchParams: Promise<{ me?: string; view?: string }>;
 }) {
-  const { me: token, view: rawView } = await searchParams;
+  const { me: meParam, view: rawView } = await searchParams;
+  // Highlight the viewer: an explicit ?me link wins, otherwise fall back to the
+  // returning-member cookie so a recognized user is spotlighted automatically.
+  const token = meParam ?? (await getSessionToken()) ?? undefined;
   const view: LeaderboardView =
     rawView === "bracket" || rawView === "live" ? rawView : "overall";
   const { total, top, me, leaderTotal, meGapToNext, scoringStarted } =
@@ -358,9 +362,13 @@ export default async function LeaderboardPage({
           </>
         )}
 
-        {!token && total > 0 && (
+        {!me && total > 0 && (
           <p className="mt-5 text-center text-sm text-[var(--color-muted)]">
-            Open your private link to find yourself on the board.
+            Already played?{" "}
+            <Link href="/edit" className="font-semibold underline underline-offset-4">
+              Find your picks
+            </Link>{" "}
+            to see your spot.
           </p>
         )}
       </PageShell>

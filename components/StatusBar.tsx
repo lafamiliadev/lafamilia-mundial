@@ -1,10 +1,11 @@
 import Link from "next/link";
 import { db } from "@/lib/db";
 import { getSessionParticipant } from "@/lib/session";
+import { now } from "@/lib/preview";
 import { bonusPointsRemaining, pickStatus } from "@/lib/schedule";
 
-function whenLabel(iso: string): string {
-  const days = Math.ceil((new Date(iso).getTime() - Date.now()) / 86_400_000);
+function whenLabel(iso: string, nowMs: number): string {
+  const days = Math.ceil((new Date(iso).getTime() - nowMs) / 86_400_000);
   if (days <= 0) return "today";
   if (days === 1) return "tomorrow";
   return `in ${days} days`;
@@ -21,19 +22,20 @@ export async function StatusBar() {
 
   const repo = await db();
   const settings = await repo.getSettings();
-  const status = pickStatus(new Date(), settings.lockTime);
+  const nowD = await now();
+  const status = pickStatus(nowD, settings.lockTime);
 
   let label: string;
   let live = false;
   if (status.state === "bonus-open") {
     const left = bonusPointsRemaining(me.predictions.bonus, settings.weights);
-    label = left > 0 ? `Bonus Picks open · ${left} pts available` : "Bonus Picks in — edit until kickoff";
+    label = left > 0 ? `Make your Bonus Picks · ${left} pts` : "Bonus Picks done — edit until kickoff";
     live = true;
   } else if (status.state === "round-open") {
-    label = `${status.round.label} picks open · ${status.round.pointsInPlay} pts`;
+    label = `${status.round.label} Live Picks open · ${status.round.pointsInPlay} pts`;
     live = true;
   } else if (status.state === "round-soon") {
-    label = `Next picks open ${whenLabel(status.round.opensIso)} · ${status.round.pointsInPlay} pts`;
+    label = `Next picks open ${whenLabel(status.round.opensIso, nowD.getTime())} · ${status.round.pointsInPlay} pts`;
   } else {
     return null; // tournament done
   }

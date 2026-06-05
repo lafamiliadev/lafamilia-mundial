@@ -1,7 +1,7 @@
 import "server-only";
 import { supabaseAdmin } from "../supabase/admin";
 import { baseSlug, uniqueSlug } from "../slug";
-import { DEFAULT_SETTINGS, EMPTY_RESULTS } from "../types";
+import { DEFAULT_SETTINGS, DEFAULT_WEIGHTS, EMPTY_RESULTS } from "../types";
 import type { BonusPicks, DailyPick, LivePick, Participant, Predictions, Results, Settings } from "../types";
 import type {
   ContentItem,
@@ -77,7 +77,10 @@ export const supabaseRepo: Repo = {
   async getSettings() {
     const db = supabaseAdmin();
     const { data } = await db.from("settings").select("config").eq("id", 1).maybeSingle();
-    return (data?.config as Settings) ?? DEFAULT_SETTINGS;
+    const cfg = (data?.config as Settings | undefined) ?? DEFAULT_SETTINGS;
+    // Merge over defaults so weights/fields added after the row was first written
+    // (e.g. the Bonus/Live weights) always have a value — never undefined → NaN.
+    return { ...DEFAULT_SETTINGS, ...cfg, weights: { ...DEFAULT_WEIGHTS, ...cfg.weights } };
   },
   async saveSettings(settings) {
     const db = supabaseAdmin();

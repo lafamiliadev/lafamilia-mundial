@@ -13,6 +13,7 @@ import { LinkButton } from "@/components/ui";
 import { db } from "@/lib/db";
 import { getLeaderboardData, getTopChampionPick } from "@/lib/services";
 import { getSessionParticipant } from "@/lib/session";
+import { now } from "@/lib/preview";
 import { bonusPointsRemaining, pickStatus, SCORING_MILESTONES } from "@/lib/schedule";
 import { teamFlag, teamName } from "@/lib/teams";
 import { EMPTY_BONUS } from "@/lib/types";
@@ -38,19 +39,31 @@ export default async function Home() {
   ]);
   const count = participants.length;
 
-  // Returning member? Greet them and point at their next action.
+  // Returning member? Greet them and point at their next action — named
+  // explicitly ("Bonus Picks"), never a vague "4 picks open".
   if (me) {
     const board = await getLeaderboardData(me.resumeToken);
-    const status = pickStatus(new Date(), settings.lockTime);
+    const nowD = await now();
+    const status = pickStatus(nowD, settings.lockTime);
     const bonusFilled = Object.values(me.predictions.bonus ?? EMPTY_BONUS).filter(Boolean).length;
-    const picksOpen = status.state === "bonus-open" ? 4 - bonusFilled : status.state === "round-open" ? 1 : 0;
-    const ptsAvailable =
-      status.state === "bonus-open"
-        ? bonusPointsRemaining(me.predictions.bonus, settings.weights)
-        : status.state === "round-open"
-          ? status.round.pointsInPlay
-          : 0;
-    const rival = board.me && board.me.rank > 1 ? board.top.find((r) => r.rank === board.me!.rank - 1) : null;
+
+    let open: OpenAction | null = null;
+    if (status.state === "bonus-open") {
+      const remaining = 4 - bonusFilled;
+      open = {
+        title: bonusFilled === 0 ? "Make your Bonus Picks" : `${remaining} Bonus ${remaining === 1 ? "Pick" : "Picks"} left`,
+        detail: "Golden Ball, Boot, Glove & a Dark Horse",
+        pts: bonusPointsRemaining(me.predictions.bonus, settings.weights),
+        action: bonusFilled === 0 ? "Make my Bonus Picks" : "Finish my Bonus Picks",
+      };
+    } else if (status.state === "round-open") {
+      open = {
+        title: `${status.round.label} Live Picks are open`,
+        detail: `Pick the winners of ${status.round.plain}`,
+        pts: status.round.pointsInPlay,
+        action: "Make my Live Picks",
+      };
+    }
 
     return (
       <main className="flex flex-1 flex-col">
@@ -59,14 +72,13 @@ export default async function Home() {
           rank={board.me?.rank ?? null}
           total={board.total}
           lockTime={settings.lockTime}
-          picksOpen={picksOpen}
-          ptsAvailable={ptsAvailable}
-          gapToNext={board.meGapToNext}
-          rivalName={rival?.name ?? null}
+          open={open}
+          nowMs={nowD.getTime()}
         />
         <WhatHappensNext
           kickoffIso={settings.lockTime}
           firstPointsIso={SCORING_MILESTONES[0].dateIso}
+          nowMs={nowD.getTime()}
         />
       </main>
     );
@@ -118,11 +130,11 @@ export default async function Home() {
               Submit Predictions →
             </LinkButton>
 
-            {/* 6 — Secondary link */}
+            {/* 6 — Secondary link — returning members who aren't recognized */}
             <p className="mt-3 text-sm text-white/80">
               Already played?{" "}
               <Link href="/edit" className="font-semibold text-white underline underline-offset-4">
-                Edit your picks
+                Find your picks
               </Link>
             </p>
           </div>
@@ -223,11 +235,13 @@ function HowAndExplore() {
 function WhatHappensNext({
   kickoffIso,
   firstPointsIso,
+  nowMs,
 }: {
   kickoffIso: string;
   firstPointsIso: string;
+  nowMs: number;
 }) {
-  const started = Date.now() >= new Date(kickoffIso).getTime();
+  const started = nowMs >= new Date(kickoffIso).getTime();
   const fmt = (iso: string) =>
     new Date(iso).toLocaleDateString("en-US", {
       month: "long",
@@ -279,28 +293,26 @@ function WhatHappensNext({
   );
 }
 
+/** A clearly-named action the member can take right now (e.g. Bonus Picks). */
+type OpenAction = { title: string; detail: string; pts: number; action: string };
+
 /** Returning-member hero: greet, show rank + the next open action. */
 function ReturningHero({
   name,
   rank,
   total,
   lockTime,
-  picksOpen,
-  ptsAvailable,
-  gapToNext,
-  rivalName,
+  open,
+  nowMs,
 }: {
   name: string;
   rank: number | null;
   total: number;
   lockTime: string;
-  picksOpen: number;
-  ptsAvailable: number;
-  gapToNext: number | null;
-  rivalName: string | null;
+  open: OpenAction | null;
+  nowMs: number;
 }) {
-  const hasOpen = picksOpen > 0;
-  const started = Date.now() >= new Date(lockTime).getTime();
+  const started = nowMs >= new Date(lockTime).getTime();
   return (
     <section className="bg-stadium px-5 pb-10 pt-14 text-left text-white">
       <div className="mx-auto max-w-md">
@@ -323,26 +335,22 @@ function ReturningHero({
         </div>
 
         <div className="mt-6 rounded-2xl border border-white/15 bg-white/[0.06] px-5 py-6 text-center backdrop-blur-sm">
-          {hasOpen ? (
+          {open ? (
             <>
               <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-[var(--color-gold-soft)]">
-                {picksOpen} {picksOpen === 1 ? "pick" : "picks"} open · {ptsAvailable} pts available
+                ⚡ {open.title}
+                {open.pts > 0 ? ` · ${open.pts} pts` : ""}
               </p>
-              <div className="mt-3 flex justify-center">
+              <p className="mt-1 text-sm text-white/85">{open.detail}</p>
+              <p className="mt-4 text-[11px] font-semibold uppercase tracking-wider text-white/60">
+                Locks at kickoff
+              </p>
+              <div className="mt-2 flex justify-center">
                 <Countdown lockTime={lockTime} />
               </div>
               <LinkButton href="/picks" variant="gold" className="mt-6 w-full text-lg shadow-md">
-                Make My Picks →
+                {open.action} →
               </LinkButton>
-              {gapToNext != null && gapToNext > 0 && rivalName ? (
-                <p className="mt-3 text-sm text-white/80">
-                  {gapToNext} {gapToNext === 1 ? "pt" : "pts"} behind {rivalName}. Catchable. 🔥
-                </p>
-              ) : (
-                <p className="mt-3 text-sm text-white/80">
-                  Your picks count toward the Overall leaderboard.
-                </p>
-              )}
             </>
           ) : (
             <>

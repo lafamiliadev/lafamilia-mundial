@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist } from "next/font/google";
 import { Suspense } from "react";
 import "./globals.css";
+import { PreviewMount } from "@/components/PreviewMount";
 import { StatusBar } from "@/components/StatusBar";
 import { env } from "@/lib/env";
 
@@ -35,6 +36,9 @@ export default function RootLayout({
           <StatusBar />
         </Suspense>
         {children}
+        <Suspense fallback={null}>
+          <PreviewMount />
+        </Suspense>
       </body>
     </html>
   );

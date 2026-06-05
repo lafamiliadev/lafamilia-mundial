@@ -1,6 +1,5 @@
 import { notFound } from "next/navigation";
 import { CopyShareLink } from "@/components/CopyShareLink";
-import { ResumeLink } from "@/components/ResumeLink";
 import { SavePredictionCard } from "@/components/SavePredictionCard";
 import { SiembraCTA } from "@/components/Siembra";
 import { Button, TopNav } from "@/components/ui";
@@ -23,7 +22,6 @@ export default async function DonePage({
   const me = await repo.getByToken(token);
   if (!me) notFound();
 
-  const resumeUrl = `${env.NEXT_PUBLIC_APP_URL}/r/${me.resumeToken}`;
   const cardUrl = `/api/card/${me.slug}`;
   // Personalized public share page — friends land here, see the card, and make
   // their own bracket (attributed back via ?ref). This is the viral loop.
@@ -94,12 +92,9 @@ Think you can beat my bracket? 👇`;
           </div>
         </div>
 
-        {/* ── Background — mission + private return link ── */}
+        {/* ── Background — the mission ── */}
         <div className="mt-8">
           <SiembraCTA />
-        </div>
-        <div className="mt-6">
-          <ResumeLink url={resumeUrl} />
         </div>
       </section>
     </main>

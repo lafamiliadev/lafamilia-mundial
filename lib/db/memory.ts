@@ -117,7 +117,9 @@ async function persist(data: Shape): Promise<void> {
 
 export const memoryRepo: Repo = {
   async getSettings() {
-    return (await load()).settings;
+    const s = (await load()).settings;
+    // Merge over defaults so any weight field added later is never undefined.
+    return { ...DEFAULT_SETTINGS, ...s, weights: { ...DEFAULT_WEIGHTS, ...s.weights } };
   },
   async saveSettings(settings) {
     const data = await load();

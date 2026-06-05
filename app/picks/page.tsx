@@ -50,7 +50,8 @@ export default async function PicksHubPage({
   }
 
   const settings = await repo.getSettings();
-  const status = pickStatus(new Date(), settings.lockTime);
+  const nowMs = (await now()).getTime();
+  const status = pickStatus(new Date(nowMs), settings.lockTime);
   const bonus = me.predictions.bonus ?? EMPTY_BONUS;
   const bonusFilled = Object.values(bonus).filter(Boolean).length;
   const bonusOpen = status.state === "bonus-open";

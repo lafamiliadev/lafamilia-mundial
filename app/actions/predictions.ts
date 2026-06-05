@@ -112,10 +112,11 @@ export type FindResult =
   | { ok: false; error: string };
 
 /**
- * Look up an existing entry by email so a member can get back into their
- * pre-filled editor without their resume link. Returns the resume token to
- * redirect to /r/[token]. (Low-stakes community game — no email verification,
- * same trust model as re-submitting with the same email.)
+ * Look up an existing entry by email so a member can get back into the game
+ * without their resume link. On a match we also set the returning-member cookie
+ * so the homepage recognizes them automatically from now on (no more hunting).
+ * (Low-stakes community game — no email verification, same trust model as
+ * re-submitting with the same email.)
  */
 export async function findResumeToken(rawEmail: string): Promise<FindResult> {
   const parsed = emailSchema.safeParse(rawEmail);
@@ -126,9 +127,10 @@ export async function findResumeToken(rawEmail: string): Promise<FindResult> {
     if (!me) {
       return {
         ok: false,
-        error: "We couldn't find a bracket for that email. Check the spelling, or start a new one.",
+        error: "We couldn't find an entry for that email. Check the spelling, or start a new one.",
       };
     }
+    await setSessionToken(me.resumeToken).catch(() => {});
     return { ok: true, token: me.resumeToken };
   } catch {
     return { ok: false, error: "Something went wrong. Please try again." };
