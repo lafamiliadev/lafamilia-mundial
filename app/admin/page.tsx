@@ -8,6 +8,7 @@ import {
   SyncGroupsButton,
 } from "@/components/admin";
 import { Button, SectionTitle } from "@/components/ui";
+import { InsightsBoard } from "@/components/InsightsBoard";
 import { adminLogout } from "@/app/actions/admin";
 import { isAdmin } from "@/lib/admin-auth";
 import { db } from "@/lib/db";
@@ -188,6 +189,18 @@ export default async function AdminDashboard() {
         </p>
         <div className="mt-4">
           <AwardsAdmin awards={awards} revealed={settings.awardsRevealed ?? false} />
+        </div>
+      </section>
+
+      {/* Community Insights — internal tool (moved out of the player app). */}
+      <section className="card mt-6 p-5">
+        <SectionTitle emoji="📊">Community Insights</SectionTitle>
+        <p className="mt-1 text-sm text-[var(--color-muted)]">
+          Internal — what the {participants.length} Familia are predicting. Use for WhatsApp updates,
+          leaderboard announcements, and community storytelling.
+        </p>
+        <div className="mt-4">
+          <InsightsBoard participants={participants} />
         </div>
       </section>
 

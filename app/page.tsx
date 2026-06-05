@@ -3,7 +3,6 @@ import { Countdown } from "@/components/Countdown";
 import {
   ArrowRightIcon,
   GroupsIcon,
-  InsightsIcon,
   PeopleIcon,
   SproutIcon,
   TrendingUpIcon,
@@ -222,36 +221,20 @@ function HowAndExplore() {
           </ul>
         </div>
 
-        {/* Leaderboard + Community Insights */}
-        <div className="mt-6 grid grid-cols-2 gap-3">
-          <Link
-            href="/leaderboard"
-            className="group flex flex-col rounded-2xl border border-[var(--color-line)] bg-white p-4 transition hover:border-[var(--color-pitch)] hover:shadow-sm"
-          >
-            <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[var(--color-cream)]">
-              <TrendingUpIcon className="h-7 w-7" />
-            </span>
-            <p className="mt-3 font-bold">Leaderboard</p>
-            <p className="mt-1 flex-1 text-sm text-[var(--color-muted)]">
-              See who&apos;s leading the Familia
-            </p>
-            <ArrowRightIcon className="mt-3 h-4 w-4 text-[var(--color-muted)] transition group-hover:translate-x-0.5 group-hover:text-[var(--color-pitch)]" />
-          </Link>
-
-          <Link
-            href="/insights"
-            className="group flex flex-col rounded-2xl border border-[var(--color-line)] bg-white p-4 transition hover:border-[var(--color-coral)] hover:shadow-sm"
-          >
-            <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[var(--color-cream)]">
-              <InsightsIcon className="h-7 w-7" />
-            </span>
-            <p className="mt-3 font-bold">Community Insights</p>
-            <p className="mt-1 flex-1 text-sm text-[var(--color-muted)]">
-              See how the Familia is predicting
-            </p>
-            <ArrowRightIcon className="mt-3 h-4 w-4 text-[var(--color-muted)] transition group-hover:translate-x-0.5 group-hover:text-[var(--color-coral)]" />
-          </Link>
-        </div>
+        {/* See the race */}
+        <Link
+          href="/leaderboard"
+          className="group mt-6 flex items-center gap-4 rounded-2xl border border-[var(--color-line)] bg-white p-4 transition hover:border-[var(--color-pitch)] hover:shadow-sm"
+        >
+          <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[var(--color-cream)]">
+            <TrendingUpIcon className="h-7 w-7" />
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="font-bold">Leaderboard</p>
+            <p className="text-sm text-[var(--color-muted)]">See who&apos;s leading the Familia</p>
+          </div>
+          <ArrowRightIcon className="h-4 w-4 shrink-0 text-[var(--color-muted)] transition group-hover:translate-x-0.5 group-hover:text-[var(--color-pitch)]" />
+        </Link>
 
         {/* Belonging — the heart of it */}
         <p className="mt-10 text-center text-lg font-extrabold tracking-tight text-[var(--color-ink)]">
@@ -403,12 +386,9 @@ function ReturningHero({
           )}
         </div>
 
-        <div className="mt-4 grid grid-cols-2 gap-2">
+        <div className="mt-4">
           <LinkButton href="/leaderboard" variant="outline" className="w-full !bg-white/12 !border-white/15 !text-white backdrop-blur">
             🏆 Leaderboard
-          </LinkButton>
-          <LinkButton href="/insights" variant="outline" className="w-full !bg-white/12 !border-white/15 !text-white backdrop-blur">
-            📊 Insights
           </LinkButton>
         </div>
 
