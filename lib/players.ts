@@ -24,12 +24,12 @@ export const STRIKERS: Player[] = [
   { id: "raphinha", name: "Raphinha", teamCode: "BRA", pos: "FW", featured: true },
   { id: "endrick", name: "Endrick", teamCode: "BRA", pos: "FW" },
   { id: "mbappe", name: "Kylian Mbappé", teamCode: "FRA", pos: "FW", featured: true },
-  { id: "dembele", name: "Ousmane Dembélé", teamCode: "FRA", pos: "FW" },
+  { id: "dembele", name: "Ousmane Dembélé", teamCode: "FRA", pos: "FW", featured: true },
   { id: "kane", name: "Harry Kane", teamCode: "ENG", pos: "FW", featured: true },
   { id: "saka", name: "Bukayo Saka", teamCode: "ENG", pos: "FW" },
   { id: "foden", name: "Phil Foden", teamCode: "ENG", pos: "FW" },
   { id: "yamal", name: "Lamine Yamal", teamCode: "ESP", pos: "FW", featured: true },
-  { id: "oyarzabal", name: "Mikel Oyarzabal", teamCode: "ESP", pos: "FW" },
+  { id: "oyarzabal", name: "Mikel Oyarzabal", teamCode: "ESP", pos: "FW", featured: true },
   { id: "olmo", name: "Dani Olmo", teamCode: "ESP", pos: "FW" },
   { id: "ronaldo", name: "Cristiano Ronaldo", teamCode: "POR", pos: "FW", featured: true },
   { id: "leao", name: "Rafael Leão", teamCode: "POR", pos: "FW" },
@@ -59,8 +59,10 @@ export const MIDFIELDERS: Player[] = [
   { id: "debruyne", name: "Kevin De Bruyne", teamCode: "BEL", pos: "MF" },
   { id: "wirtz", name: "Florian Wirtz", teamCode: "GER", pos: "MF" },
   { id: "musiala", name: "Jamal Musiala", teamCode: "GER", pos: "MF" },
-  { id: "b-fernandes", name: "Bruno Fernandes", teamCode: "POR", pos: "MF" },
   { id: "vitinha", name: "Vitinha", teamCode: "POR", pos: "MF" },
+  { id: "joao-neves", name: "João Neves", teamCode: "POR", pos: "MF" },
+  { id: "olise", name: "Michael Olise", teamCode: "FRA", pos: "MF" },
+  { id: "doue", name: "Désiré Doué", teamCode: "FRA", pos: "MF" },
   { id: "kubo", name: "Takefusa Kubo", teamCode: "JPN", pos: "MF" },
   { id: "valverde", name: "Federico Valverde", teamCode: "URU", pos: "MF" },
   { id: "mac-allister", name: "Alexis Mac Allister", teamCode: "ARG", pos: "MF" },
@@ -97,12 +99,12 @@ export const GOALKEEPERS: Player[] = [
   { id: "livakovic", name: "Dominik Livaković", teamCode: "CRO", pos: "GK", featured: true },
   { id: "kobel", name: "Gregor Kobel", teamCode: "SUI", pos: "GK", featured: true },
   { id: "rochet", name: "Sergio Rochet", teamCode: "URU", pos: "GK", featured: true },
-  { id: "c-vargas", name: "Camilo Vargas", teamCode: "COL", pos: "GK", featured: true },
+  { id: "montero", name: "Álvaro Montero", teamCode: "COL", pos: "GK", featured: true },
   { id: "suzuki", name: "Zion Suzuki", teamCode: "JPN", pos: "GK", featured: true },
   { id: "e-mendy", name: "Édouard Mendy", teamCode: "SEN", pos: "GK", featured: true },
   { id: "galindez", name: "Hernán Galíndez", teamCode: "ECU", pos: "GK", featured: true },
-  { id: "turner", name: "Matt Turner", teamCode: "USA", pos: "GK", featured: true },
-  { id: "ochoa", name: "Guillermo Ochoa", teamCode: "MEX", pos: "GK", featured: true },
+  { id: "freese", name: "Matt Freese", teamCode: "USA", pos: "GK", featured: true },
+  { id: "rangel", name: "Raúl Rangel", teamCode: "MEX", pos: "GK", featured: true },
   { id: "nyland", name: "Ørjan Nyland", teamCode: "NOR", pos: "GK", featured: true },
   // "See all" pool — one more keeper for the remaining nations.
   { id: "ryan", name: "Mathew Ryan", teamCode: "AUS", pos: "GK" },
@@ -124,13 +126,16 @@ export const GOLDEN_GLOVE_ALL = GOALKEEPERS;
 // attacker or playmaker — forwards and attacking midfielders. Goalkeepers play
 // for the Golden Glove and top scorers for the Golden Boot, so we keep keepers
 // and defenders out of this pool (a keeper has won exactly once, in 2002).
-const BALL_ALL = [...STRIKERS, ...MIDFIELDERS];
+// A few forwards belong in the Golden Boot pool (scorers) but not the Golden
+// Ball one — e.g. Son, a pure striker we don't surface as a best-player pick.
+const GOLDEN_BALL_EXCLUDE = new Set(["son"]);
+const BALL_ALL = [...STRIKERS, ...MIDFIELDERS].filter((p) => !GOLDEN_BALL_EXCLUDE.has(p.id));
 /** Golden Ball featured contenders; search still spans the full BALL_ALL pool. */
 export const GOLDEN_BALL_FEATURED: Player[] = [
   "messi", "ronaldo", "mbappe", "yamal", "bellingham", "vinicius", "haaland",
-  "kane", "pedri", "musiala", "vitinha", "b-fernandes", "modric", "salah",
-  "valverde", "julian-alvarez", "son", "pulisic", "rodri", "wirtz",
-  "lautaro", "raphinha",
+  "kane", "pedri", "musiala", "vitinha", "dembele", "olise", "joao-neves",
+  "doue", "modric", "salah", "valverde", "julian-alvarez", "pulisic", "rodri",
+  "wirtz", "lautaro", "raphinha",
 ]
   .map((id) => BALL_ALL.find((p) => p.id === id))
   .filter((p): p is Player => Boolean(p));

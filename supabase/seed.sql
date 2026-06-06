@@ -94,8 +94,10 @@ insert into players (id, name, team_code) values
   ('debruyne', 'Kevin De Bruyne', 'BEL'),
   ('wirtz', 'Florian Wirtz', 'GER'),
   ('musiala', 'Jamal Musiala', 'GER'),
-  ('b-fernandes', 'Bruno Fernandes', 'POR'),
   ('vitinha', 'Vitinha', 'POR'),
+  ('joao-neves', 'João Neves', 'POR'),
+  ('olise', 'Michael Olise', 'FRA'),
+  ('doue', 'Désiré Doué', 'FRA'),
   ('kubo', 'Takefusa Kubo', 'JPN'),
   ('valverde', 'Federico Valverde', 'URU'),
   ('mac-allister', 'Alexis Mac Allister', 'ARG'),
@@ -123,12 +125,12 @@ insert into players (id, name, team_code) values
   ('livakovic', 'Dominik Livaković', 'CRO'),
   ('kobel', 'Gregor Kobel', 'SUI'),
   ('rochet', 'Sergio Rochet', 'URU'),
-  ('c-vargas', 'Camilo Vargas', 'COL'),
+  ('montero', 'Álvaro Montero', 'COL'),
   ('suzuki', 'Zion Suzuki', 'JPN'),
   ('e-mendy', 'Édouard Mendy', 'SEN'),
   ('galindez', 'Hernán Galíndez', 'ECU'),
-  ('turner', 'Matt Turner', 'USA'),
-  ('ochoa', 'Guillermo Ochoa', 'MEX'),
+  ('freese', 'Matt Freese', 'USA'),
+  ('rangel', 'Raúl Rangel', 'MEX'),
   ('nyland', 'Ørjan Nyland', 'NOR'),
   ('ryan', 'Mathew Ryan', 'AUS'),
   ('kim-seung-gyu', 'Kim Seung-gyu', 'KOR'),
@@ -140,7 +142,7 @@ insert into players (id, name, team_code) values
   ('gunn', 'Angus Gunn', 'SCO')
 on conflict (id) do update set name = excluded.name, team_code = excluded.team_code;
 
-insert into settings (id, config) values (1, '{"weights":{"groupWinner":3,"semifinalist":10,"champion":20,"groupSweepBonus":10,"goldenBall":12,"goldenBoot":12,"goldenGlove":8,"darkHorseR16":3,"darkHorseQf":7,"darkHorseSf":12,"liveR32":1,"liveR16":2,"liveQf":4,"liveSf":8,"liveFinal":16},"lockTime":"2026-06-11T20:00:00Z","tournamentStage":"pre","groups":{},"groupsSyncedAt":null,"awardsRevealed":false,"sentReminders":[]}'::jsonb)
+insert into settings (id, config) values (1, '{"weights":{"groupWinner":3,"semifinalist":10,"champion":20,"groupSweepBonus":10,"goldenBall":12,"goldenBoot":12,"goldenGlove":8,"darkHorseR16":3,"darkHorseQf":7,"darkHorseSf":12,"liveR32":1,"liveR16":2,"liveQf":4,"liveSf":8,"liveFinal":16},"lockTime":"2026-06-11T20:00:00Z","tournamentStage":"pre","groups":{},"groupsSyncedAt":null,"awardsRevealed":false,"sentReminders":[],"liveMatches":[]}'::jsonb)
 on conflict (id) do nothing;
 
 insert into results (id, data) values (1, '{"champion":null,"runnerUp":null,"goldenBoot":null,"latamFurthest":null,"darkHorseTeam":null,"stageReached":{}}'::jsonb)
