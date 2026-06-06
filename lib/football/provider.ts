@@ -1,4 +1,4 @@
-import type { GroupMap, Results } from "../types";
+import type { GroupMap, LiveMatch, Results } from "../types";
 
 // Swappable football-data abstraction. The scoring cron depends ONLY on this
 // interface, so swapping providers is a one-line env change.
@@ -26,4 +26,10 @@ export interface FootballProvider {
    * handles the rest.
    */
   fetchResults(): Promise<Results>;
+  /**
+   * Knockout matchups (who plays whom each round) with stable match ids, so the
+   * Live Picks pick cards populate automatically. Returns [] when the provider
+   * has no knockout data yet (or doesn't support it).
+   */
+  fetchKnockoutMatches(): Promise<LiveMatch[]>;
 }

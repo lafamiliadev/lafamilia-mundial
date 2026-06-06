@@ -51,11 +51,35 @@ export async function getGroups(): Promise<GroupMap> {
   return settings.groups ?? {};
 }
 
+/**
+ * Sync the knockout matchups (who plays whom) from the active provider into
+ * settings, so the Live Picks pick cards populate automatically. When the
+ * provider returns nothing (no key, or rounds not drawn yet) it leaves the
+ * existing matchups untouched — so an admin's manual entries are never wiped by
+ * an empty fetch. The provider's stable match ids are the source of truth.
+ */
+export async function syncLiveMatches(): Promise<{ count: number; provider: string }> {
+  const repo = await db();
+  const provider = getProvider();
+  const matches = await provider.fetchKnockoutMatches();
+  if (matches.length > 0) {
+    const settings = await repo.getSettings();
+    await repo.saveSettings({
+      ...settings,
+      liveMatches: matches,
+      liveMatchesSyncedAt: new Date().toISOString(),
+    });
+  }
+  return { count: matches.length, provider: provider.name };
+}
+
 export type RecomputeReport = {
   participants: number;
   pulledFromProvider: boolean;
   champion: string | null;
   provider: string;
+  /** Knockout matchups synced from the provider this run (0 when none/manual). */
+  liveMatches: number;
 };
 
 /**
@@ -72,7 +96,13 @@ export async function recomputeScores(
 
   const stored = await repo.getResults();
   let merged = stored;
+  let liveMatchesSynced = 0;
   if (opts.pullFromProvider) {
+    // Keep the knockout matchups fresh too (auto-populates the pick cards), then
+    // pull results. A matchup-sync hiccup must never block scoring.
+    liveMatchesSynced = await syncLiveMatches()
+      .then((r) => r.count)
+      .catch(() => 0);
     const fresh = await provider.fetchResults();
     merged = mergeResults(fresh, stored);
     await repo.saveResults(merged);
@@ -127,6 +157,7 @@ export async function recomputeScores(
     pulledFromProvider: opts.pullFromProvider,
     champion: merged.champion,
     provider: provider.name,
+    liveMatches: liveMatchesSynced,
   };
 }
 
@@ -181,13 +212,29 @@ export async function getLeaderboardData(
       return a.name.localeCompare(b.name);
     });
 
-  // Assign display ranks if scoring hasn't run yet (all zero → rank by order).
-  rows.forEach((r, i) => {
-    if (!r.rank) r.rank = i + 1;
-  });
-
   const leaderTotal = rows.length ? rows[0].total : 0;
   const scoringStarted = leaderTotal > 0;
+
+  // Rank for THIS view. The rows are already sorted by the view's own points
+  // (overall total, bracket-only, or live-only), so the displayed rank must be
+  // derived from THAT order — not the stored Overall rank, or the Bracket/Live
+  // tabs would show scrambled numbers. Standard competition ranking (1,2,2,4)
+  // on the view's points once any are scored; positional (1,2,3…) on the
+  // pre-kickoff starting line where everyone is on zero.
+  if (!scoringStarted) {
+    rows.forEach((r, i) => {
+      r.rank = i + 1;
+    });
+  } else {
+    let lastTotal: number | null = null;
+    let lastRank = 0;
+    rows.forEach((r, i) => {
+      const rank = lastTotal === r.total ? lastRank : i + 1;
+      r.rank = rank;
+      lastTotal = r.total;
+      lastRank = rank;
+    });
+  }
 
   let meId: string | null = null;
   if (token) {
@@ -203,7 +250,10 @@ export async function getLeaderboardData(
     rootingCountry: r.rootingCountry,
     champion: r.champion,
     total: r.total,
-    delta: r.previousRank > 0 ? r.previousRank - r.rank : 0,
+    // Movement arrows only make sense in Overall, where the stored previousRank
+    // shares a basis with rank. Slice views have no stored "previous slice
+    // rank", so showing an arrow there would be misleading — omit it.
+    delta: view === "overall" && r.previousRank > 0 ? r.previousRank - r.rank : 0,
     isMe: r.id === meId,
   });
 

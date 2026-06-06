@@ -76,6 +76,11 @@ export type Settings = {
   awardsRevealed: boolean;
   /** Reminder-email campaign keys already sent (idempotency for the cron). */
   sentReminders: string[];
+  /** Cached knockout matchups for the Live Picks game, keyed nowhere — a flat
+   * list filtered by round. Entered by admin or synced from the provider. */
+  liveMatches: LiveMatch[];
+  /** When the knockout matchups were last synced from the provider (ISO), or null. */
+  liveMatchesSyncedAt: string | null;
 };
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -86,6 +91,8 @@ export const DEFAULT_SETTINGS: Settings = {
   groupsSyncedAt: null,
   awardsRevealed: false,
   sentReminders: [],
+  liveMatches: [],
+  liveMatchesSyncedAt: null,
 };
 
 /** The four pre-tournament Bonus Picks (the expected "second step" after the
@@ -123,6 +130,17 @@ export type LivePick = {
   round: KnockoutRound;
   team: string; // picked team code
   highConviction: boolean; // doubles this match if correct (1 per round)
+};
+
+/** A scheduled knockout match members pick a winner for (Phase 2). Entered by
+ * admin (or synced from the provider) and cached in Settings so the pick cards
+ * never depend on a live API call. `matchId` is stable (e.g. "r32-1"). */
+export type LiveMatch = {
+  matchId: string;
+  round: KnockoutRound;
+  homeCode: string; // team code
+  awayCode: string; // team code
+  kickoffIso: string | null;
 };
 
 /** La Jugada del Día — a one-tap daily group-stage prediction (Phase 2). */

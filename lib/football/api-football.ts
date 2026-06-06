@@ -1,6 +1,7 @@
 import { env } from "../env";
 import { resolveTeamCode } from "../teams";
-import { EMPTY_RESULTS, type GroupMap, type Results, type Stage } from "../types";
+import { EMPTY_RESULTS, type GroupMap, type LiveMatch, type Results } from "../types";
+import { parseKnockoutFixtures, type RawFixture } from "./parse-fixtures";
 import type { FootballProvider, ProviderStatus } from "./provider";
 
 // Production provider: API-Football (api-sports.io v3). The World Cup is league
@@ -18,16 +19,6 @@ function groupLetter(raw: string | undefined): string | null {
   if (!raw) return null;
   const m = raw.match(/([A-L])\s*$/i);
   return m ? m[1].toUpperCase() : null;
-}
-
-function roundToStage(round: string | undefined): Stage | null {
-  if (!round) return null;
-  const r = round.toLowerCase();
-  if (r.includes("16")) return "r16";
-  if (r.includes("quarter")) return "qf";
-  if (r.includes("semi")) return "sf";
-  if (r.includes("final")) return "final"; // 3rd-place excluded by caller
-  return null;
 }
 
 type StandingRow = {
@@ -124,49 +115,36 @@ export class ApiFootballProvider implements FootballProvider {
       /* leave group winners as-is */
     }
 
-    // 2) Knockout fixtures → per-stage team lists + champion.
+    // 2) Knockout fixtures → per-stage team lists, champion, AND per-match
+    // winners (for the Live Picks game). Parsing is the tested pure function.
     try {
-      const res = await fetch(
-        `${BASE}/fixtures?league=${WORLD_CUP_LEAGUE_ID}&season=${SEASON}`,
-        { headers: this.headers(), signal: AbortSignal.timeout(8000) },
-      );
-      const json = (await res.json()) as {
-        response?: {
-          league?: { round?: string };
-          teams?: {
-            home?: { name?: string; winner?: boolean };
-            away?: { name?: string; winner?: boolean };
-          };
-          fixture?: { status?: { short?: string } };
-        }[];
-      };
-      const add = (stage: Stage, code: string | null) => {
-        if (!code) return;
-        results.stageReached[stage] = results.stageReached[stage] ?? [];
-        if (!results.stageReached[stage]!.includes(code))
-          results.stageReached[stage]!.push(code);
-      };
-      for (const fx of json.response ?? []) {
-        const round = fx.league?.round ?? "";
-        if (round.toLowerCase().includes("3rd")) continue; // ignore 3rd-place
-        const stage = roundToStage(round);
-        if (!stage) continue;
-        const finished = fx.fixture?.status?.short === "FT";
-        const home = resolveTeamCode(fx.teams?.home?.name);
-        const away = resolveTeamCode(fx.teams?.away?.name);
-        add(stage, home);
-        add(stage, away);
-        if (stage === "final" && finished) {
-          const homeWon = fx.teams?.home?.winner === true;
-          const champ = homeWon ? home : away;
-          results.champion = champ;
-          if (champ) add("champion", champ);
-        }
-      }
+      const parsed = parseKnockoutFixtures(await this.fetchFixtures());
+      results.stageReached = parsed.stageReached;
+      results.champion = parsed.champion;
+      results.matchWinners = parsed.matchWinners;
     } catch {
-      /* leave stages as-is */
+      /* leave knockout results as-is */
     }
 
     return results;
+  }
+
+  /** Raw knockout + group fixtures for the tournament. */
+  private async fetchFixtures(): Promise<RawFixture[]> {
+    const res = await fetch(
+      `${BASE}/fixtures?league=${WORLD_CUP_LEAGUE_ID}&season=${SEASON}`,
+      { headers: this.headers(), signal: AbortSignal.timeout(8000) },
+    );
+    const json = (await res.json()) as { response?: RawFixture[] };
+    return json.response ?? [];
+  }
+
+  /** Knockout matchups (who plays whom) for the Live Picks pick cards. */
+  async fetchKnockoutMatches(): Promise<LiveMatch[]> {
+    try {
+      return parseKnockoutFixtures(await this.fetchFixtures()).matches;
+    } catch {
+      return [];
+    }
   }
 }

@@ -1,5 +1,5 @@
 import { resolveTeamCode } from "../teams";
-import { EMPTY_RESULTS, type GroupMap, type Results, type Stage } from "../types";
+import { EMPTY_RESULTS, type GroupMap, type LiveMatch, type Results, type Stage } from "../types";
 import type { FootballProvider, ProviderStatus } from "./provider";
 
 // Free, public-domain provider (github.com/openfootball/worldcup.json).
@@ -156,5 +156,11 @@ export class OpenFootballProvider implements FootballProvider {
     } catch {
       return EMPTY_RESULTS;
     }
+  }
+
+  /** OpenFootball doesn't supply per-match knockout matchups with stable ids, so
+   * the Live Picks matchups are admin-entered when running on this provider. */
+  async fetchKnockoutMatches(): Promise<LiveMatch[]> {
+    return [];
   }
 }

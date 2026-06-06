@@ -159,6 +159,68 @@ describe("scorePredictions — Live Knockout Picks", () => {
     expect(scorePredictions(blankPrediction, results, DEFAULT_SETTINGS, picks).live).toBe(0);
   });
 
+  // ── Accuracy guarantees the whole game depends on ──
+
+  it("awards NOTHING until the result exists (no winner recorded yet)", () => {
+    const noResults: Results = { ...EMPTY_RESULTS, matchWinners: {} };
+    const picks: LivePick[] = [{ matchId: "m1", round: "r16", team: "BRA", highConviction: true }];
+    // Even a correct, high-conviction pick scores 0 while the result is missing.
+    expect(scorePredictions(blankPrediction, noResults, DEFAULT_SETTINGS, picks).live).toBe(0);
+  });
+
+  it("does NOT double anything on a wrong High Conviction pick", () => {
+    const picks: LivePick[] = [{ matchId: "m1", round: "qf", team: "ARG", highConviction: true }];
+    expect(scorePredictions(blankPrediction, results, DEFAULT_SETTINGS, picks).live).toBe(0);
+  });
+
+  it("weights each round correctly and accumulates across rounds", () => {
+    const r: Results = {
+      ...EMPTY_RESULTS,
+      matchWinners: { a: "BRA", b: "FRA", c: "ARG", d: "ESP", e: "GER" },
+    };
+    const picks: LivePick[] = [
+      { matchId: "a", round: "r32", team: "BRA", highConviction: false },
+      { matchId: "b", round: "r16", team: "FRA", highConviction: false },
+      { matchId: "c", round: "qf", team: "ARG", highConviction: false },
+      { matchId: "d", round: "sf", team: "ESP", highConviction: false },
+      { matchId: "e", round: "final", team: "GER", highConviction: false },
+    ];
+    const out = scorePredictions(blankPrediction, r, DEFAULT_SETTINGS, picks);
+    expect(out.live).toBe(W.liveR32 + W.liveR16 + W.liveQf + W.liveSf + W.liveFinal); // 1+2+4+8+16 = 31
+  });
+
+  it("is idempotent — scoring the same inputs twice gives the same result", () => {
+    const picks: LivePick[] = [
+      { matchId: "m1", round: "r16", team: "BRA", highConviction: true },
+      { matchId: "m2", round: "qf", team: "FRA", highConviction: false },
+    ];
+    const a = scorePredictions(blankPrediction, results, DEFAULT_SETTINGS, picks);
+    const b = scorePredictions(blankPrediction, results, DEFAULT_SETTINGS, picks);
+    expect(a).toEqual(b);
+  });
+
+  it("matches the documented Live Picks maximum (80 base + 31 conviction = 111)", () => {
+    // One correct pick in every match of every round, with one ⚡ per round.
+    const rounds: { round: LivePick["round"]; n: number }[] = [
+      { round: "r32", n: 16 },
+      { round: "r16", n: 8 },
+      { round: "qf", n: 4 },
+      { round: "sf", n: 2 },
+      { round: "final", n: 1 },
+    ];
+    const matchWinners: Record<string, string> = {};
+    const picks: LivePick[] = [];
+    for (const { round, n } of rounds) {
+      for (let i = 0; i < n; i++) {
+        const id = `${round}-${i}`;
+        matchWinners[id] = "BRA";
+        picks.push({ matchId: id, round, team: "BRA", highConviction: i === 0 }); // ⚡ on the first
+      }
+    }
+    const out = scorePredictions(blankPrediction, { ...EMPTY_RESULTS, matchWinners }, DEFAULT_SETTINGS, picks);
+    expect(out.live).toBe(111);
+  });
+
   it("keeps the three slices and total independent", () => {
     const predictions: Predictions = {
       ...blankPrediction,

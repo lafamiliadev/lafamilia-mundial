@@ -12,7 +12,7 @@ import {
 import { db } from "@/lib/db";
 import { generateCommunityUpdates } from "@/lib/community";
 import { recomputeScores, syncTournamentGroups } from "@/lib/services";
-import type { Results, Settings } from "@/lib/types";
+import type { KnockoutRound, LiveMatch, Results, Settings } from "@/lib/types";
 
 async function requireAdmin() {
   if (!(await isAdmin())) throw new Error("Not authorized");
@@ -47,9 +47,12 @@ export async function triggerRecalc(): Promise<{ ok: boolean; message: string }>
     const report = await recomputeScores({ pullFromProvider: true });
     revalidatePath("/admin");
     revalidatePath("/leaderboard");
+    revalidatePath("/picks/live");
+    const synced =
+      report.liveMatches > 0 ? `Synced ${report.liveMatches} knockout matchups · ` : "";
     return {
       ok: true,
-      message: `Recalculated ${report.participants} entries via ${report.provider}.`,
+      message: `${synced}recalculated ${report.participants} entries via ${report.provider}.`,
     };
   } catch (e) {
     return { ok: false, message: (e as Error).message };
@@ -101,6 +104,66 @@ export async function saveSettingsAction(input: Partial<Settings>) {
     weights: { ...current.weights, ...(input.weights ?? {}) },
   });
   revalidatePath("/admin");
+}
+
+/** Set (replace) one knockout round's matchups for the Live Picks game. Other
+ * rounds are left untouched. Empty/partial matches (a side not chosen) are
+ * dropped so the pick screen only ever shows complete cards. */
+export async function saveLiveMatchesAction(
+  round: KnockoutRound,
+  matches: LiveMatch[],
+): Promise<{ ok: boolean; message: string }> {
+  await requireAdmin();
+  const repo = await db();
+  const current = await repo.getSettings();
+  const complete = matches.filter(
+    (m) => m.round === round && m.homeCode && m.awayCode && m.homeCode !== m.awayCode,
+  );
+  const others = current.liveMatches.filter((m) => m.round !== round);
+  await repo.saveSettings({ ...current, liveMatches: [...others, ...complete] });
+  revalidatePath("/admin");
+  revalidatePath("/picks");
+  revalidatePath("/picks/live");
+  return { ok: true, message: `Saved ${complete.length} matchups for ${round.toUpperCase()}.` };
+}
+
+/** Record knockout match winners (matchId → team code). A blank value clears a
+ * result. Recomputes every score so the Live leaderboard updates immediately. */
+export async function saveMatchWinnersAction(
+  winners: Record<string, string>,
+): Promise<{ ok: boolean; message: string }> {
+  await requireAdmin();
+  const repo = await db();
+  const [current, settings] = await Promise.all([repo.getResults(), repo.getSettings()]);
+
+  // Integrity guard: a recorded winner must be one of that match's two teams,
+  // and the match must exist. Reject the whole save on any mismatch so a bad
+  // result can never silently award (or withhold) points.
+  const matchById = new Map(settings.liveMatches.map((m) => [m.matchId, m]));
+  for (const [id, code] of Object.entries(winners)) {
+    if (!code) continue; // blank = clear, always allowed
+    const m = matchById.get(id);
+    if (!m) {
+      return { ok: false, message: `No matchup found for "${id}". Set the matchup first.` };
+    }
+    if (code !== m.homeCode && code !== m.awayCode) {
+      return {
+        ok: false,
+        message: `Winner "${code}" isn't in match ${id} (${m.homeCode} vs ${m.awayCode}).`,
+      };
+    }
+  }
+
+  const matchWinners = { ...current.matchWinners };
+  for (const [id, code] of Object.entries(winners)) {
+    if (code) matchWinners[id] = code;
+    else delete matchWinners[id];
+  }
+  await repo.saveResults({ ...current, matchWinners });
+  await recomputeScores({ pullFromProvider: false });
+  revalidatePath("/admin");
+  revalidatePath("/leaderboard");
+  return { ok: true, message: `Saved ${Object.keys(winners).length} result(s).` };
 }
 
 export async function generateUpdatesAction(): Promise<{ count: number }> {

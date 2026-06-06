@@ -6,7 +6,7 @@ import { LinkButton, PageShell, SectionTitle, TopNav } from "@/components/ui";
 import { db } from "@/lib/db";
 import { LIVE_PICKS_ENABLED } from "@/lib/flags";
 import { getSessionToken } from "@/lib/session";
-import { now } from "@/lib/preview";
+import { now, PREVIEW_ENABLED } from "@/lib/preview";
 import { getLeaderboardData, type LeaderboardView } from "@/lib/services";
 import { LIVE_ROUNDS, nextScoringMilestone } from "@/lib/schedule";
 import { teamFlag } from "@/lib/teams";
@@ -110,11 +110,12 @@ export default async function LeaderboardPage({
   // Live Picks isn't playable yet (LIVE_PICKS_ENABLED) — and even once it is, the
   // board is empty until the first knockout round locks. Either way, show a calm
   // "coming later" state instead of an empty/broken board.
+  const livePlayable = LIVE_PICKS_ENABLED || PREVIEW_ENABLED;
   const liveOpened = nowMs >= new Date(LIVE_ROUNDS[0].locksIso).getTime();
-  const liveComingSoon = view === "live" && (!LIVE_PICKS_ENABLED || !liveOpened);
+  const liveComingSoon = view === "live" && (!livePlayable || !liveOpened);
 
   const viewBlurb: Record<LeaderboardView, string> = {
-    overall: LIVE_PICKS_ENABLED ? "Bracket + Bonus + Live Picks combined." : "Bracket + Bonus picks combined.",
+    overall: livePlayable ? "Bracket + Bonus + Live Picks combined." : "Bracket + Bonus picks combined.",
     bracket: "Your original 3-minute bracket only.",
     live: "Coming later in the tournament.",
   };

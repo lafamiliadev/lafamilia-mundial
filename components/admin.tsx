@@ -103,6 +103,30 @@ export function RecalcButton() {
   );
 }
 
+/** Pull the latest knockout matchups + results from the provider right now
+ * (the cron also does this daily). Friendly wording for a non-technical admin. */
+export function SyncResultsButton() {
+  const [pending, start] = useTransition();
+  const [msg, setMsg] = useState<string | null>(null);
+  return (
+    <div>
+      <Button
+        variant="primary"
+        disabled={pending}
+        onClick={() =>
+          start(async () => {
+            const r = await triggerRecalc();
+            setMsg(r.message);
+          })
+        }
+      >
+        {pending ? "Checking for results…" : "🔄 Pull latest results now"}
+      </Button>
+      {msg && <p className="mt-2 text-sm text-[var(--color-muted)]">{msg}</p>}
+    </div>
+  );
+}
+
 export function GenerateUpdatesButton() {
   const [pending, start] = useTransition();
   const [msg, setMsg] = useState<string | null>(null);

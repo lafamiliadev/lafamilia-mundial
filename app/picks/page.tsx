@@ -2,8 +2,9 @@ import Link from "next/link";
 import { LinkButton, PageShell, SectionTitle, TopNav } from "@/components/ui";
 import { db } from "@/lib/db";
 import { LIVE_PICKS_ENABLED } from "@/lib/flags";
+import { matchesForRound } from "@/lib/live";
 import { getSessionParticipant } from "@/lib/session";
-import { now } from "@/lib/preview";
+import { now, PREVIEW_ENABLED } from "@/lib/preview";
 import { BONUS_POINTS_AVAILABLE, LIVE_ROUNDS, pickStatus } from "@/lib/schedule";
 import { EMPTY_BONUS } from "@/lib/types";
 
@@ -57,6 +58,15 @@ export default async function PicksHubPage({
   const bonus = me.predictions.bonus ?? EMPTY_BONUS;
   const bonusFilled = Object.values(bonus).filter(Boolean).length;
   const bonusOpen = status.state === "bonus-open";
+
+  // Live Picks are testable locally via the preview clock before the flag flips.
+  const livePlayable = LIVE_PICKS_ENABLED || PREVIEW_ENABLED;
+  const openRound = status.state === "round-open" ? status.round : null;
+  const roundMatches = openRound ? matchesForRound(settings.liveMatches, openRound.round) : [];
+  const myRoundPicks =
+    livePlayable && roundMatches.length
+      ? (await repo.getLivePicks(me.id)).filter((p) => p.round === openRound!.round).length
+      : 0;
 
   return (
     <main className="flex flex-1 flex-col">
@@ -114,22 +124,44 @@ export default async function PicksHubPage({
               {bonusFilled === 0 ? "Add your Bonus Picks →" : bonusFilled < 4 ? "Finish your Bonus Picks →" : "Edit your Bonus Picks →"}
             </div>
           </Link>
-        ) : LIVE_PICKS_ENABLED && status.state === "round-open" ? (
-          <div className="card mb-3 overflow-hidden">
+        ) : livePlayable && openRound && roundMatches.length > 0 ? (
+          <Link
+            href="/picks/live"
+            className="card mb-3 block overflow-hidden border-2 border-[var(--color-navy)] shadow-sm transition hover:shadow-md"
+          >
             <div className="flex items-center gap-4 p-4">
-              <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[var(--color-navy)]/10 text-2xl">
+              <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-[var(--color-navy)] text-3xl text-white">
                 ⚡
               </span>
               <div className="min-w-0 flex-1">
-                <p className="font-bold">{status.round.label} — Live Picks</p>
-                <p className="text-sm text-[var(--color-muted)]">
-                  Pick the winners of {status.round.plain}. Locks at kickoff.
+                <div className="flex items-center gap-2">
+                  <p className="font-bold">{openRound.label} — Live Picks</p>
+                  <span className="shrink-0 rounded-full bg-[var(--color-navy)]/10 px-2 py-0.5 text-xs font-extrabold text-[var(--color-navy)]">
+                    +{openRound.pointsInPlay} pts
+                  </span>
+                </div>
+                <p className="mt-0.5 text-sm text-[var(--color-muted)]">
+                  Pick the winners of {openRound.plain}
                 </p>
               </div>
+              <span className="shrink-0 text-right">
+                <span className="block text-xs font-bold text-[var(--color-pitch)]">
+                  {myRoundPicks}/{roundMatches.length} picked
+                </span>
+                <span className="text-lg text-[var(--color-navy)]">›</span>
+              </span>
             </div>
-            <div className="bg-[var(--color-navy)] px-4 py-2 text-center text-sm font-bold text-white">
-              Opening soon — we&apos;ll remind you ⏰
+            <div className="bg-[var(--color-navy)] px-4 py-2.5 text-center text-sm font-bold text-white">
+              {myRoundPicks === 0
+                ? "Make my Live Picks →"
+                : myRoundPicks < roundMatches.length
+                  ? "Finish my Live Picks →"
+                  : "Edit my Live Picks →"}
             </div>
+          </Link>
+        ) : livePlayable && openRound ? (
+          <div className="card mb-3 p-4 text-sm text-[var(--color-muted)]">
+            {openRound.label} picks open as soon as the matchups are set — check back shortly.
           </div>
         ) : (
           <div className="card mb-3 p-4 text-sm text-[var(--color-muted)]">
@@ -156,7 +188,7 @@ export default async function PicksHubPage({
 
         {/* ── Coming next — only when Live Picks is actually playable. While it's
             off we don't list rounds users can't pick yet (no broken promises). ── */}
-        {LIVE_PICKS_ENABLED ? (
+        {livePlayable ? (
           <>
             <p className="mb-2 text-xs font-bold uppercase tracking-wider text-[var(--color-muted)]">
               Coming next

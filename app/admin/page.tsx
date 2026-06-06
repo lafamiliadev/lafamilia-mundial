@@ -6,10 +6,14 @@ import {
   RecalcButton,
   ResultsForm,
   SyncGroupsButton,
+  SyncResultsButton,
 } from "@/components/admin";
 import { Button, SectionTitle } from "@/components/ui";
 import { InsightsBoard } from "@/components/InsightsBoard";
 import { FunFactsBoard } from "@/components/FunFactsBoard";
+import { LiveMatchesAdmin } from "@/components/LiveMatchesAdmin";
+import { LiveResultsConfirm } from "@/components/LiveResultsConfirm";
+import { matchImpact } from "@/lib/live";
 import { adminLogout } from "@/app/actions/admin";
 import { isAdmin } from "@/lib/admin-auth";
 import { db } from "@/lib/db";
@@ -26,14 +30,23 @@ export default async function AdminDashboard() {
   if (!(await isAdmin())) redirect("/admin/login");
 
   const repo = await db();
-  const [participants, scores, settings, results, content, awards] = await Promise.all([
-    repo.listParticipants(),
-    repo.getScores(),
-    repo.getSettings(),
-    repo.getResults(),
-    repo.listContent(),
-    getAwards(),
-  ]);
+  const [participants, scores, settings, results, content, awards, livePicksByUser] =
+    await Promise.all([
+      repo.listParticipants(),
+      repo.getScores(),
+      repo.getSettings(),
+      repo.getResults(),
+      repo.listContent(),
+      getAwards(),
+      repo.listLivePicks(),
+    ]);
+
+  // Impact preview for the foolproof results-confirm screen: who picked each
+  // side of every match and how many points each outcome would award.
+  const allLivePicks = Object.values(livePicksByUser).flat();
+  const liveImpacts = [...settings.liveMatches]
+    .sort((a, b) => a.matchId.localeCompare(b.matchId, undefined, { numeric: true }))
+    .map((m) => matchImpact(m, allLivePicks, settings.weights, results.matchWinners));
 
   let status: ProviderStatus;
   try {
@@ -179,6 +192,42 @@ export default async function AdminDashboard() {
         </p>
         <div className="mt-4">
           <ResultsForm initial={results} />
+        </div>
+      </section>
+
+      {/* Live Picks — Step 2: confirm who advanced (foolproof, plain-language) */}
+      <section className="card mt-6 p-5">
+        <SectionTitle emoji="✅">Live Picks — confirm results</SectionTitle>
+        <p className="mt-1 text-sm text-[var(--color-muted)]">
+          {status.provider === "api-football"
+            ? "Results sync automatically from API-Football every day. Tap below to update instantly, or confirm any match by hand — your choice always wins."
+            : "After each knockout game, confirm which team advanced. Tap Check the result to see who won, pick the team, and review the points before saving."}
+        </p>
+        {status.provider === "api-football" && (
+          <div className="mt-3 flex flex-wrap items-center gap-3">
+            <SyncResultsButton />
+            <span className="text-xs text-[var(--color-muted)]">
+              {settings.liveMatchesSyncedAt
+                ? `Matchups last synced ${new Date(settings.liveMatchesSyncedAt).toLocaleString()}`
+                : "Not synced yet — runs once the knockout draw is set."}
+            </span>
+          </div>
+        )}
+        <div className="mt-4">
+          <LiveResultsConfirm impacts={liveImpacts} />
+        </div>
+      </section>
+
+      {/* Live Picks — Step 1: set the matchups */}
+      <section className="card mt-6 p-5">
+        <SectionTitle emoji="⚽">Live Picks — set matchups</SectionTitle>
+        <p className="mt-1 text-sm text-[var(--color-muted)]">
+          Set each knockout round&apos;s matchups (who plays whom) once the bracket is known, so
+          members can pick winners. Confirm the results in the section above.
+          {settings.liveMatches.length === 0 ? " No matchups entered yet." : ""}
+        </p>
+        <div className="mt-4">
+          <LiveMatchesAdmin initialMatches={settings.liveMatches} />
         </div>
       </section>
 
