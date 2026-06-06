@@ -9,6 +9,7 @@ import {
 } from "@/components/admin";
 import { Button, SectionTitle } from "@/components/ui";
 import { InsightsBoard } from "@/components/InsightsBoard";
+import { FunFactsBoard } from "@/components/FunFactsBoard";
 import { adminLogout } from "@/app/actions/admin";
 import { isAdmin } from "@/lib/admin-auth";
 import { db } from "@/lib/db";
@@ -189,6 +190,28 @@ export default async function AdminDashboard() {
         </p>
         <div className="mt-4">
           <AwardsAdmin awards={awards} revealed={settings.awardsRevealed ?? false} />
+        </div>
+      </section>
+
+      {/* Fun Facts — casual, group-chat-ready observations for WhatsApp.
+          Internal only; not awards, not analytics. Players never see this. */}
+      <section className="card mt-6 p-5">
+        <SectionTitle emoji="🎉">Fun Facts</SectionTitle>
+        <p className="mt-1 text-sm text-[var(--color-muted)]">
+          Internal — funny, surprising patterns in the picks to drop in WhatsApp. Tap{" "}
+          <strong>Copy</strong> on any one to grab the ready-to-paste version. Not awards, just
+          conversation starters. Refreshes every time you load this page.
+        </p>
+        <div className="mt-4">
+          <FunFactsBoard
+            participants={participants}
+            dateLabel={new Date().toLocaleDateString("en-US", {
+              weekday: "long",
+              month: "long",
+              day: "numeric",
+              timeZone: "America/New_York",
+            })}
+          />
         </div>
       </section>
 
