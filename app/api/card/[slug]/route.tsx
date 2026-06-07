@@ -186,6 +186,19 @@ export async function GET(_req: Request, ctx: { params: Promise<{ slug: string }
         </div>
       </div>
     ),
-    { width: 1080, height: 1350, emoji: "twemoji" },
+    {
+      width: 1080,
+      height: 1350,
+      emoji: "twemoji",
+      headers: {
+        // Cache at the CDN so link-preview crawlers (WhatsApp/Facebook) hit a
+        // warm copy instead of a ~1.5s cold Satori render that can exceed their
+        // fetch budget and drop the image. s-maxage keeps the CDN copy for an
+        // hour; stale-while-revalidate serves instantly while refreshing. Picks
+        // can change until lock, so this is a deliberate freshness/reliability
+        // trade-off (a fresh share may show a ≤1h-old card after an edit).
+        "Cache-Control": "public, max-age=300, s-maxage=3600, stale-while-revalidate=86400",
+      },
+    },
   );
 }

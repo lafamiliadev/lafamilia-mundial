@@ -24,13 +24,19 @@ export async function generateMetadata({
   const title = `${me.name} picked ${teamName(me.predictions.champion)} to win · La Copa de LaFamilia 2026`;
   const description = `See ${me.name.split(" ")[0]}'s World Cup bracket and add your own — takes a few minutes.`;
   const image = `${env.NEXT_PUBLIC_APP_URL}/api/card/${me.slug}`;
+  const pageUrl = `${env.NEXT_PUBLIC_APP_URL}/copa/${me.slug}`;
+  const alt = `${me.name}'s World Cup bracket — ${teamName(me.predictions.champion)} to win`;
   return {
+    metadataBase: new URL(env.NEXT_PUBLIC_APP_URL),
     title,
     description,
     openGraph: {
+      type: "website",
+      url: pageUrl,
+      siteName: "La Copa de LaFamilia 2026",
       title,
       description,
-      images: [{ url: image, width: 1080, height: 1350 }],
+      images: [{ url: image, width: 1080, height: 1350, alt }],
     },
     twitter: { card: "summary_large_image", title, description, images: [image] },
   };
