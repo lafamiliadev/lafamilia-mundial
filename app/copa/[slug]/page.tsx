@@ -5,6 +5,9 @@ import { SiembraCTA } from "@/components/Siembra";
 import { Button, LinkButton } from "@/components/ui";
 import { db } from "@/lib/db";
 import { env } from "@/lib/env";
+import { now } from "@/lib/preview";
+import { relativeLockLabel } from "@/lib/schedule";
+import { getLeaderboardData } from "@/lib/services";
 import { teamName } from "@/lib/teams";
 
 export const dynamic = "force-dynamic";
@@ -47,6 +50,27 @@ export default async function CopaPage({
   const cardUrl = `/api/card/${me.slug}`;
   const playHref = `/play?ref=${me.slug}`;
 
+  // Live context — so a friend landing here instantly feels the game is active:
+  // how many are in, how long they have, and where the friend stands.
+  const [count, settings, board] = await Promise.all([
+    repo.countParticipants(),
+    repo.getSettings(),
+    getLeaderboardData(),
+  ]);
+  const lockMs = new Date(settings.lockTime).getTime();
+  const locked = (await now()).getTime() >= lockMs;
+  const lockLabel = relativeLockLabel(lockMs - (await now()).getTime());
+  // Only show a real rank once points exist — pre-tournament ranks are arbitrary.
+  const ownerRank = board.scoringStarted
+    ? (board.all.find((r) => r.slug === me.slug)?.rank ?? null)
+    : null;
+
+  const competitionLine = locked
+    ? "Predictions are locked — follow the race on the leaderboard."
+    : ownerRank
+      ? `${firstName} is currently #${ownerRank} in the Familia. Think you can catch them?`
+      : `${firstName} is already in. Add your card and you're on the board.`;
+
   return (
     <main className="flex flex-1 flex-col">
       <RefVisitPing slug={me.slug} />
@@ -65,7 +89,23 @@ export default async function CopaPage({
           <h1 className="mt-4 text-3xl font-black leading-tight tracking-tight">
             La Copa de LaFamilia 2026
           </h1>
-          <p className="mt-2 text-white/90">See {firstName}&apos;s picks — then add your own.</p>
+          {/* Live status — calm awareness that this is active right now, not a banner. */}
+          <div className="mt-3 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-sm font-semibold text-white/90">
+            <span className="inline-flex items-center gap-1.5">
+              <span className="relative flex h-2 w-2">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#4ade80] opacity-75" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-[#4ade80]" />
+              </span>
+              {count} {count === 1 ? "person" : "people"} playing
+            </span>
+            {!locked && (
+              <>
+                <span className="text-white/40">·</span>
+                <span>Picks lock {lockLabel}</span>
+              </>
+            )}
+          </div>
+          <p className="mt-3 text-white/90">See {firstName}&apos;s picks — then add your own.</p>
         </div>
       </section>
 
@@ -82,14 +122,25 @@ export default async function CopaPage({
           />
         </div>
 
-        {/* CTA — join the game */}
+        {/* CTA — join the game, with a friendly nudge about where the friend stands */}
         <div className="mt-6">
-          <LinkButton href={playHref} variant="gold" className="w-full text-lg shadow-md">
-            Add Your Prediction ⚽
-          </LinkButton>
-          <p className="mt-2 text-center text-xs text-[var(--color-muted)]">
-            Make your picks in a few minutes — no password needed.
+          <p className="mb-3 text-center text-sm font-semibold leading-snug">
+            {competitionLine}
           </p>
+          {locked ? (
+            <LinkButton href="/leaderboard" variant="gold" className="w-full text-lg shadow-md">
+              See the Leaderboard 🏆
+            </LinkButton>
+          ) : (
+            <>
+              <LinkButton href={playHref} variant="gold" className="w-full text-lg shadow-md">
+                Add Your Prediction ⚽
+              </LinkButton>
+              <p className="mt-2 text-center text-xs text-[var(--color-muted)]">
+                Make your picks in a few minutes — no password needed.
+              </p>
+            </>
+          )}
         </div>
 
         {/* What's LaFamilia — brief intro + community invite */}

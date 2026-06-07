@@ -26,6 +26,21 @@ export const SCORING_MILESTONES: ScoringMilestone[] = [
 ];
 
 /** The next milestone strictly after `now`, or null if the tournament is done. */
+/**
+ * Friendly relative phrase for when predictions lock — "in 4 days", "tomorrow",
+ * "today", "in under an hour". Built for awareness, not a ticking clock: used on
+ * the shared recipient page and the share screen to make the game feel live
+ * without applying pressure. Caller decides the locked case (msUntilLock <= 0).
+ */
+export function relativeLockLabel(msUntilLock: number): string {
+  const DAY = 86_400_000;
+  if (msUntilLock <= 0) return "now";
+  if (msUntilLock < 3_600_000) return "in under an hour";
+  if (msUntilLock < DAY) return "today";
+  if (msUntilLock < 2 * DAY) return "tomorrow";
+  return `in ${Math.ceil(msUntilLock / DAY)} days`;
+}
+
 export function nextScoringMilestone(now: Date): ScoringMilestone | null {
   for (const m of SCORING_MILESTONES) {
     if (new Date(m.dateIso).getTime() > now.getTime()) return m;

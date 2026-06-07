@@ -7,6 +7,8 @@ import { SiembraCTA } from "@/components/Siembra";
 import { Button, TopNav } from "@/components/ui";
 import { db } from "@/lib/db";
 import { env } from "@/lib/env";
+import { now } from "@/lib/preview";
+import { relativeLockLabel } from "@/lib/schedule";
 import { getReferralStats, getRivalry } from "@/lib/services";
 import { teamFlag, teamName } from "@/lib/teams";
 
@@ -25,10 +27,19 @@ export default async function DonePage({
   const me = await repo.getByToken(token);
   if (!me) notFound();
 
-  const [{ signups }, rivalry] = await Promise.all([
+  const [{ signups }, rivalry, count, settings] = await Promise.all([
     getReferralStats(me.slug),
     getRivalry(token),
+    repo.countParticipants(),
+    repo.getSettings(),
   ]);
+  const lockMs = new Date(settings.lockTime).getTime();
+  const locked = (await now()).getTime() >= lockMs;
+  const lockLabel = relativeLockLabel(lockMs - (await now()).getTime());
+  // Momentum + a gentle "before they lock" nudge — the best moment to share is now.
+  const shareMomentum = locked
+    ? "Picks are locked — the race is on. Follow it on the leaderboard."
+    : `${count} of the Familia are in. Picks lock ${lockLabel} — challenge your friends before then.`;
   const cardUrl = `/api/card/${me.slug}`;
   // Personalized public share page — friends land here, see the card, and make
   // their own bracket (attributed back via ?ref). This is the viral loop.
@@ -84,7 +95,7 @@ Think you can beat my bracket? 👇`;
             </Button>
           </a>
           <p className="text-center text-xs text-[var(--color-muted)]">
-            Challenge 3 Familia members to beat your picks.
+            {shareMomentum}
           </p>
           <div className="grid grid-cols-2 gap-3">
             <CopyShareLink url={copaUrl} />
