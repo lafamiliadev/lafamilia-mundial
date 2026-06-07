@@ -7,7 +7,7 @@ name: Score Live Picks hourly
 # often is completely safe.
 #
 # Setup (one time):
-#   1. In Vercel, set the CRON_SECRET env var to a strong value and redeploy.
+#   1. In Vercel, set the CRON_SECRET env var to a strong value and REDEPLOY.
 #      (This also secures the built-in daily Vercel cron.)
 #   2. In GitHub → repo Settings → Secrets and variables → Actions → New
 #      repository secret, add CRON_SECRET with the SAME value.
@@ -22,7 +22,6 @@ on:
     - cron: "0 * * 6,7 *" # top of every hour, June & July
   workflow_dispatch: {} # manual "Run workflow" button for testing
 
-# Don't pile up overlapping runs.
 concurrency:
   group: score-cron
   cancel-in-progress: false
@@ -32,13 +31,28 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Trigger scoring
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
         run: |
-          if [ -z "${{ secrets.CRON_SECRET }}" ]; then
-            echo "::error::CRON_SECRET repo secret is not set. Add it in Settings → Secrets and variables → Actions."
+          if [ -z "$CRON_SECRET" ]; then
+            echo "::error::CRON_SECRET repo secret is not set in GitHub (Settings → Secrets and variables → Actions)."
             exit 1
           fi
-          # -f makes curl fail (red check) on any non-2xx response, so a bad
-          # secret or an outage is visible here instead of failing silently.
-          curl -fsS -X GET \
-            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
-            "https://lafamilia-mundial.vercel.app/api/cron/score"
+          code=$(curl -sS -o /tmp/body.txt -w "%{http_code}" -X GET \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            "https://lafamilia-mundial.vercel.app/api/cron/score")
+          echo "HTTP status: $code"
+          echo "Response: $(cat /tmp/body.txt)"
+          case "$code" in
+            200)
+              echo "✅ Scored successfully." ;;
+            401)
+              echo "::error::401 Unauthorized — the CRON_SECRET in GitHub does not match the one in Vercel, or Vercel was not redeployed after setting it. Make both values identical and redeploy."
+              exit 1 ;;
+            404)
+              echo "::error::404 Not Found — the app URL is wrong, or this code isn't deployed to production yet."
+              exit 1 ;;
+            *)
+              echo "::error::Scoring endpoint returned HTTP $code."
+              exit 1 ;;
+          esac
