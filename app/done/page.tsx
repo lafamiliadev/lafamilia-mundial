@@ -10,7 +10,7 @@ import { env } from "@/lib/env";
 import { now } from "@/lib/preview";
 import { relativeLockLabel } from "@/lib/schedule";
 import { getReferralStats, getRivalry } from "@/lib/services";
-import { teamFlag, teamName } from "@/lib/teams";
+import { teamName } from "@/lib/teams";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "You're in! · La Copa de LaFamilia 2026" };
@@ -46,12 +46,16 @@ export default async function DonePage({
   const copaUrl = `${env.NEXT_PUBLIC_APP_URL}/copa/${me.slug}`;
   const firstName = me.name.split(" ")[0];
   const finalFour = me.predictions.semifinalists ?? [];
-  const shareMessage = `My Final Four 🔥 ${finalFour.map((c) => teamFlag(c)).join(" ")} — and ${teamName(me.predictions.champion)} to lift it. 🏆
+  // Plain-text first: team NAMES, not flag emoji. Regional-indicator flags and
+  // emoji are the most corruption-prone characters when a message is copied or
+  // edited through a lossy keyboard/clipboard (they arrive as "�"). The card
+  // image already shows the flags, so the text stays robust and legible.
+  const shareMessage = `My Final Four: ${finalFour.map((c) => teamName(c)).join(", ")}. And ${teamName(me.predictions.champion)} to lift the whole thing.
 
 La Copa de LaFamilia is a little World Cup challenge from LaFamilia, the largest Latine venture community, in support of Siembra. When one of us gets in the room, we open the door for the next.
 
-Think you can beat my bracket? 👇`;
-  const communityLine = `🤝 Join the familia: https://nas.io/lafamilia-foundation`;
+Think you can beat my bracket?`;
+  const communityLine = `Join the familia: https://nas.io/lafamilia-foundation`;
   const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(`${shareMessage}\n\n${copaUrl}\n\n${communityLine}`)}`;
   const cardFile = `la-copa-lafamilia-${me.name.split(" ")[0].toLowerCase()}.png`;
 
