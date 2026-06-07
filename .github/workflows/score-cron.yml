@@ -1,0 +1,44 @@
+name: Score Live Picks hourly
+
+# Free, near-real-time scoring during the tournament — no paid Vercel plan needed.
+# Every hour (June & July, the World Cup window) this pings the app's existing,
+# password-protected scoring endpoint, which pulls fresh results from the football
+# provider and recomputes the leaderboard. Scoring is idempotent, so running it
+# often is completely safe.
+#
+# Setup (one time):
+#   1. In Vercel, set the CRON_SECRET env var to a strong value and redeploy.
+#      (This also secures the built-in daily Vercel cron.)
+#   2. In GitHub → repo Settings → Secrets and variables → Actions → New
+#      repository secret, add CRON_SECRET with the SAME value.
+#   3. (Optional) Test it now: Actions tab → "Score Live Picks hourly" →
+#      Run workflow. A green check means it scored successfully.
+#
+# After the tournament you can delete this file (or just leave it — it only runs
+# in June/July).
+
+on:
+  schedule:
+    - cron: "0 * * 6,7 *" # top of every hour, June & July
+  workflow_dispatch: {} # manual "Run workflow" button for testing
+
+# Don't pile up overlapping runs.
+concurrency:
+  group: score-cron
+  cancel-in-progress: false
+
+jobs:
+  score:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger scoring
+        run: |
+          if [ -z "${{ secrets.CRON_SECRET }}" ]; then
+            echo "::error::CRON_SECRET repo secret is not set. Add it in Settings → Secrets and variables → Actions."
+            exit 1
+          fi
+          # -f makes curl fail (red check) on any non-2xx response, so a bad
+          # secret or an outage is visible here instead of failing silently.
+          curl -fsS -X GET \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            "https://lafamilia-mundial.vercel.app/api/cron/score"
