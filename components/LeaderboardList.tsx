@@ -5,6 +5,18 @@ import { useState } from "react";
 import { teamFlag } from "@/lib/teams";
 import type { LeaderboardRow } from "@/lib/types";
 
+/** Small neutral tag for organizers — they play along but don't compete for prizes. */
+export function TeamChip() {
+  return (
+    <span
+      title="LaFamilia team — playing along, not competing for prizes"
+      className="shrink-0 rounded-full bg-black/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[var(--color-muted)]"
+    >
+      Team
+    </span>
+  );
+}
+
 /** ▲/▼ movement since the last scoring run. */
 export function Move({ delta }: { delta?: number }) {
   if (!delta) return <span className="text-xs font-semibold text-[var(--color-muted)]">–</span>;
@@ -31,7 +43,7 @@ export function Lane({ r, leaderTotal }: { r: LeaderboardRow; leaderTotal: numbe
     >
       <div className="flex items-center gap-3">
         <div className="w-6 text-center text-sm font-black tabular-nums text-[var(--color-muted)]">
-          {r.rank}
+          {r.isTeam ? "·" : r.rank}
         </div>
         <div className="flex min-w-0 flex-1 items-center gap-2">
           <span className="truncate font-semibold">{r.name}</span>
@@ -40,6 +52,7 @@ export function Lane({ r, leaderTotal }: { r: LeaderboardRow; leaderTotal: numbe
               YOU
             </span>
           )}
+          {r.isTeam && <TeamChip />}
         </div>
         <span className="shrink-0 text-sm leading-none" title="Pick to win">
           🏆&nbsp;{teamFlag(r.champion)}
@@ -74,7 +87,7 @@ export function StartRow({ r }: { r: LeaderboardRow }) {
       }`}
     >
       <span className="w-6 text-center text-sm font-black tabular-nums text-[var(--color-muted)]">
-        {r.rank}
+        {r.isTeam ? "·" : r.rank}
       </span>
       <span className="min-w-0 flex-1 truncate font-semibold">{r.name}</span>
       {r.isMe && (
@@ -82,6 +95,7 @@ export function StartRow({ r }: { r: LeaderboardRow }) {
           YOU
         </span>
       )}
+      {r.isTeam && <TeamChip />}
       <span className="shrink-0 text-sm leading-none" title="Pick to win">
         🏆&nbsp;{teamFlag(r.champion)}
       </span>

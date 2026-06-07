@@ -2,6 +2,18 @@ import Link from "next/link";
 import type { Inviter } from "@/lib/services";
 import { teamFlag } from "@/lib/teams";
 
+/** Neutral tag — organizers are shown for visibility but don't win the prize. */
+function TeamTag() {
+  return (
+    <span
+      title="LaFamilia team — not competing for the prize"
+      className="shrink-0 rounded-full bg-black/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[var(--color-muted)]"
+    >
+      Team
+    </span>
+  );
+}
+
 // "Bringing the Familia" — the one competition that's alive before any match is
 // played. Ranks people purely by how many of the Familia they've brought in via
 // their share link. Warm + human on purpose: nobody is a "recruiter," they're
@@ -46,7 +58,7 @@ export function FamiliaInvitersBoard({
               }`}
             >
               <div className="w-6 text-center text-sm font-black tabular-nums text-[var(--color-muted)]">
-                {r.rank <= 3 ? MEDAL[r.rank - 1] : r.rank}
+                {r.isTeam ? "·" : r.rank <= 3 ? MEDAL[r.rank - 1] : r.rank}
               </div>
               <div className="flex min-w-0 flex-1 items-center gap-2">
                 <span className="truncate font-semibold">{r.name}</span>
@@ -58,6 +70,7 @@ export function FamiliaInvitersBoard({
                     YOU
                   </span>
                 )}
+                {r.isTeam && <TeamTag />}
               </div>
               <div className="shrink-0 text-right">
                 <span className="text-lg font-black tabular-nums">{r.count}</span>
@@ -74,13 +87,14 @@ export function FamiliaInvitersBoard({
       {me && !top.some((r) => r.isMe) && (
         <div className="flex items-center gap-3 border-t border-[var(--color-line)] bg-[var(--color-gold-soft)]/40 px-4 py-3">
           <div className="w-6 text-center text-sm font-black tabular-nums text-[var(--color-muted)]">
-            {me.rank}
+            {me.isTeam ? "·" : me.rank}
           </div>
           <div className="flex min-w-0 flex-1 items-center gap-2">
             <span className="truncate font-semibold">{me.name}</span>
             <span className="shrink-0 rounded-full bg-[var(--color-pitch)] px-2 py-0.5 text-[10px] font-bold text-white">
               YOU
             </span>
+            {me.isTeam && <TeamTag />}
           </div>
           <div className="shrink-0 text-right">
             <span className="text-lg font-black tabular-nums">{me.count}</span>

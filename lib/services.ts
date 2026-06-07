@@ -3,6 +3,7 @@ import { db } from "./db";
 import { computeAwards, type AwardsResult } from "./awards";
 import { getProvider } from "./football";
 import { rankParticipants, scorePredictions } from "./scoring";
+import { isTeamMember } from "./team";
 import type { GroupMap, LeaderboardRow, Participant, Results } from "./types";
 
 // Merge admin-entered results over provider results. Admin override wins per
@@ -130,7 +131,13 @@ export async function recomputeScores(
     };
   });
 
-  const ranks = rankParticipants(scored, actualFinalGoals);
+  // Organizers are scored but not ranked — a team member can never be persisted
+  // as rank #1 (which drives La Copa and the leaderboard prize). They keep rank 0.
+  const teamIds = new Set(participants.filter(isTeamMember).map((p) => p.id));
+  const ranks = rankParticipants(
+    scored.filter((s) => !teamIds.has(s.participantId)),
+    actualFinalGoals,
+  );
   const rankById = new Map(ranks.map((r) => [r.participantId, r.rank]));
   const scoringNow = scored.some((s) => s.total > 0);
 
@@ -196,39 +203,43 @@ export async function getLeaderboardData(
     return view === "bracket" ? s.bracket : view === "live" ? s.live : s.total;
   };
 
-  const rows: (LeaderboardRow & { id: string; previousRank: number })[] = participants
+  type Row = LeaderboardRow & { id: string; previousRank: number };
+  const allRows: Row[] = participants
     .map((p) => ({
       id: p.id,
-      rank: scores[p.id]?.rank ?? 0,
+      rank: 0,
       previousRank: scores[p.id]?.previousRank ?? 0,
       name: p.name,
       slug: p.slug,
       rootingCountry: p.rootingCountry,
       champion: p.predictions.champion,
       total: pointsFor(p.id),
+      isTeam: isTeamMember(p),
     }))
     .sort((a, b) => {
       if (b.total !== a.total) return b.total - a.total;
       return a.name.localeCompare(b.name);
     });
 
-  const leaderTotal = rows.length ? rows[0].total : 0;
+  // Organizers play but don't compete for prizes: rank only the competitors, and
+  // keep team rows un-ranked (rank 0) and ordered last so the board reads clean.
+  const competing = allRows.filter((r) => !r.isTeam);
+  const teamRows = allRows.filter((r) => r.isTeam);
+
+  const leaderTotal = competing.length ? competing[0].total : 0;
   const scoringStarted = leaderTotal > 0;
 
-  // Rank for THIS view. The rows are already sorted by the view's own points
-  // (overall total, bracket-only, or live-only), so the displayed rank must be
-  // derived from THAT order — not the stored Overall rank, or the Bracket/Live
-  // tabs would show scrambled numbers. Standard competition ranking (1,2,2,4)
-  // on the view's points once any are scored; positional (1,2,3…) on the
-  // pre-kickoff starting line where everyone is on zero.
+  // Rank for THIS view, over competitors only. Standard competition ranking
+  // (1,2,2,4) on the view's points once any are scored; positional (1,2,3…) on
+  // the pre-kickoff starting line where everyone is on zero.
   if (!scoringStarted) {
-    rows.forEach((r, i) => {
+    competing.forEach((r, i) => {
       r.rank = i + 1;
     });
   } else {
     let lastTotal: number | null = null;
     let lastRank = 0;
-    rows.forEach((r, i) => {
+    competing.forEach((r, i) => {
       const rank = lastTotal === r.total ? lastRank : i + 1;
       r.rank = rank;
       lastTotal = r.total;
@@ -243,30 +254,34 @@ export async function getLeaderboardData(
   }
 
   // movement: previousRank - rank (positive = climbed). 0 prevRank = brand new.
-  const withDelta = (r: (typeof rows)[number]): LeaderboardRow => ({
+  const withDelta = (r: Row): LeaderboardRow => ({
     rank: r.rank,
     name: r.name,
     slug: r.slug,
     rootingCountry: r.rootingCountry,
     champion: r.champion,
     total: r.total,
-    // Movement arrows only make sense in Overall, where the stored previousRank
-    // shares a basis with rank. Slice views have no stored "previous slice
-    // rank", so showing an arrow there would be misleading — omit it.
-    delta: view === "overall" && r.previousRank > 0 ? r.previousRank - r.rank : 0,
+    // Movement arrows only make sense in Overall (where previousRank shares a
+    // basis with rank) and never for un-ranked team rows.
+    delta: view === "overall" && !r.isTeam && r.previousRank > 0 ? r.previousRank - r.rank : 0,
     isMe: r.id === meId,
+    isTeam: r.isTeam,
   });
 
-  const all = rows.map(withDelta);
-  const top = all.slice(0, topN);
+  // Competitors first (ranked), then team rows (un-ranked) at the bottom.
+  const all = [...competing, ...teamRows].map(withDelta);
+  const top = competing.slice(0, topN).map(withDelta);
 
   let me: LeaderboardRow | null = null;
   let meGapToNext: number | null = null;
   if (meId) {
-    const meIdx = rows.findIndex((r) => r.id === meId);
-    if (meIdx >= 0) {
-      me = withDelta(rows[meIdx]);
-      if (meIdx > 0) meGapToNext = rows[meIdx - 1].total - rows[meIdx].total;
+    const meRow = allRows.find((r) => r.id === meId);
+    if (meRow) {
+      me = withDelta(meRow);
+      if (!meRow.isTeam) {
+        const idx = competing.findIndex((r) => r.id === meId);
+        if (idx > 0) meGapToNext = competing[idx - 1].total - competing[idx].total;
+      }
     }
   }
 
@@ -284,7 +299,9 @@ export async function getAwards(): Promise<AwardsResult> {
   const lite = Object.fromEntries(
     Object.entries(scores).map(([id, s]) => [id, { rank: s.rank, total: s.total, startRank: s.startRank }]),
   );
-  return computeAwards(participants, lite, results);
+  // Organizers don't compete for Honors — keep them out of the candidate pool.
+  const eligible = participants.filter((p) => !isTeamMember(p));
+  return computeAwards(eligible, lite, results);
 }
 
 export async function getParticipantCount(): Promise<number> {
@@ -334,6 +351,8 @@ export type Inviter = {
   rootingCountry: string | null;
   count: number;
   isMe: boolean;
+  /** Organizer — shown for visibility but not eligible for the invite prize. */
+  isTeam: boolean;
 };
 
 /**
@@ -361,13 +380,28 @@ export async function getFamiliaInviters(
   let meSlug: string | null = null;
   if (token) meSlug = (await repo.getByToken(token))?.slug ?? null;
 
-  const ranked: Inviter[] = [...counts.entries()]
+  const sorted = [...counts.entries()]
     .map(([slug, count]) => {
       const u = bySlug.get(slug)!;
-      return { slug, name: u.name, rootingCountry: u.rootingCountry, count };
+      return {
+        slug,
+        name: u.name,
+        rootingCountry: u.rootingCountry,
+        count,
+        isMe: slug === meSlug,
+        isTeam: isTeamMember(u),
+      };
     })
-    .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name))
-    .map((r, i) => ({ ...r, rank: i + 1, isMe: r.slug === meSlug }));
+    .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
+
+  // Organizers don't compete for the invite prize: rank competitors only and
+  // keep team rows un-ranked (rank 0), ordered last but still visible.
+  const competing = sorted.filter((r) => !r.isTeam);
+  const team = sorted.filter((r) => r.isTeam);
+  const ranked: Inviter[] = [
+    ...competing.map((r, i) => ({ ...r, rank: i + 1 })),
+    ...team.map((r) => ({ ...r, rank: 0 })),
+  ];
 
   const me = meSlug ? (ranked.find((r) => r.isMe) ?? null) : null;
   return { top: ranked.slice(0, topN), me, total };

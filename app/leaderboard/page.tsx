@@ -122,8 +122,11 @@ export default async function LeaderboardPage({
     live: "Coming later in the tournament.",
   };
 
-  const podiumRows = all.slice(0, 3);
-  const chasers = all.slice(3);
+  // Organizers are shown but never on the podium — top 3 are competitors only.
+  const competingRows = all.filter((r) => !r.isTeam);
+  const teamRows = all.filter((r) => r.isTeam);
+  const podiumRows = competingRows.slice(0, 3);
+  const chasers = [...competingRows.slice(3), ...teamRows];
 
   return (
     <main className="flex flex-1 flex-col">
@@ -134,6 +137,11 @@ export default async function LeaderboardPage({
           <p className="mt-1 text-sm text-[var(--color-muted)]">
             {total} predicting. <strong>Top 3 take home prizes</strong> 🏅
           </p>
+          {teamRows.length > 0 && (
+            <p className="mt-1 text-xs text-[var(--color-muted)]">
+              The LaFamilia team plays along but doesn&apos;t compete for prizes.
+            </p>
+          )}
         </div>
 
         <ViewTabs active={view} token={token} />

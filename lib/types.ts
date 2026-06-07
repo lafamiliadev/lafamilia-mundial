@@ -224,4 +224,6 @@ export type LeaderboardRow = {
   /** Rank change since the last scoring run: + climbed, − dropped, 0 = none/new. */
   delta?: number;
   isMe?: boolean;
+  /** Organizer/team — plays along but doesn't compete for prizes (rank shown as "Team"). */
+  isTeam?: boolean;
 };
