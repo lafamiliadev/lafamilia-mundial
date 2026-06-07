@@ -326,3 +326,100 @@ export async function getReferralStats(
   ]);
   return { visits: me?.referralVisits ?? 0, signups };
 }
+
+export type Inviter = {
+  rank: number;
+  slug: string;
+  name: string;
+  rootingCountry: string | null;
+  count: number;
+  isMe: boolean;
+};
+
+/**
+ * "Bringing the Familia" — who has brought in the most people via their share
+ * link. Pure referral attribution (referredBy), so it's live the moment picks
+ * open — the one competition that works before a single match is played.
+ */
+export async function getFamiliaInviters(
+  topN = 10,
+  token?: string | null,
+): Promise<{ top: Inviter[]; me: Inviter | null; total: number }> {
+  const repo = await db();
+  const participants = await repo.listParticipants();
+  const bySlug = new Map(participants.map((p) => [p.slug, p]));
+
+  const counts = new Map<string, number>();
+  let total = 0; // people who joined via someone's link
+  for (const p of participants) {
+    if (p.referredBy && bySlug.has(p.referredBy)) {
+      counts.set(p.referredBy, (counts.get(p.referredBy) ?? 0) + 1);
+      total++;
+    }
+  }
+
+  let meSlug: string | null = null;
+  if (token) meSlug = (await repo.getByToken(token))?.slug ?? null;
+
+  const ranked: Inviter[] = [...counts.entries()]
+    .map(([slug, count]) => {
+      const u = bySlug.get(slug)!;
+      return { slug, name: u.name, rootingCountry: u.rootingCountry, count };
+    })
+    .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name))
+    .map((r, i) => ({ ...r, rank: i + 1, isMe: r.slug === meSlug }));
+
+  const me = meSlug ? (ranked.find((r) => r.isMe) ?? null) : null;
+  return { top: ranked.slice(0, topN), me, total };
+}
+
+export type Rivalry = {
+  rivalName: string;
+  rivalSlug: string;
+  /** Who started the rivalry: they invited you, or you invited them. */
+  relation: "invitedYou" | "youInvited";
+  myTotal: number;
+  rivalTotal: number;
+  /** myTotal − rivalTotal (positive = you're ahead). */
+  diff: number;
+  scoringStarted: boolean;
+};
+
+/**
+ * The viewer's closest head-to-head: the friend who invited them, or — failing
+ * that — the first friend they invited. One real rivalry is enough to create a
+ * reason to come back and re-share. Pre-tournament both sit at 0 (still a hook).
+ */
+export async function getRivalry(token: string): Promise<Rivalry | null> {
+  const repo = await db();
+  const me = await repo.getByToken(token);
+  if (!me) return null;
+
+  let rival = me.referredBy ? await repo.getBySlug(me.referredBy) : null;
+  let relation: Rivalry["relation"] = "invitedYou";
+  if (!rival || rival.id === me.id) {
+    const invitees = (await repo.listParticipants())
+      .filter((p) => p.referredBy === me.slug && p.id !== me.id)
+      .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+    if (invitees[0]) {
+      rival = invitees[0];
+      relation = "youInvited";
+    }
+  }
+  if (!rival || rival.id === me.id) return null;
+
+  const scores = await repo.getScores();
+  const myTotal = scores[me.id]?.total ?? 0;
+  const rivalTotal = scores[rival.id]?.total ?? 0;
+  const scoringStarted = Object.values(scores).some((s) => s.total > 0);
+
+  return {
+    rivalName: rival.name.split(" ")[0],
+    rivalSlug: rival.slug,
+    relation,
+    myTotal,
+    rivalTotal,
+    diff: myTotal - rivalTotal,
+    scoringStarted,
+  };
+}

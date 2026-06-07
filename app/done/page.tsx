@@ -1,11 +1,13 @@
 import { notFound } from "next/navigation";
 import { CopyShareLink } from "@/components/CopyShareLink";
+import { InviteRivalryCard } from "@/components/InviteRivalryCard";
 import { JoinFamiliaNudge } from "@/components/JoinFamilia";
 import { SavePredictionCard } from "@/components/SavePredictionCard";
 import { SiembraCTA } from "@/components/Siembra";
 import { Button, TopNav } from "@/components/ui";
 import { db } from "@/lib/db";
 import { env } from "@/lib/env";
+import { getReferralStats, getRivalry } from "@/lib/services";
 import { teamFlag, teamName } from "@/lib/teams";
 
 export const dynamic = "force-dynamic";
@@ -23,6 +25,10 @@ export default async function DonePage({
   const me = await repo.getByToken(token);
   if (!me) notFound();
 
+  const [{ signups }, rivalry] = await Promise.all([
+    getReferralStats(me.slug),
+    getRivalry(token),
+  ]);
   const cardUrl = `/api/card/${me.slug}`;
   // Personalized public share page — friends land here, see the card, and make
   // their own bracket (attributed back via ?ref). This is the viral loop.
@@ -91,6 +97,11 @@ Think you can beat my bracket? 👇`;
               idleLabel="📥 Download Card"
             />
           </div>
+        </div>
+
+        {/* ── Invite feedback + your first rivalry — a reason to come back ── */}
+        <div className="mt-7">
+          <InviteRivalryCard signups={signups} rivalry={rivalry} tone="light" />
         </div>
 
         {/* ── Background — the mission ── */}

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Countdown } from "@/components/Countdown";
+import { FamiliaInvitersBoard } from "@/components/FamiliaInvitersBoard";
 import { Lane, LeaderboardList } from "@/components/LeaderboardList";
 import { SiembraBanner } from "@/components/Siembra";
 import { LinkButton, PageShell, SectionTitle, TopNav } from "@/components/ui";
@@ -7,7 +8,7 @@ import { db } from "@/lib/db";
 import { LIVE_PICKS_ENABLED } from "@/lib/flags";
 import { getSessionToken } from "@/lib/session";
 import { now, PREVIEW_ENABLED } from "@/lib/preview";
-import { getLeaderboardData, type LeaderboardView } from "@/lib/services";
+import { getFamiliaInviters, getLeaderboardData, type LeaderboardView } from "@/lib/services";
 import { LIVE_ROUNDS, nextScoringMilestone } from "@/lib/schedule";
 import { teamFlag } from "@/lib/teams";
 import { DEFAULT_WEIGHTS, type LeaderboardRow } from "@/lib/types";
@@ -100,6 +101,7 @@ export default async function LeaderboardPage({
     rawView === "bracket" || rawView === "live" ? rawView : "overall";
   const { total, all, me, leaderTotal, meGapToNext, scoringStarted } =
     await getLeaderboardData(token, 10, view);
+  const inviters = await getFamiliaInviters(10, token);
   const nowMs = (await now()).getTime();
   const nextDrop = nextScoringMilestone(new Date(nowMs));
   const repo = await db();
@@ -140,6 +142,12 @@ export default async function LeaderboardPage({
         {/* Mission, front and center — supporting Siembra is why we play. */}
         <div className="mb-5">
           <SiembraBanner />
+        </div>
+
+        {/* Bringing the Familia — the invite competition. Alive before any match
+            is played, so it's the live race during the pre-tournament window. */}
+        <div className="mb-5">
+          <FamiliaInvitersBoard top={inviters.top} me={inviters.me} total={inviters.total} />
         </div>
 
         {honorsLive && (

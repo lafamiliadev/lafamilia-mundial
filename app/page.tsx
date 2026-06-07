@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Countdown } from "@/components/Countdown";
+import { InviteRivalryCard } from "@/components/InviteRivalryCard";
 import {
   ArrowRightIcon,
   GroupsIcon,
@@ -11,7 +12,8 @@ import {
 import { LinkButton } from "@/components/ui";
 import { db } from "@/lib/db";
 import { LIVE_PICKS_ENABLED } from "@/lib/flags";
-import { getLeaderboardData, getTopChampionPick } from "@/lib/services";
+import { getLeaderboardData, getReferralStats, getRivalry, getTopChampionPick } from "@/lib/services";
+import type { Rivalry } from "@/lib/services";
 import { getSessionParticipant } from "@/lib/session";
 import { now } from "@/lib/preview";
 import { bonusPointsRemaining, pickStatus, SCORING_MILESTONES } from "@/lib/schedule";
@@ -43,6 +45,10 @@ export default async function Home() {
   // explicitly ("Bonus Picks"), never a vague "4 picks open".
   if (me) {
     const board = await getLeaderboardData(me.resumeToken);
+    const [{ signups }, rivalry] = await Promise.all([
+      getReferralStats(me.slug),
+      getRivalry(me.resumeToken),
+    ]);
     const nowD = await now();
     const status = pickStatus(nowD, settings.lockTime);
     const bonusFilled = Object.values(me.predictions.bonus ?? EMPTY_BONUS).filter(Boolean).length;
@@ -86,6 +92,8 @@ export default async function Home() {
           lockTime={settings.lockTime}
           open={open}
           nowMs={nowD.getTime()}
+          signups={signups}
+          rivalry={rivalry}
         />
         <WhatHappensNext
           kickoffIso={settings.lockTime}
@@ -321,6 +329,8 @@ function ReturningHero({
   lockTime,
   open,
   nowMs,
+  signups,
+  rivalry,
 }: {
   name: string;
   rank: number | null;
@@ -328,6 +338,8 @@ function ReturningHero({
   lockTime: string;
   open: OpenAction | null;
   nowMs: number;
+  signups: number;
+  rivalry: Rivalry | null;
 }) {
   const started = nowMs >= new Date(lockTime).getTime();
   return (
@@ -390,6 +402,11 @@ function ReturningHero({
           <LinkButton href="/leaderboard" variant="outline" className="w-full !bg-white/12 !border-white/15 !text-white backdrop-blur">
             🏆 Leaderboard
           </LinkButton>
+        </div>
+
+        {/* Invite feedback + your rivalry — the reason to come back and re-share. */}
+        <div className="mt-4">
+          <InviteRivalryCard signups={signups} rivalry={rivalry} tone="dark" />
         </div>
 
         {/* Calm Siembra nudge — community-first, never blocking the game. */}
