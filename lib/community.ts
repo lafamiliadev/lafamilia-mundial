@@ -20,8 +20,8 @@ export async function generateCommunityUpdates(): Promise<GeneratedUpdate[]> {
     return [
       {
         type: "kickoff",
-        title: "🌎 Predictions are open!",
-        body: "La Copa de LaFamilia 2026 is live. Make your picks in under 2 minutes and claim your spot on the leaderboard. ⚽",
+        title: "the game is open",
+        body: "ok La Copa de LaFamilia is live. takes like 3 minutes to make your picks. who's first 👀",
       },
     ];
   }
@@ -34,46 +34,65 @@ export async function generateCommunityUpdates(): Promise<GeneratedUpdate[]> {
   if (leader) {
     updates.push({
       type: "leader",
-      title: "🏆 New Leader",
+      title: "current leader",
       body:
         leader.total > 0
-          ? `${leader.name} moves into first place with ${leader.total} points. Who's coming for the crown? 👑`
-          : `${ranked.length} predictors are locked in and level on points — the race begins at kickoff. 🏁`,
+          ? `wait, ${leader.name} is in first with ${leader.total} pts. ok who's going to do something about that 👀`
+          : `everyone's locked in and tied at zero. for now we all believe we're winning this 😌`,
     });
   }
 
-  // Community favorite + dark horse + latam from insights
   const insights = computeInsights(participants);
+
+  // How split is the room on champion?
+  const distinctChamps = new Set(
+    participants.map((p) => p.predictions.champion).filter(Boolean),
+  ).size;
+  if (distinctChamps >= 4) {
+    updates.push({
+      type: "champions-spread",
+      title: "nobody agrees",
+      body: `we have ${distinctChamps} different champions picked so far 😭 not one of us can agree on who wins it.`,
+    });
+  }
+
+  // Community favorite for champion
   const champ = insights.find((i) => i.id === "champion")?.bars[0];
-  if (champ) {
+  if (champ && champ.key !== "__other") {
     updates.push({
       type: "favorite",
-      title: "🌎 Community Favorite",
-      body: `${teamFlag(champ.key)} ${teamName(champ.key)} is Familia's most-predicted champion — ${champ.pct}% of us are betting on them to lift the trophy.`,
-    });
-  }
-  const dark = insights.find((i) => i.id === "darkhorse")?.bars[0];
-  if (dark) {
-    updates.push({
-      type: "darkhorse",
-      title: "🔥 Dark Horse Watch",
-      body: `${teamFlag(dark.key)} ${teamName(dark.key)} is the Familia's favourite surprise pick (${dark.pct}%). Bold call — will it pay off?`,
-    });
-  }
-  const latam = insights.find((i) => i.id === "latam")?.bars[0];
-  if (latam) {
-    updates.push({
-      type: "latam",
-      title: "🌶️ LatAm Belief",
-      body: `${teamFlag(latam.key)} ${teamName(latam.key)} is the Latin American side Familia believes in most to go deep. 🙌`,
+      title: "the popular pick",
+      body: `${teamFlag(champ.key)} ${teamName(champ.key)} is who most of us picked to win it all (${champ.pct}%). curious if that's real belief or just playing it safe 🤔`,
     });
   }
 
-  // Participation milestone
+  // Who Familia is rooting for
+  const rooting = insights.find((i) => i.id === "rooting")?.bars[0];
+  if (rooting && rooting.key !== "__other") {
+    updates.push({
+      type: "rooting",
+      title: "who we're cheering for",
+      body: `${teamFlag(rooting.key)} ${teamName(rooting.key)} is the country Familia is rooting for the most (${rooting.pct}%). hometown loyalty stays undefeated.`,
+    });
+  }
+
+  // The group nobody can agree on
+  const contested = insights.find((i) => i.id === "contested");
+  const letter = contested?.title.split("Group ")[1];
+  const top = contested?.bars[0];
+  if (contested && letter && top) {
+    updates.push({
+      type: "contested",
+      title: `group ${letter} is a mess`,
+      body: `nobody can agree on who wins Group ${letter}. even the favorite, ${teamFlag(top.key)} ${teamName(top.key)}, is only at ${top.pct}%. we kind of need a poll.`,
+    });
+  }
+
+  // Participation
   updates.push({
     type: "participation",
-    title: "📈 Familia is growing",
-    body: `${participants.length} members have made their predictions. Tag a founder who hasn't played yet — the deadline is kickoff. ⏳`,
+    title: "who's still missing",
+    body: `${participants.length} of us have made our picks. ok now tag whoever's been saying "later" all week 👀`,
   });
 
   return updates;
