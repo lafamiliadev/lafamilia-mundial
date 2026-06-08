@@ -5,6 +5,7 @@ import { Button } from "./ui";
 import {
   generateUpdatesAction,
   saveResultsAction,
+  sendTestEmailsAction,
   setAwardsRevealed,
   syncGroupsAction,
   triggerRecalc,
@@ -144,6 +145,41 @@ export function GenerateUpdatesButton() {
       >
         {pending ? "Generating…" : "✨ Generate WhatsApp updates"}
       </Button>
+      {msg && <p className="mt-2 text-sm text-[var(--color-muted)]">{msg}</p>}
+    </div>
+  );
+}
+
+/** Verify email delivery by sending one of every email design to yourself —
+ * no secret-in-URL needed (you're already logged into the admin). */
+export function TestEmailButton() {
+  const [email, setEmail] = useState("");
+  const [pending, start] = useTransition();
+  const [msg, setMsg] = useState<string | null>(null);
+  return (
+    <div>
+      <div className="flex flex-wrap items-center gap-2">
+        <input
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder="your@email.com"
+          className="min-w-0 flex-1 rounded-xl border border-[var(--color-line)] bg-white px-3 py-2 text-sm outline-none focus:border-[var(--color-pitch)]"
+        />
+        <Button
+          variant="outline"
+          disabled={pending || !email}
+          onClick={() =>
+            start(async () => {
+              setMsg(null);
+              const r = await sendTestEmailsAction(email);
+              setMsg(r.message);
+            })
+          }
+        >
+          {pending ? "Sending…" : "📧 Send me a test"}
+        </Button>
+      </div>
       {msg && <p className="mt-2 text-sm text-[var(--color-muted)]">{msg}</p>}
     </div>
   );

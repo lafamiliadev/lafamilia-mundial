@@ -7,6 +7,7 @@ import {
   ResultsForm,
   SyncGroupsButton,
   SyncResultsButton,
+  TestEmailButton,
 } from "@/components/admin";
 import { Button, SectionTitle } from "@/components/ui";
 import { InsightsBoard } from "@/components/InsightsBoard";
@@ -154,6 +155,18 @@ export default async function AdminDashboard() {
           <a href="/api/admin/export?kind=leaderboard" className="inline-block">
             <Button variant="outline">⬇ Export leaderboard CSV</Button>
           </a>
+        </div>
+      </section>
+
+      {/* Email check — confirm Resend delivery without touching members */}
+      <section className="card mt-6 p-5">
+        <SectionTitle emoji="📧">Email check</SectionTitle>
+        <p className="mt-1 text-sm text-[var(--color-muted)]">
+          Send one of every email design to yourself to confirm delivery works. Members are not
+          touched — this only emails the address you type.
+        </p>
+        <div className="mt-4">
+          <TestEmailButton />
         </div>
       </section>
 

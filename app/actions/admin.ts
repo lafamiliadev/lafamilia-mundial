@@ -11,6 +11,9 @@ import {
 } from "@/lib/admin-auth";
 import { db } from "@/lib/db";
 import { generateCommunityUpdates } from "@/lib/community";
+import { sendEmail } from "@/lib/email";
+import { buildSampleEmails } from "@/lib/email-template";
+import { env } from "@/lib/env";
 import { recomputeScores, syncTournamentGroups } from "@/lib/services";
 import type { KnockoutRound, LiveMatch, Results, Settings } from "@/lib/types";
 
@@ -173,6 +176,40 @@ export async function generateUpdatesAction(): Promise<{ count: number }> {
   await repo.addContent(updates);
   revalidatePath("/admin");
   return { count: updates.length };
+}
+
+/** Send one of every email design to a single address, to confirm Resend is
+ * working — without touching any member. Admin-gated (no secret-in-URL needed). */
+export async function sendTestEmailsAction(
+  toEmail: string,
+): Promise<{ ok: boolean; message: string }> {
+  await requireAdmin();
+  const email = toEmail.trim();
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
+    return { ok: false, message: "Enter a valid email address." };
+  }
+  if (!env.RESEND_API_KEY) {
+    return { ok: false, message: "RESEND_API_KEY isn't set in Vercel yet — add it and redeploy." };
+  }
+  const samples = buildSampleEmails(env.NEXT_PUBLIC_APP_URL);
+  let sent = 0;
+  for (const s of samples) {
+    const ok = await sendEmail({ to: email, subject: `[Sample] ${s.subject}`, html: s.html }).catch(
+      () => false,
+    );
+    if (ok) sent += 1;
+  }
+  if (sent === 0) {
+    return {
+      ok: false,
+      message:
+        "Resend rejected every send — almost always because the EMAIL_FROM domain isn't verified in Resend. Check Resend → Domains (it needs a green check).",
+    };
+  }
+  return {
+    ok: true,
+    message: `Sent ${sent}/${samples.length} sample emails to ${email}. Check your inbox (and spam). If they arrived, email delivery is working. ✅`,
+  };
 }
 
 export async function deleteParticipantAction() {
