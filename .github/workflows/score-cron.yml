@@ -30,7 +30,7 @@ jobs:
   score:
     runs-on: ubuntu-latest
     steps:
-      - name: Trigger scoring
+      - name: Score + send due reminder emails
         env:
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
         run: |
@@ -38,21 +38,22 @@ jobs:
             echo "::error::CRON_SECRET repo secret is not set in GitHub (Settings → Secrets and variables → Actions)."
             exit 1
           fi
-          code=$(curl -sS -o /tmp/body.txt -w "%{http_code}" -X GET \
-            -H "Authorization: Bearer $CRON_SECRET" \
-            "https://lafamilia-mundial.vercel.app/api/cron/score")
-          echo "HTTP status: $code"
-          echo "Response: $(cat /tmp/body.txt)"
-          case "$code" in
-            200)
-              echo "✅ Scored successfully." ;;
-            401)
-              echo "::error::401 Unauthorized — the CRON_SECRET in GitHub does not match the one in Vercel, or Vercel was not redeployed after setting it. Make both values identical and redeploy."
-              exit 1 ;;
-            404)
-              echo "::error::404 Not Found — the app URL is wrong, or this code isn't deployed to production yet."
-              exit 1 ;;
-            *)
-              echo "::error::Scoring endpoint returned HTTP $code."
-              exit 1 ;;
-          esac
+          BASE="https://lafamilia-mundial.vercel.app"
+
+          ping() {
+            # $1 = label, $2 = path
+            code=$(curl -sS -o /tmp/body.txt -w "%{http_code}" -X GET \
+              -H "Authorization: Bearer $CRON_SECRET" "$BASE$2")
+            echo "[$1] HTTP $code — $(cat /tmp/body.txt)"
+            case "$code" in
+              200) echo "✅ $1 ok" ;;
+              401) echo "::error::$1: 401 Unauthorized — CRON_SECRET in GitHub doesn't match Vercel, or Vercel wasn't redeployed."; return 1 ;;
+              404) echo "::error::$1: 404 — wrong URL or not deployed yet."; return 1 ;;
+              *)   echo "::error::$1: returned HTTP $code."; return 1 ;;
+            esac
+          }
+
+          # Score first, then fire any due reminder emails. Both are idempotent,
+          # so running hourly is safe (reminders also no-op until RESEND is set).
+          ping "score" "/api/cron/score"
+          ping "reminders" "/api/cron/reminders"
