@@ -75,16 +75,76 @@ export function computeFunFacts(participants: Participant[]): FunFact[] {
   const champ = championBelievers(ps);
   const ff = finalFourCounts(ps);
   const champEntries = [...champ.entries()].sort((a, b) => b[1].length - a[1].length);
+  const total = ps.length;
+  const pct = (n: number) => Math.round((n / total) * 100);
 
-  // 1) How many different champions — beautiful chaos.
+  // ── Baseline facts — these always generate from ANY submissions, so the admin
+  // always has something to post, even with just a handful of picks. They run
+  // first so the section is never empty when people have submitted. ──
+
+  // The front-runner — the most-backed champion. (Always fires: everyone in `ps`
+  // has a champion pick, so there's always a leader.)
+  if (champEntries.length > 0) {
+    const [code, list] = champEntries[0];
+    facts.push({
+      id: "front-runner",
+      emoji: "🥇",
+      title: "The Familia's favorite",
+      dataSays: `${tn(code)} leads the champion picks: ${list.length} of ${total} (${pct(list.length)}%).`,
+      why: "The clear front-runner — fun to rally behind, or root against.",
+      whatsapp: `right now the Familia's pick to win it all is ${fl(code)} ${tn(code)} — ${list.length} of us (${pct(list.length)}%) have them lifting the trophy 🏆`,
+    });
+  }
+
+  // Who the community is rooting for (the heart, not the head).
+  const rootCounts = new Map<string, number>();
+  for (const p of ps) {
+    if (p.rootingCountry) rootCounts.set(p.rootingCountry, (rootCounts.get(p.rootingCountry) ?? 0) + 1);
+  }
+  const topRoot = [...rootCounts.entries()].sort((a, b) => b[1] - a[1])[0];
+  if (topRoot) {
+    facts.push({
+      id: "rooting",
+      emoji: "🌎",
+      title: "Who we're cheering for",
+      dataSays: `${tn(topRoot[0])} is the most rooted-for country (${topRoot[1]} of ${total}).`,
+      why: "Hearts on sleeves — the emotional favorite.",
+      whatsapp: `the Familia's heart is with ${fl(topRoot[0])} ${tn(topRoot[0])} — more of us are cheering for them than any other team ❤️`,
+    });
+  }
+
+  // The most-agreed-on Final Four team.
+  const ffTop = [...ff.entries()].sort((a, b) => b[1] - a[1])[0];
+  if (ffTop && ffTop[1] >= 2) {
+    facts.push({
+      id: "ff-consensus",
+      emoji: "🔥",
+      title: "Everyone's Final Four lock",
+      dataSays: `${tn(ffTop[0])} is in ${ffTop[1]} brackets' Final Four — more than any other team.`,
+      why: "The closest thing to a consensus deep run.",
+      whatsapp: `if there's one thing the Familia agrees on, it's ${fl(ffTop[0])} ${tn(ffTop[0])} going deep — they're in ${ffTop[1]} Final Fours 🔥`,
+    });
+  }
+
+  // 1) How many different champions — beautiful chaos (or total agreement).
   if (champ.size >= 2) {
     facts.push({
       id: "champ-diversity",
       emoji: "🤯",
       title: "Beautiful chaos",
-      dataSays: `${champ.size} different teams have been picked to win it all (out of ${ps.length} brackets).`,
+      dataSays: `${champ.size} different teams have been picked to win it all (out of ${total} brackets).`,
       why: "A wide spread means lots of disagreement to stir up.",
       whatsapp: `we've got ${champ.size} different champions picked so far 🤯 beautiful chaos. who's right??`,
+    });
+  } else if (champEntries.length === 1) {
+    const [code] = champEntries[0];
+    facts.push({
+      id: "unanimous",
+      emoji: "🤝",
+      title: "Total agreement",
+      dataSays: `All ${total} brackets so far picked ${tn(code)} to win it all.`,
+      why: "Rare unanimity — call it out before someone breaks rank.",
+      whatsapp: `wild — every single bracket so far has ${fl(code)} ${tn(code)} winning it all 🤝 no debate yet`,
     });
   }
 

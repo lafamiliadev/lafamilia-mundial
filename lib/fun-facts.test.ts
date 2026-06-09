@@ -38,6 +38,25 @@ describe("computeFunFacts", () => {
     expect(computeFunFacts([p("A", null), p("B", null)])).toEqual([]);
   });
 
+  it("is NEVER empty when there is at least one submission (small samples too)", () => {
+    // One submission → at least the front-runner fact.
+    const one = computeFunFacts([p("A", "ARG", { rooting: "ARG" })]);
+    expect(one.length).toBeGreaterThan(0);
+    expect(one.some((f) => f.id === "front-runner")).toBe(true);
+    // Two submissions on the same team → still non-empty (front-runner + agreement).
+    const two = computeFunFacts([p("A", "ARG"), p("B", "ARG")]);
+    expect(two.length).toBeGreaterThan(0);
+    expect(two.some((f) => f.id === "unanimous")).toBe(true);
+  });
+
+  it("surfaces a clear front-runner with a percentage", () => {
+    const facts = computeFunFacts([p("A", "ARG"), p("B", "ARG"), p("C", "BRA")]);
+    const f = facts.find((x) => x.id === "front-runner");
+    expect(f).toBeTruthy();
+    expect(f!.dataSays).toContain("Argentina");
+    expect(f!.whatsapp).toMatch(/%/);
+  });
+
   it("counts distinct champions (beautiful chaos)", () => {
     const facts = computeFunFacts([p("A", "ARG"), p("B", "BRA"), p("C", "FRA")]);
     const f = facts.find((x) => x.id === "champ-diversity");

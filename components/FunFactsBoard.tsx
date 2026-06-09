@@ -14,10 +14,12 @@ export function FunFactsBoard({
 }) {
   const facts = computeFunFacts(participants);
 
+  // With any submissions at all, computeFunFacts always returns at least the
+  // baseline facts — so this only shows before the very first pick comes in.
   if (facts.length === 0) {
     return (
       <p className="text-sm text-[var(--color-muted)]">
-        No fun facts yet — they appear as soon as a few people lock in their picks.
+        Fun facts will appear here the moment the first person submits their picks.
       </p>
     );
   }
