@@ -1,5 +1,6 @@
 import "server-only";
 import { env } from "./env";
+import { brandedFrom } from "./email-from";
 import {
   CONFIRMATION_SUBJECT,
   renderConfirmationEmailHtml,
@@ -22,7 +23,7 @@ export async function sendEmail(opts: {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      from: env.EMAIL_FROM,
+      from: brandedFrom(env.EMAIL_FROM),
       to: [opts.to],
       subject: opts.subject,
       html: opts.html,
