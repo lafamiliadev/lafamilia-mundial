@@ -1,6 +1,6 @@
 import "server-only";
 import { db } from "./db";
-import { computeAwards, type AwardsResult } from "./awards";
+import { computeAwards, isTeamMember, type AwardsResult } from "./awards";
 import { getProvider } from "./football";
 import { rankParticipants, scorePredictions } from "./scoring";
 import type { GroupMap, LeaderboardRow, Participant, Results } from "./types";
@@ -350,9 +350,12 @@ export async function getFamiliaInviters(
   const bySlug = new Map(participants.map((p) => [p.slug, p]));
 
   const counts = new Map<string, number>();
-  let total = 0; // people who joined via someone's link
+  let total = 0; // people who joined via a member's link
   for (const p of participants) {
     if (p.referredBy && bySlug.has(p.referredBy)) {
+      // The LaFamilia team seeded the game — keep them out of the public
+      // invite competition so it's a real race between members.
+      if (isTeamMember(bySlug.get(p.referredBy)!)) continue;
       counts.set(p.referredBy, (counts.get(p.referredBy) ?? 0) + 1);
       total++;
     }

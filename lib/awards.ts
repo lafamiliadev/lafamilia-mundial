@@ -6,7 +6,9 @@ import type { Participant, Results } from "./types";
 // participation award "Trae a la Familia" so a real member wins it.
 const TEAM_EMAIL_DOMAINS = ["lafamiliafoundation.com", "vcfamilia.com"];
 
-function isTeam(p: Participant): boolean {
+/** True for LaFamilia team/staff accounts — excluded from participation awards
+ * and the public invite competition (they seeded the game). */
+export function isTeamMember(p: Participant): boolean {
   const email = p.email.toLowerCase();
   return TEAM_EMAIL_DOMAINS.some((d) => email.endsWith(`@${d}`));
 }
@@ -241,7 +243,7 @@ export function computeAwards(
   const bySlug = new Map(participants.map((p) => [p.slug, p]));
   const inviters = [...broughtBy.entries()]
     .map(([slug, n]) => ({ p: bySlug.get(slug), n }))
-    .filter((c): c is { p: Participant; n: number } => Boolean(c.p) && !isTeam(c.p!))
+    .filter((c): c is { p: Participant; n: number } => Boolean(c.p) && !isTeamMember(c.p!))
     .sort((a, b) => b.n - a.n || total(b.p) - total(a.p) || a.p.name.localeCompare(b.p.name));
   if (inviters.length && inviters[0].n > 0) {
     const { p, n } = inviters[0];
