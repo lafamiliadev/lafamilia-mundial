@@ -53,9 +53,13 @@ export function computeAwards(
   const semis = results.stageReached.sf ?? [];
   const groupsDecided = Object.values(results.groupWinners).filter(Boolean).length;
 
-  // 🏆 La Copa — the one champion (rank 1; ties already broken by the goals
-  // tiebreaker inside scoring).
-  const championP = participants.find((p) => rank(p) === 1) ?? null;
+  // 🏆 La Copa — the one champion: highest overall score AFTER the Final.
+  // Only crowned once the Final is actually played (results.champion is set) and
+  // the leader has real points — so nobody is "winning" at 0 pts before kickoff.
+  const tournamentOver = Boolean(results.champion);
+  const championP = tournamentOver
+    ? (participants.find((p) => rank(p) === 1 && total(p) > 0) ?? null)
+    : null;
   const champion: Award | null = championP
     ? {
         id: "lacopa",

@@ -109,6 +109,16 @@ describe("computeAwards — Dark Horse / Valiente / Familia", () => {
     bonus: darkHorse ? { goldenBall: null, goldenBoot: null, goldenGlove: null, darkHorse } : null,
   });
 
+  it("does NOT crown La Copa before the Final (no champion set, 0 pts)", () => {
+    const pilar = participant("x", "Pilar", "COL", pred("ARG"));
+    const { champion } = computeAwards(
+      [pilar],
+      { x: { rank: 1, total: 0, startRank: 1 } },
+      EMPTY_RESULTS, // no results.champion → tournament not over
+    );
+    expect(champion).toBeNull();
+  });
+
   it("Dark Horse Whisperer goes to whoever's dark horse ran deepest", () => {
     const r: Results = { ...EMPTY_RESULTS, stageReached: { qf: ["ECU"] } };
     const ana = participant("a", "Ana", "ECU", pred("ARG", "ECU")); // dark horse reached QF
