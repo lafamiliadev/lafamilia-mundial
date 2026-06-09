@@ -1,0 +1,21 @@
+<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="64" y2="64" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0e7a41" />
+      <stop offset="1" stop-color="#0a5630" />
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="15" fill="url(#bg)" />
+  <!-- handles -->
+  <path d="M20 18 C 11 18, 11 31, 22 31" stroke="#F4C430" stroke-width="3.6" stroke-linecap="round" />
+  <path d="M44 18 C 53 18, 53 31, 42 31" stroke="#F4C430" stroke-width="3.6" stroke-linecap="round" />
+  <!-- cup bowl -->
+  <path d="M19 14 H45 V21 C45 32 39 38 32 39 C25 38 19 32 19 21 Z" fill="#F4C430" />
+  <!-- shine -->
+  <path d="M24 18 H30 V20 C30 25 27 29 24 30 Z" fill="#FFE08A" opacity="0.65" />
+  <!-- stem -->
+  <rect x="29.5" y="38" width="5" height="7" fill="#F4C430" />
+  <!-- base -->
+  <rect x="25" y="44" width="14" height="4" rx="1.5" fill="#E0A21C" />
+  <rect x="21" y="48" width="22" height="5" rx="2.5" fill="#F4C430" />
+</svg>
