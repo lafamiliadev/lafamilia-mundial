@@ -185,7 +185,7 @@ export function TestEmailButton() {
   );
 }
 
-export function CopyButton({ text }: { text: string }) {
+export function CopyButton({ text, label = "Copy" }: { text: string; label?: string }) {
   const [copied, setCopied] = useState(false);
   return (
     <button
@@ -194,9 +194,9 @@ export function CopyButton({ text }: { text: string }) {
         setCopied(true);
         setTimeout(() => setCopied(false), 1500);
       }}
-      className="rounded-full border border-[var(--color-line)] px-3 py-1 text-xs font-semibold hover:border-[var(--color-pitch)]"
+      className="shrink-0 rounded-full border border-[var(--color-line)] px-3 py-1 text-xs font-semibold hover:border-[var(--color-pitch)]"
     >
-      {copied ? "✓ Copied" : "Copy"}
+      {copied ? "✓ Copied" : label}
     </button>
   );
 }

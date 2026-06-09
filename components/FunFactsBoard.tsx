@@ -2,9 +2,9 @@ import { CopyButton } from "./admin";
 import { computeFunFacts } from "@/lib/fun-facts";
 import type { Participant } from "@/lib/types";
 
-// Admin-only Fun Facts list. Casual, group-chat-style observations the admin can
-// paste straight into WhatsApp. Recomputes on every admin load (force-dynamic),
-// so it always reflects the latest picks/leaderboard. Players never see this.
+// Admin-only Fun Facts — a clean, scannable list of plain factual one-liners the
+// admin can lift into WhatsApp in their own voice (no pre-written captions).
+// Recomputes on every admin load (force-dynamic). Players never see this.
 export function FunFactsBoard({
   participants,
   dateLabel,
@@ -24,26 +24,26 @@ export function FunFactsBoard({
     );
   }
 
+  const allText = facts.map((f) => f.dataSays).join("\n");
+
   return (
     <div>
-      <p className="mb-3 text-xs font-semibold text-[var(--color-muted)]">
-        {dateLabel} · {facts.length} to choose from · updates live as picks come in
-      </p>
-      <ul className="space-y-3">
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <p className="text-xs font-semibold text-[var(--color-muted)]">
+          {dateLabel} · {facts.length} facts · updates live as picks come in
+        </p>
+        <CopyButton text={allText} label="Copy all" />
+      </div>
+      <ul className="divide-y divide-[var(--color-line)] rounded-2xl border border-[var(--color-line)]">
         {facts.map((f) => (
-          <li key={f.id} className="rounded-2xl border border-[var(--color-line)] p-4">
-            <div className="flex items-start justify-between gap-3">
-              <p className="font-bold leading-tight">
-                <span aria-hidden>{f.emoji}</span> {f.title}
-              </p>
-              <CopyButton text={f.whatsapp} />
-            </div>
-            <p className="mt-1.5 text-sm">{f.dataSays}</p>
-            <p className="mt-0.5 text-xs italic text-[var(--color-muted)]">{f.why}</p>
-            <div className="mt-2.5 flex items-start gap-2 rounded-xl bg-[#e8f7ee] px-3 py-2.5 text-sm text-[var(--color-ink)]">
-              <span aria-hidden className="shrink-0">💬</span>
-              <span>{f.whatsapp}</span>
-            </div>
+          <li key={f.id} className="flex items-start justify-between gap-3 px-4 py-3">
+            <p className="text-sm leading-snug">
+              <span aria-hidden className="mr-1.5">
+                {f.emoji}
+              </span>
+              {f.dataSays}
+            </p>
+            <CopyButton text={f.dataSays} />
           </li>
         ))}
       </ul>
