@@ -1,3 +1,4 @@
+import { playerName } from "./players";
 import { TEAM_BY_CODE, teamName } from "./teams";
 import type { Participant, Results } from "./types";
 
@@ -39,7 +40,7 @@ export type AwardsResult = {
 };
 
 /** Score lookup shape (subset of what repo.getScores returns). */
-type ScoreLite = { rank: number; total: number; startRank: number };
+type ScoreLite = { rank: number; total: number; startRank: number; bracket?: number; live?: number };
 type Scores = Record<string, ScoreLite>;
 
 function correctGroupCount(p: Participant, results: Results): number {
@@ -62,16 +63,36 @@ export function computeAwards(
 ): AwardsResult {
   const rank = (p: Participant) => scores[p.id]?.rank ?? 0;
   const total = (p: Participant) => scores[p.id]?.total ?? 0;
+  const live = (p: Participant) => scores[p.id]?.live ?? 0;
+  const bracketPts = (p: Participant) => scores[p.id]?.bracket ?? 0;
+  const championCorrect = (p: Participant) =>
+    Boolean(results.champion) && p.predictions.champion === results.champion;
   const semis = results.stageReached.sf ?? [];
   const groupsDecided = Object.values(results.groupWinners).filter(Boolean).length;
 
   // 🏆 La Copa — the one champion: highest overall score AFTER the Final.
-  // Only crowned once the Final is actually played (results.champion is set) and
-  // the leader has real points — so nobody is "winning" at 0 pts before kickoff.
+  // Only crowned once the Final is actually played. A true tie on total is
+  // broken DETERMINISTICALLY by the spec chain (correct champion → more live
+  // points → more bracket points → earliest entry → name) so the single most
+  // important result in the game is never arbitrary.
   const tournamentOver = Boolean(results.champion);
-  const championP = tournamentOver
-    ? (participants.find((p) => rank(p) === 1 && total(p) > 0) ?? null)
-    : null;
+  let championP: Participant | null = null;
+  if (tournamentOver) {
+    const maxTotal = participants.reduce((m, p) => Math.max(m, total(p)), 0);
+    if (maxTotal > 0) {
+      championP =
+        participants
+          .filter((p) => total(p) === maxTotal)
+          .sort(
+            (a, b) =>
+              (championCorrect(b) ? 1 : 0) - (championCorrect(a) ? 1 : 0) ||
+              live(b) - live(a) ||
+              bracketPts(b) - bracketPts(a) ||
+              (a.createdAt < b.createdAt ? -1 : a.createdAt > b.createdAt ? 1 : 0) ||
+              a.name.localeCompare(b.name),
+          )[0] ?? null;
+    }
+  }
   const champion: Award | null = championP
     ? {
         id: "lacopa",
@@ -256,6 +277,58 @@ export function computeAwards(
     });
   }
 
+  // ⚽✨🧤 Bonus Pick Oracles — called a tournament award before kickoff.
+  const oracle = (
+    id: string,
+    emoji: string,
+    title: string,
+    subtitle: string,
+    key: "goldenBall" | "goldenBoot" | "goldenGlove",
+  ) => {
+    const target = results[key];
+    if (!target) return;
+    const winners = participants
+      .filter((p) => p.predictions.bonus?.[key] === target)
+      .sort((a, b) => total(b) - total(a) || a.name.localeCompare(b.name))
+      .map((p) => winnerOf(p, `Called ${playerName(target)} before kickoff.`));
+    if (winners.length) honors.push({ id, emoji, title, subtitle, winners });
+  };
+  oracle("goldenboot", "⚽", "Golden Boot Oracle", "Called the tournament's top scorer.", "goldenBoot");
+  oracle("goldenball", "✨", "Golden Ball Oracle", "Spotted the player of the tournament.", "goldenBall");
+  oracle("goldenglove", "🧤", "Golden Glove Oracle", "Knew which keeper would stand tall.", "goldenGlove");
+
+  // ❤️ El Corazón — picked the team they're rooting for to win it all.
+  const romantics = participants
+    .filter((p) => p.predictions.champion && p.predictions.champion === p.rootingCountry)
+    .sort((a, b) => total(b) - total(a) || a.name.localeCompare(b.name));
+  if (romantics.length) {
+    honors.push({
+      id: "corazon",
+      emoji: "❤️",
+      title: "El Corazón",
+      subtitle: "Heart over head, all the way.",
+      winners: romantics.map((p) =>
+        winnerOf(p, `Picked ${teamName(p.predictions.champion)} to win it all — and rooting for them.`),
+      ),
+    });
+  }
+
+  // 🐺 Lobo Solitario — the only person who called the eventual champion team.
+  if (tournamentOver) {
+    const believers = participants.filter((p) => p.predictions.champion === results.champion);
+    if (believers.length === 1) {
+      honors.push({
+        id: "lobo",
+        emoji: "🐺",
+        title: "Lobo Solitario",
+        subtitle: "The lone believer who turned out right.",
+        winners: [
+          winnerOf(believers[0], `The only one who called ${teamName(results.champion)} to win it all.`),
+        ],
+      });
+    }
+  }
+
   return { champion, honors };
 }
 
@@ -379,5 +452,63 @@ export const AWARD_CATALOG: AwardCatalogEntry[] = [
     availableAfter: "Now — it's already on!",
     unlockOrder: 0,
     emptyState: "🔥 Be the first to bring your crew in — share your bracket.",
+  },
+  {
+    id: "goldenboot",
+    emoji: "⚽",
+    name: "Golden Boot Oracle",
+    group: "prediction",
+    blurb: "Called the tournament's top scorer back in June.",
+    howItsAwarded:
+      "Everyone who picked the real Golden Boot winner in their Bonus Picks before kickoff. Ties broken by total score.",
+    availableAfter: "The Final",
+    unlockOrder: 5,
+    emptyState: "👟 The top scorer is still chasing goals.",
+  },
+  {
+    id: "goldenball",
+    emoji: "✨",
+    name: "Golden Ball Oracle",
+    group: "prediction",
+    blurb: "Spotted the player of the tournament early.",
+    howItsAwarded:
+      "Everyone who picked the real Golden Ball winner (best player) in their Bonus Picks. Ties broken by total score.",
+    availableAfter: "The Final",
+    unlockOrder: 5,
+    emptyState: "✨ The best player hasn't been crowned yet.",
+  },
+  {
+    id: "goldenglove",
+    emoji: "🧤",
+    name: "Golden Glove Oracle",
+    group: "prediction",
+    blurb: "Knew which keeper would stand tall.",
+    howItsAwarded:
+      "Everyone who picked the real Golden Glove winner (best goalkeeper) in their Bonus Picks. Ties broken by total score.",
+    availableAfter: "The Final",
+    unlockOrder: 5,
+    emptyState: "🧤 Clean sheets are still being counted.",
+  },
+  {
+    id: "corazon",
+    emoji: "❤️",
+    name: "El Corazón",
+    group: "fun",
+    blurb: "Heart over head — picked the team they love to win it all.",
+    howItsAwarded: "Everyone who picked the very country they're rooting for to lift the trophy.",
+    availableAfter: "Now — it's from your picks",
+    unlockOrder: 0,
+    emptyState: "❤️ Waiting for the romantics to lock in their picks.",
+  },
+  {
+    id: "lobo",
+    emoji: "🐺",
+    name: "Lobo Solitario",
+    group: "fun",
+    blurb: "The lone believer who turned out right.",
+    howItsAwarded: "The only person who called the eventual champion team to win it all.",
+    availableAfter: "The Final",
+    unlockOrder: 5,
+    emptyState: "🐺 No lone wolves howling yet — decided at the Final.",
   },
 ];

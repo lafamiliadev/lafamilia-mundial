@@ -276,3 +276,35 @@ describe("rankParticipants — ties", () => {
     expect(order).toEqual(["early", "late", "fewerlive", "nochamp"]);
   });
 });
+
+describe("scorePredictions — engine self-protects against bad input", () => {
+  it("never double-counts a duplicated semifinalist", () => {
+    const predictions: Predictions = {
+      ...blankPrediction,
+      semifinalists: ["BRA", "BRA", "FRA", "ESP"], // BRA duplicated (validation normally blocks this)
+    };
+    const results: Results = { ...EMPTY_RESULTS, stageReached: { sf: ["BRA", "FRA", "GER", "NED"] } };
+    // BRA + FRA are correct, but BRA must score once → 2 × semifinalist, not 3.
+    expect(scorePredictions(predictions, results, DEFAULT_SETTINGS).bracket).toBe(W.semifinalist * 2);
+  });
+
+  it("scores a match only once even if the same matchId appears twice", () => {
+    const results: Results = { ...EMPTY_RESULTS, matchWinners: { m1: "BRA" } };
+    const picks: LivePick[] = [
+      { matchId: "m1", round: "r16", team: "BRA", highConviction: false },
+      { matchId: "m1", round: "r16", team: "BRA", highConviction: false },
+    ];
+    expect(scorePredictions(blankPrediction, results, DEFAULT_SETTINGS, picks).live).toBe(W.liveR16);
+  });
+
+  it("doubles at most one High Conviction pick per round", () => {
+    const results: Results = { ...EMPTY_RESULTS, matchWinners: { a: "BRA", b: "FRA" } };
+    // Two ⚡ picks in the same round (invalid) — only one may double.
+    const picks: LivePick[] = [
+      { matchId: "a", round: "qf", team: "BRA", highConviction: true },
+      { matchId: "b", round: "qf", team: "FRA", highConviction: true },
+    ];
+    // qf base 4: one doubled (8) + one base (4) = 12, NOT 16.
+    expect(scorePredictions(blankPrediction, results, DEFAULT_SETTINGS, picks).live).toBe(W.liveQf * 2 + W.liveQf);
+  });
+});

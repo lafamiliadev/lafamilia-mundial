@@ -61,7 +61,9 @@ export function scorePredictions(
     lines.push({ label: "All 12 group winners! 🧹", points: w.groupSweepBonus, group: "bracket" });
   }
   const semis = actualSemifinalists(results);
-  for (const code of predictions.semifinalists ?? []) {
+  // Dedupe defensively: the wizard enforces 4 distinct picks, but the engine
+  // must never score the same team twice even if a bad write slipped a dupe in.
+  for (const code of new Set(predictions.semifinalists ?? [])) {
     if (semis.includes(code)) {
       lines.push({ label: `Semifinalist: ${teamLabel(code)}`, points: w.semifinalist, group: "bracket" });
     }
@@ -91,17 +93,24 @@ export function scorePredictions(
   }
 
   // ─── Live Knockout Picks ───
+  // Engine-level invariants, independent of how the picks were written: score
+  // each match at most once, and double at most ONE correct High Conviction
+  // pick per round (so a duplicate or a second ⚡ can never over-award).
+  const scoredMatches = new Set<string>();
+  const convictionUsed = new Set<string>();
   for (const lp of livePicks) {
+    if (scoredMatches.has(lp.matchId)) continue;
+    scoredMatches.add(lp.matchId);
     const winner = results.matchWinners[lp.matchId];
-    if (winner && winner === lp.team) {
-      const base = w[LIVE_ROUND_POINTS[lp.round]];
-      const points = lp.highConviction ? base * 2 : base;
-      lines.push({
-        label: `${lp.round.toUpperCase()}: ${teamLabel(lp.team)}${lp.highConviction ? " ⚡" : ""}`,
-        points,
-        group: "live",
-      });
-    }
+    if (!winner || winner !== lp.team) continue;
+    const base = w[LIVE_ROUND_POINTS[lp.round]] ?? 0; // guard a missing weight → never NaN
+    const doubles = lp.highConviction && !convictionUsed.has(lp.round);
+    if (doubles) convictionUsed.add(lp.round);
+    lines.push({
+      label: `${lp.round.toUpperCase()}: ${teamLabel(lp.team)}${doubles ? " ⚡" : ""}`,
+      points: doubles ? base * 2 : base,
+      group: "live",
+    });
   }
 
   const sum = (g: ScoreLine["group"]) =>

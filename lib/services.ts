@@ -132,7 +132,10 @@ export async function recomputeScores(
 
   const ranks = rankParticipants(scored, actualFinalGoals);
   const rankById = new Map(ranks.map((r) => [r.participantId, r.rank]));
-  const scoringNow = scored.some((s) => s.total > 0);
+  // El Escalador measures the climb "from the end of the group stage". Freeze
+  // each player's starting line the first time all 12 groups are decided — not
+  // at the first scored run, which can land mid-group-stage as winners trickle in.
+  const groupStageDone = Object.values(merged.groupWinners).filter(Boolean).length >= 12;
 
   await repo.saveScores(
     scored.map((s) => {
@@ -147,7 +150,7 @@ export async function recomputeScores(
         total: s.total,
         rank: newRank,
         previousRank: prev?.rank ?? 0,
-        startRank: existingStart > 0 ? existingStart : scoringNow ? newRank : 0,
+        startRank: existingStart > 0 ? existingStart : groupStageDone ? newRank : 0,
       };
     }),
   );
@@ -282,7 +285,10 @@ export async function getAwards(): Promise<AwardsResult> {
     repo.getResults(),
   ]);
   const lite = Object.fromEntries(
-    Object.entries(scores).map(([id, s]) => [id, { rank: s.rank, total: s.total, startRank: s.startRank }]),
+    Object.entries(scores).map(([id, s]) => [
+      id,
+      { rank: s.rank, total: s.total, startRank: s.startRank, bracket: s.bracket, live: s.live },
+    ]),
   );
   return computeAwards(participants, lite, results);
 }

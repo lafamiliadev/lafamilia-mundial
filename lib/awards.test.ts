@@ -181,3 +181,70 @@ describe("computeAwards — Dark Horse / Valiente / Familia", () => {
     expect(fam?.winners[0].detail).toContain("1 person");
   });
 });
+
+describe("computeAwards — added honors + deterministic La Copa", () => {
+  const pred = (over: Partial<Predictions>): Predictions => ({
+    groupWinners: null,
+    semifinalists: null,
+    champion: null,
+    finalTotalGoals: 3,
+    bonus: null,
+    ...over,
+  });
+  const bonus = (over: Partial<NonNullable<Predictions["bonus"]>>) => ({
+    goldenBall: null,
+    goldenBoot: null,
+    goldenGlove: null,
+    darkHorse: null,
+    ...over,
+  });
+
+  it("Golden Boot Oracle goes only to correct bonus picks", () => {
+    const r: Results = { ...EMPTY_RESULTS, goldenBoot: "mbappe" };
+    const hit = participant("a", "Ana", "FRA", pred({ bonus: bonus({ goldenBoot: "mbappe" }) }));
+    const miss = participant("b", "Ben", "ENG", pred({ bonus: bonus({ goldenBoot: "kane" }) }));
+    const { honors } = computeAwards(
+      [hit, miss],
+      { a: { rank: 1, total: 10, startRank: 1 }, b: { rank: 2, total: 5, startRank: 2 } },
+      r,
+    );
+    expect(honors.find((h) => h.id === "goldenboot")?.winners.map((w) => w.name)).toEqual(["Ana"]);
+  });
+
+  it("El Corazón goes to people who picked their own country to win", () => {
+    const heart = participant("a", "Ana", "MEX", pred({ champion: "MEX" }));
+    const head = participant("b", "Ben", "USA", pred({ champion: "ARG" }));
+    const { honors } = computeAwards(
+      [heart, head],
+      { a: { rank: 1, total: 10, startRank: 1 }, b: { rank: 2, total: 5, startRank: 2 } },
+      EMPTY_RESULTS,
+    );
+    expect(honors.find((h) => h.id === "corazon")?.winners.map((w) => w.name)).toEqual(["Ana"]);
+  });
+
+  it("Lobo Solitario only when exactly one called the champion", () => {
+    const r: Results = { ...EMPTY_RESULTS, champion: "ECU" };
+    const lone = participant("a", "Ana", "ECU", pred({ champion: "ECU" }));
+    const other = participant("b", "Ben", "BRA", pred({ champion: "BRA" }));
+    const { honors } = computeAwards(
+      [lone, other],
+      { a: { rank: 1, total: 10, startRank: 1 }, b: { rank: 2, total: 5, startRank: 2 } },
+      r,
+    );
+    expect(honors.find((h) => h.id === "lobo")?.winners.map((w) => w.name)).toEqual(["Ana"]);
+  });
+
+  it("breaks a top-total La Copa tie deterministically (correct champion wins)", () => {
+    const r: Results = { ...EMPTY_RESULTS, champion: "ARG" };
+    // Tie on total 100. Yamil picked the correct champion; Zoe did not. Zoe is
+    // listed FIRST, so the old find(rank===1) would have crowned her arbitrarily.
+    const zoe = participant("z", "Zoe", "BRA", pred({ champion: "BRA" }));
+    const yamil = participant("y", "Yamil", "ARG", pred({ champion: "ARG" }));
+    const { champion } = computeAwards(
+      [zoe, yamil],
+      { z: { rank: 1, total: 100, startRank: 1 }, y: { rank: 1, total: 100, startRank: 1 } },
+      r,
+    );
+    expect(champion?.winners[0].name).toBe("Yamil");
+  });
+});
