@@ -8,10 +8,21 @@ import type { Award, AwardCatalogEntry } from "@/lib/awards";
 // One Hall-of-Honors card. Always rendered (even with no winner yet): a category
 // with a winner celebrates them; one without shows an alive, anticipatory state
 // plus when it unlocks. The "How it's awarded" explainer expands on tap.
-export function AwardCard({ entry, winner }: { entry: AwardCatalogEntry; winner: Award | null }) {
+export function AwardCard({
+  entry,
+  winner,
+  provisional = false,
+}: {
+  entry: AwardCatalogEntry;
+  winner: Award | null;
+  /** True when there's a leader but the race is still open — show "leading so
+   * far", not a final "Awarded", so it's honest that it can still change. */
+  provisional?: boolean;
+}) {
   const [open, setOpen] = useState(false);
   const featured = !!entry.featured;
   const won = !!winner;
+  const leading = won && provisional; // front-runner, not yet final
 
   return (
     <div
@@ -19,7 +30,7 @@ export function AwardCard({ entry, winner }: { entry: AwardCatalogEntry; winner:
         "overflow-hidden rounded-3xl transition",
         featured
           ? "text-white sm:col-span-2"
-          : cn("card", won && "ring-2 ring-[var(--color-gold)]"),
+          : cn("card", won && (leading ? "ring-2 ring-[var(--color-pitch)]" : "ring-2 ring-[var(--color-gold)]")),
       )}
       style={
         featured
@@ -41,10 +52,14 @@ export function AwardCard({ entry, winner }: { entry: AwardCatalogEntry; winner:
             <span
               className={cn(
                 "ml-auto shrink-0 rounded-full px-2.5 py-1 text-[11px] font-bold",
-                won ? "bg-[var(--color-gold)] text-[#3a2b00]" : "bg-black/[0.05] text-[var(--color-muted)]",
+                leading
+                  ? "bg-[var(--color-pitch)] text-white"
+                  : won
+                    ? "bg-[var(--color-gold)] text-[#3a2b00]"
+                    : "bg-black/[0.05] text-[var(--color-muted)]",
               )}
             >
-              {won ? "🏅 Awarded" : "Up for grabs"}
+              {leading ? "🔥 Leading so far" : won ? "🏅 Awarded" : "Up for grabs"}
             </span>
           )}
         </div>
@@ -83,6 +98,16 @@ export function AwardCard({ entry, winner }: { entry: AwardCatalogEntry; winner:
               {!featured && winner!.winners.length > 3 && (
                 <p className="text-xs text-[var(--color-muted)]">
                   + {winner!.winners.length - 3} more in the Familia
+                </p>
+              )}
+              {leading && (
+                <p
+                  className={cn(
+                    "text-xs font-semibold",
+                    featured ? "text-[var(--color-gold-soft)]" : "text-[var(--color-pitch)]",
+                  )}
+                >
+                  {entry.liveNote ?? "Out front for now — this can still change before it's locked in."}
                 </p>
               )}
             </div>

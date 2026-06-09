@@ -6,6 +6,7 @@ import { db } from "@/lib/db";
 import { getAwards } from "@/lib/services";
 import { AWARD_CATALOG, AWARD_GROUPS, type Award } from "@/lib/awards";
 import { computeFunFacts } from "@/lib/fun-facts";
+import { now } from "@/lib/preview";
 import { SCORING_MILESTONES } from "@/lib/schedule";
 
 export const dynamic = "force-dynamic";
@@ -46,6 +47,24 @@ export default async function AwardsPage({
     if (id === "lacopa" && !revealed) return null;
     return winnerById.get(id) ?? null;
   };
+
+  // A leader is only "Awarded" once their race can no longer change; otherwise
+  // they're the front-runner ("leading so far"). Picks-based races settle at
+  // kickoff; group/semi races settle at their milestone; everything that rides
+  // the evolving standings settles only when the tournament is over.
+  const results = await repo.getResults();
+  const nowMs = (await now()).getTime();
+  const picksLocked = nowMs >= new Date(settings.lockTime).getTime();
+  const groupsDone = Object.values(results.groupWinners).filter(Boolean).length >= 12;
+  const semisDone = (results.stageReached.sf ?? []).length >= 4;
+  const tournamentOver = Boolean(results.champion);
+  const settledFor = (id: string): boolean => {
+    if (id === "familia" || id === "corazon") return picksLocked;
+    if (id === "oraculo") return groupsDone;
+    if (id === "finalfour") return semisDone;
+    return tournamentOver; // lacopa, oracles, lobo, valiente, escalador, orgullo, darkhorse
+  };
+  const provisionalFor = (id: string): boolean => !!winnerFor(id) && !settledFor(id);
 
   const awarded = AWARD_CATALOG.filter((e) => winnerFor(e.id)).length;
   const nextLocked = AWARD_CATALOG.filter((e) => !winnerFor(e.id)).sort(
@@ -146,7 +165,11 @@ export default async function AwardsPage({
                 One honor is already up for grabs — bring the Familia in.
               </p>
               <div className="grid grid-cols-1 gap-4">
-                <AwardCard entry={familia} winner={winnerFor("familia")} />
+                <AwardCard
+                  entry={familia}
+                  winner={winnerFor("familia")}
+                  provisional={provisionalFor("familia")}
+                />
               </div>
             </section>
 
@@ -164,7 +187,12 @@ export default async function AwardsPage({
                   </div>
                   <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     {entries.map((e) => (
-                      <AwardCard key={e.id} entry={e} winner={winnerFor(e.id)} />
+                      <AwardCard
+                        key={e.id}
+                        entry={e}
+                        winner={winnerFor(e.id)}
+                        provisional={provisionalFor(e.id)}
+                      />
                     ))}
                   </div>
                 </section>

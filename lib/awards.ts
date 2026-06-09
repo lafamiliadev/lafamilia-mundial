@@ -358,6 +358,8 @@ export type AwardCatalogEntry = {
   unlockOrder: number;
   /** Alive placeholder copy before a winner exists. */
   emptyState: string;
+  /** Shown under the front-runner while the race is still open (provisional). */
+  liveNote?: string;
   /** The hero of the whole page. */
   featured?: boolean;
 };
@@ -419,6 +421,7 @@ export const AWARD_CATALOG: AwardCatalogEntry[] = [
     availableAfter: "The Round of 16",
     unlockOrder: 2,
     emptyState: "🌎 The dark horse is still hiding.",
+    liveNote: "Out front for now — it holds only as long as their dark horse keeps winning.",
   },
   {
     id: "valiente",
@@ -430,6 +433,7 @@ export const AWARD_CATALOG: AwardCatalogEntry[] = [
     availableAfter: "The end of the Group Stage",
     unlockOrder: 1,
     emptyState: "😏 Bold picks are brewing. Nobody knows yet — that's the fun part.",
+    liveNote: "Out front for now — a bold call can still flip as scores move.",
   },
   {
     id: "orgullo",
@@ -441,6 +445,7 @@ export const AWARD_CATALOG: AwardCatalogEntry[] = [
     availableAfter: "The first points (Group Stage)",
     unlockOrder: 1,
     emptyState: "🌎 Waiting for the first points to land.",
+    liveNote: "Leading the LatAm pack for now — every result can shuffle it.",
   },
   {
     id: "familia",
@@ -452,6 +457,7 @@ export const AWARD_CATALOG: AwardCatalogEntry[] = [
     availableAfter: "Now — it's already on!",
     unlockOrder: 0,
     emptyState: "🔥 Be the first to bring your crew in — share your bracket.",
+    liveNote: "Still wide open — there's time to bring more of the Familia in and take the lead.",
   },
   {
     id: "goldenboot",
@@ -499,6 +505,7 @@ export const AWARD_CATALOG: AwardCatalogEntry[] = [
     availableAfter: "Now — it's from your picks",
     unlockOrder: 0,
     emptyState: "❤️ Waiting for the romantics to lock in their picks.",
+    liveNote: "More romantics can still join until picks lock at kickoff.",
   },
   {
     id: "lobo",
