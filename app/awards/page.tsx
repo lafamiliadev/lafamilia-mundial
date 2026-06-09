@@ -76,27 +76,24 @@ export default async function AwardsPage({
           <section className="mt-5">
             <h1 className="text-2xl font-black tracking-tight">😂 Fun Facts</h1>
             <p className="mt-1 text-sm text-[var(--color-muted)]">
-              What the Familia is really picking. Updates as more brackets roll in.
+              Little things we noticed in everyone's picks. More show up as brackets roll in.
             </p>
             {facts.length === 0 ? (
               <div className="card mt-5 p-8 text-center">
                 <div className="text-4xl">🫥</div>
-                <p className="mt-3 font-bold">Nothing to spill yet</p>
+                <p className="mt-3 font-bold">Nothing to notice yet</p>
                 <p className="mt-1 text-sm text-[var(--color-muted)]">
-                  Fun facts show up here as soon as the Familia starts picking.
+                  These show up as soon as the Familia starts picking.
                 </p>
               </div>
             ) : (
-              <ul className="mt-5 space-y-2.5">
+              <ul className="mt-5 space-y-3">
                 {facts.map((f) => (
                   <li
                     key={f.id}
-                    className="flex items-start gap-3 rounded-2xl border border-[var(--color-line)] bg-white px-4 py-3"
+                    className="rounded-2xl border border-[var(--color-line)] bg-white px-4 py-3.5"
                   >
-                    <span className="text-xl leading-none" aria-hidden>
-                      {f.emoji}
-                    </span>
-                    <p className="text-sm leading-snug">{f.dataSays}</p>
+                    <p className="whitespace-pre-line text-sm leading-relaxed">{f.text}</p>
                   </li>
                 ))}
               </ul>

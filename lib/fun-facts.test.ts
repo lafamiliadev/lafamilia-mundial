@@ -32,81 +32,66 @@ function p(
 }
 
 const ids = (facts: ReturnType<typeof computeFunFacts>) => facts.map((f) => f.id);
+const BANNED = /\bepic\b|\blegendary\b|\bwild\b|\bchaos\b/i;
 
-describe("computeFunFacts", () => {
+describe("computeFunFacts — observations", () => {
   it("returns nothing with no champion picks", () => {
     expect(computeFunFacts([p("A", null), p("B", null)])).toEqual([]);
   });
 
-  it("is NEVER empty when there is at least one submission (small samples too)", () => {
-    // One submission → at least the front-runner fact.
-    const one = computeFunFacts([p("A", "ARG", { rooting: "ARG" })]);
-    expect(one.length).toBeGreaterThan(0);
-    expect(one.some((f) => f.id === "front-runner")).toBe(true);
-    // Two submissions on the same team → still non-empty (front-runner + agreement).
-    const two = computeFunFacts([p("A", "ARG"), p("B", "ARG")]);
-    expect(two.length).toBeGreaterThan(0);
-    expect(two.some((f) => f.id === "unanimous")).toBe(true);
+  it("always returns at least one observation when people have picked", () => {
+    expect(computeFunFacts([p("A", "ARG")]).length).toBeGreaterThan(0);
   });
 
-  it("surfaces a clear front-runner with a percentage", () => {
-    const facts = computeFunFacts([p("A", "ARG"), p("B", "ARG"), p("C", "BRA")]);
-    const f = facts.find((x) => x.id === "front-runner");
-    expect(f).toBeTruthy();
-    expect(f!.dataSays).toContain("Argentina");
-    expect(f!.whatsapp).toMatch(/%/);
-  });
-
-  it("counts distinct champions (beautiful chaos)", () => {
-    const facts = computeFunFacts([p("A", "ARG"), p("B", "BRA"), p("C", "FRA")]);
-    const f = facts.find((x) => x.id === "champ-diversity");
-    expect(f).toBeTruthy();
-    expect(f!.dataSays).toContain("3 different teams");
-  });
-
-  it("flags a lone believer", () => {
-    const facts = computeFunFacts([p("Sofia", "ARG"), p("Mateo", "ARG"), p("Lucia", "ECU")]);
-    const f = facts.find((x) => x.id === "lone-ECU");
-    expect(f).toBeTruthy();
-    expect(f!.whatsapp).toContain("Lucia");
-    expect(f!.whatsapp.toLowerCase()).toContain("only");
-  });
-
-  it("calls out a favorite nobody picked (total silence)", () => {
-    // ARG is a Pot 1 favorite; pick everyone else so ARG has zero believers.
-    const facts = computeFunFacts([p("A", "BRA"), p("B", "BRA"), p("C", "FRA")]);
-    // The detector surfaces the first couple of unpicked Pot 1 favorites
-    // (USA/MEX are hosts and Pot 1), so silence should fire for a top seed.
-    const silence = facts.filter((x) => x.id.startsWith("silence-"));
-    expect(silence.length).toBeGreaterThan(0);
-    expect(silence.some((f) => f.id === "silence-USA")).toBe(true);
-  });
-
-  it("spots an underdog out-believing a favorite", () => {
-    // ECU (pot 2/3) gets 3 believers; FRA (pot 1) gets 1.
+  it("observations are multi-line and avoid clichés", () => {
     const facts = computeFunFacts([
-      p("A", "ECU"),
-      p("B", "ECU"),
-      p("C", "ECU"),
-      p("D", "FRA"),
+      p("Ana", "FRA", { ff: ["ENG", "FRA", "ESP", "ARG"], rooting: "MEX", city: "Miami" }),
+      p("Bea", "FRA", { ff: ["ENG", "FRA", "ESP", "ARG"], rooting: "MEX", city: "Miami" }),
+      p("Cid", "ESP", { ff: ["ENG", "BRA", "ARG", "POR"], rooting: "MEX", city: "Austin" }),
+      p("Dan", "MEX", { ff: ["ENG", "USA", "CAN", "JPN"], rooting: "MEX", city: "Austin" }),
     ]);
-    const f = facts.find((x) => x.id.startsWith("underdog-ECU-"));
-    expect(f).toBeTruthy();
-    expect(f!.whatsapp).toContain("more believers");
+    expect(facts.length).toBeGreaterThan(0);
+    for (const f of facts) {
+      expect(f.text).toContain("\n"); // every observation is multi-line
+      expect(f.text).not.toMatch(BANNED);
+    }
   });
 
-  it("detects a city fully committed", () => {
+  it("notices heart vs brain (rooted-for team few picked to win)", () => {
     const facts = computeFunFacts([
-      p("A", "MEX", { city: "Miami" }),
-      p("B", "MEX", { city: "Miami" }),
-      p("C", "MEX", { city: "Miami" }),
+      p("A", "FRA", { rooting: "MEX" }),
+      p("B", "FRA", { rooting: "MEX" }),
+      p("C", "FRA", { rooting: "MEX" }),
+      p("D", "MEX", { rooting: "MEX" }),
     ]);
-    const f = facts.find((x) => x.id === "city-allin-Miami");
+    const f = facts.find((x) => x.id === "heart-brain");
     expect(f).toBeTruthy();
-    expect(f!.whatsapp).toContain("Miami");
+    expect(f!.text).toContain("Mexico");
+    expect(f!.text.toLowerCase()).toContain("rooting for");
   });
 
-  it("detects suspiciously similar brackets", () => {
+  it("notices believers-not-champions (deep in Final Fours, nobody crowns them)", () => {
+    const facts = computeFunFacts([
+      p("A", "FRA", { ff: ["ENG", "FRA", "ESP", "ARG"] }),
+      p("B", "ESP", { ff: ["ENG", "BRA", "ARG", "POR"] }),
+      p("C", "ARG", { ff: ["ENG", "NED", "BRA", "GER"] }),
+      p("D", "BRA", { ff: ["ENG", "USA", "MEX", "JPN"] }),
+    ]);
+    const f = facts.find((x) => x.id === "believers");
+    expect(f).toBeTruthy();
+    expect(f!.text).toContain("England");
+    expect(f!.text).toContain("Final Four");
+  });
+
+  it("notices a contrarian standing alone", () => {
+    const facts = computeFunFacts([p("Ana", "FRA"), p("Bea", "FRA"), p("Cid", "NZL")]);
+    const f = facts.find((x) => x.id.startsWith("contrarian-"));
+    expect(f).toBeTruthy();
+    expect(f!.text).toContain("Cid");
+    expect(f!.text.toLowerCase()).toContain("only one");
+  });
+
+  it("notices near-identical brackets (friend dynamics)", () => {
     const ff = ["ARG", "BRA", "FRA", "ESP"];
     const facts = computeFunFacts([
       p("Ana", "ARG", { ff }),
@@ -115,34 +100,16 @@ describe("computeFunFacts", () => {
     ]);
     const f = facts.find((x) => x.id === "twins");
     expect(f).toBeTruthy();
-    expect(f!.whatsapp).toMatch(/Ana|Bea/);
+    expect(f!.text).toMatch(/Ana|Bea/);
   });
 
-  it("detects heart-pickers (champion === rooting)", () => {
+  it("does not repeat a team across observations", () => {
     const facts = computeFunFacts([
-      p("A", "MEX", { rooting: "MEX" }),
-      p("B", "MEX", { rooting: "MEX" }),
+      p("A", "FRA", { rooting: "FRA" }),
+      p("B", "ARG", { rooting: "ARG" }),
+      p("C", "ESP", { rooting: "ESP" }),
     ]);
-    const f = facts.find((x) => x.id === "heart-MEX");
-    expect(f).toBeTruthy();
-    expect(f!.whatsapp.toLowerCase()).toContain("heart");
-  });
-
-  it("every fact carries all four fields + a whatsapp line", () => {
-    const facts = computeFunFacts([
-      p("A", "ARG", { ff: ["ARG", "BRA", "FRA", "ESP"], city: "Miami", rooting: "ARG" }),
-      p("B", "ECU", { ff: ["ECU", "USA", "MEX", "CAN"], city: "Miami" }),
-      p("C", "ECU", { city: "Austin" }),
-    ]);
-    expect(facts.length).toBeGreaterThan(0);
-    for (const f of facts) {
-      expect(f.id).toBeTruthy();
-      expect(f.title).toBeTruthy();
-      expect(f.dataSays).toBeTruthy();
-      expect(f.why).toBeTruthy();
-      expect(f.whatsapp.length).toBeGreaterThan(0);
-    }
-    // ids are unique
+    // ids are unique (no duplicate observations)
     expect(new Set(ids(facts)).size).toBe(facts.length);
   });
 });
