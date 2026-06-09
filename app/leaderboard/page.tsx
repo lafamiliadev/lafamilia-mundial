@@ -150,15 +150,15 @@ export default async function LeaderboardPage({
           <FamiliaInvitersBoard top={inviters.top} me={inviters.me} total={inviters.total} />
         </div>
 
-        {honorsLive && (
-          <Link
-            href="/awards"
-            className="mb-5 flex items-center justify-between rounded-2xl bg-[var(--color-gold-soft)]/50 px-4 py-3 font-semibold"
-          >
-            <span>🏆 The Familia Honors are in</span>
-            <span className="text-sm">See the winners →</span>
-          </Link>
-        )}
+        {/* Always link the Hall of Honors — before the finale it builds
+            anticipation (8 awards up for grabs), after it shows the winners. */}
+        <Link
+          href="/awards"
+          className="mb-5 flex items-center justify-between rounded-2xl bg-[var(--color-gold-soft)]/50 px-4 py-3 font-semibold"
+        >
+          <span>🏆 {honorsLive ? "The Familia Honors are in" : "8 Familia Honors up for grabs"}</span>
+          <span className="text-sm">{honorsLive ? "See the winners →" : "See them all →"}</span>
+        </Link>
 
         {/* Next points drop — explained for someone new to soccer/fantasy. */}
         {nextDrop && view !== "live" && (

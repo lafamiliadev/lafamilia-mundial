@@ -99,3 +99,61 @@ describe("computeAwards", () => {
     expect(byId.orgullo.winners[0].name).toBe("Maria"); // Sofia roots USA (not LatAm)
   });
 });
+
+describe("computeAwards — Dark Horse / Valiente / Familia", () => {
+  const pred = (champion: string, darkHorse: string | null = null): Predictions => ({
+    groupWinners: null,
+    semifinalists: null,
+    champion,
+    finalTotalGoals: 3,
+    bonus: darkHorse ? { goldenBall: null, goldenBoot: null, goldenGlove: null, darkHorse } : null,
+  });
+
+  it("Dark Horse Whisperer goes to whoever's dark horse ran deepest", () => {
+    const r: Results = { ...EMPTY_RESULTS, stageReached: { qf: ["ECU"] } };
+    const ana = participant("a", "Ana", "ECU", pred("ARG", "ECU")); // dark horse reached QF
+    const ben = participant("b", "Ben", "BRA", pred("BRA", "JPN")); // dark horse went nowhere
+    const { honors } = computeAwards(
+      [ana, ben],
+      { a: { rank: 1, total: 10, startRank: 1 }, b: { rank: 2, total: 5, startRank: 2 } },
+      r,
+    );
+    const dh = honors.find((h) => h.id === "darkhorse");
+    expect(dh?.winners[0].name).toBe("Ana");
+    expect(dh?.winners[0].detail).toContain("quarterfinals");
+  });
+
+  it("El Valiente rewards the bold champion pick among top scorers", () => {
+    const a = participant("a", "Popular1", "ARG", pred("FRA"));
+    const b = participant("b", "Popular2", "ARG", pred("FRA"));
+    const c = participant("c", "Brave", "ARG", pred("NZL")); // rare champion, top score
+    const { honors } = computeAwards(
+      [a, b, c],
+      {
+        a: { rank: 2, total: 50, startRank: 2 },
+        b: { rank: 3, total: 40, startRank: 3 },
+        c: { rank: 1, total: 60, startRank: 1 },
+      },
+      EMPTY_RESULTS,
+    );
+    expect(honors.find((h) => h.id === "valiente")?.winners[0].name).toBe("Brave");
+  });
+
+  it("Trae a la Familia goes to the top inviter", () => {
+    const host = participant("h", "Host", "ARG", pred("ARG")); // slug "host"
+    const g1 = { ...participant("g1", "Gee", "BRA", pred("BRA")), referredBy: "host" };
+    const g2 = { ...participant("g2", "Bee", "BRA", pred("BRA")), referredBy: "host" };
+    const { honors } = computeAwards(
+      [host, g1, g2],
+      {
+        h: { rank: 1, total: 5, startRank: 1 },
+        g1: { rank: 2, total: 0, startRank: 2 },
+        g2: { rank: 3, total: 0, startRank: 3 },
+      },
+      EMPTY_RESULTS,
+    );
+    const fam = honors.find((h) => h.id === "familia");
+    expect(fam?.winners[0].name).toBe("Host");
+    expect(fam?.winners[0].detail).toContain("2 people");
+  });
+});
