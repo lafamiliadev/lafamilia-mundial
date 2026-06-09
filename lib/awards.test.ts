@@ -166,4 +166,18 @@ describe("computeAwards — Dark Horse / Valiente / Familia", () => {
     expect(fam?.winners[0].name).toBe("Host");
     expect(fam?.winners[0].detail).toContain("2 people");
   });
+
+  it("Trae a la Familia skips the LaFamilia team and takes the next member", () => {
+    // Pilar (team, @lafamiliafoundation.com) brought 3; Pedro (member) brought 1.
+    const pilar = { ...participant("s", "Pilar", "COL", pred("ARG")), email: "pilar@lafamiliafoundation.com" };
+    const pedro = participant("r", "Pedro", "ECU", pred("ECU")); // slug "pedro"
+    const a = { ...participant("a", "A", "BRA", pred("BRA")), referredBy: "pilar" };
+    const b = { ...participant("b", "B", "BRA", pred("BRA")), referredBy: "pilar" };
+    const c = { ...participant("c", "C", "BRA", pred("BRA")), referredBy: "pilar" };
+    const d = { ...participant("d", "D", "BRA", pred("BRA")), referredBy: "pedro" };
+    const { honors } = computeAwards([pilar, pedro, a, b, c, d], {}, EMPTY_RESULTS);
+    const fam = honors.find((h) => h.id === "familia");
+    expect(fam?.winners[0].name).toBe("Pedro"); // team member excluded
+    expect(fam?.winners[0].detail).toContain("1 person");
+  });
 });

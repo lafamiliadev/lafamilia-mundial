@@ -1,6 +1,16 @@
 import { TEAM_BY_CODE, teamName } from "./teams";
 import type { Participant, Results } from "./types";
 
+// LaFamilia team/staff email domains. Members on these domains seeded the game
+// (so they naturally top the invite count) — they're excluded from the
+// participation award "Trae a la Familia" so a real member wins it.
+const TEAM_EMAIL_DOMAINS = ["lafamiliafoundation.com", "vcfamilia.com"];
+
+function isTeam(p: Participant): boolean {
+  const email = p.email.toLowerCase();
+  return TEAM_EMAIL_DOMAINS.some((d) => email.endsWith(`@${d}`));
+}
+
 // La Familia Honors — five titles, all derived from the picks members already
 // made (no extra input). One clear champion (La Copa); the rest celebrate a
 // different kind of sharp call. Pure + deterministic → unit-testable, and reused
@@ -222,32 +232,26 @@ export function computeAwards(
     });
   }
 
-  // 🤝 Trae a la Familia — brought the most people into La Copa.
+  // 🤝 Trae a la Familia — brought the most people into La Copa. Excludes the
+  // LaFamilia team (they seeded the game) so a real member takes the honor.
   const broughtBy = new Map<string, number>();
   for (const p of participants) {
     if (p.referredBy) broughtBy.set(p.referredBy, (broughtBy.get(p.referredBy) ?? 0) + 1);
   }
-  let bestSlug: string | null = null;
-  let bestBrought = 0;
-  for (const [slug, n] of broughtBy) {
-    if (n > bestBrought) {
-      bestBrought = n;
-      bestSlug = slug;
-    }
-  }
-  if (bestSlug && bestBrought > 0) {
-    const p = participants.find((x) => x.slug === bestSlug);
-    if (p) {
-      honors.push({
-        id: "familia",
-        emoji: "🤝",
-        title: "Trae a la Familia",
-        subtitle: "Opened the door for everyone else.",
-        winners: [
-          winnerOf(p, `Brought ${bestBrought} ${bestBrought === 1 ? "person" : "people"} into La Copa.`),
-        ],
-      });
-    }
+  const bySlug = new Map(participants.map((p) => [p.slug, p]));
+  const inviters = [...broughtBy.entries()]
+    .map(([slug, n]) => ({ p: bySlug.get(slug), n }))
+    .filter((c): c is { p: Participant; n: number } => Boolean(c.p) && !isTeam(c.p!))
+    .sort((a, b) => b.n - a.n || total(b.p) - total(a.p) || a.p.name.localeCompare(b.p.name));
+  if (inviters.length && inviters[0].n > 0) {
+    const { p, n } = inviters[0];
+    honors.push({
+      id: "familia",
+      emoji: "🤝",
+      title: "Trae a la Familia",
+      subtitle: "Opened the door for everyone else.",
+      winners: [winnerOf(p, `Brought ${n} ${n === 1 ? "person" : "people"} into La Copa.`)],
+    });
   }
 
   return { champion, honors };
