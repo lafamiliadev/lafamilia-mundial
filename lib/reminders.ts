@@ -50,7 +50,24 @@ export type ReminderContext = {
   appUrl: string;
   total: number;
   champion: string | null; // resolved team name once the final is in
+  /** Knockout rounds that have matchups entered. A round-open email only fires
+   * for a round in this list, so we never email "picks are open" into a round
+   * whose matchups aren't set yet (which would be a dead end). */
+  roundsReady: string[];
 };
+
+/** "July 14" — short date for "semifinal picks open …" copy. */
+function shortDate(iso: string): string {
+  try {
+    return new Intl.DateTimeFormat("en-US", {
+      month: "long",
+      day: "numeric",
+      timeZone: "America/New_York",
+    }).format(new Date(iso));
+  } catch {
+    return "soon";
+  }
+}
 
 /** Every reminder campaign with its fire time, given current settings/results. */
 export function allReminderCampaigns(ctx: ReminderContext): ReminderCampaign[] {
@@ -58,24 +75,38 @@ export function allReminderCampaigns(ctx: ReminderContext): ReminderCampaign[] {
   const picks = `${ctx.appUrl}/picks`;
   const board = `${ctx.appUrl}/leaderboard`;
 
-  // Per-round "picks are open" emails — only when Live Picks is actually
-  // playable. While the feature is off they'd link to a dead end, so suppress.
-  const roundEmails: ReminderCampaign[] = !LIVE_PICKS_ENABLED ? [] : LIVE_ROUNDS.map((r) =>
-    r.round === "final"
-      ? {
-          key: "round-open-final",
-          dueAtMs: ms(r.opensIso),
-          subject: "One match left",
-          render: (rec) => renderTheFinal({ firstName: rec.firstName, picksUrl: picks }),
-        }
-      : {
-          key: `round-open-${r.round}`,
-          dueAtMs: ms(r.opensIso),
-          subject: `${r.label} picks are open`,
-          render: () =>
-            renderRoundOpen({ round: r.label, picksUrl: picks, locksLabel: whenLabel(r.locksIso) }),
-        },
-  );
+  // Per-round "picks are open" emails. Two gates:
+  //  1. LIVE_PICKS_ENABLED — while the feature is off they'd link to a dead end.
+  //  2. roundsReady — only fire once that round's matchups are actually set, so
+  //     we never tell 60+ people "picks are open" and land them on an empty page.
+  const ready = new Set(ctx.roundsReady);
+  const roundEmails: ReminderCampaign[] = !LIVE_PICKS_ENABLED
+    ? []
+    : LIVE_ROUNDS.filter((r) => ready.has(r.round)).map((r) =>
+        r.round === "final"
+          ? {
+              key: "round-open-final",
+              dueAtMs: ms(r.opensIso),
+              subject: "One match left",
+              render: (rec) => renderTheFinal({ firstName: rec.firstName, picksUrl: picks }),
+            }
+          : {
+              key: `round-open-${r.round}`,
+              dueAtMs: ms(r.opensIso),
+              subject: `${r.label} picks are open`,
+              render: (rec) =>
+                renderRoundOpen({
+                  round: r.label,
+                  picksUrl: picks,
+                  locksLabel: whenLabel(r.locksIso),
+                  rank: rec.rank,
+                  total: ctx.total,
+                }),
+            },
+      );
+
+  const sfRound = LIVE_ROUNDS.find((r) => r.round === "sf");
+  const sfOpensLabel = sfRound ? shortDate(sfRound.opensIso) : "soon";
 
   return [
     {
@@ -101,7 +132,7 @@ export function allReminderCampaigns(ctx: ReminderContext): ReminderCampaign[] {
       key: "final-four",
       dueAtMs: ms(SCORING_MILESTONES[1].dateIso),
       subject: "The Final Four is set",
-      render: (r) => renderFinalFour({ rank: r.rank, total: ctx.total, picksUrl: picks }),
+      render: (r) => renderFinalFour({ rank: r.rank, total: ctx.total, leaderboardUrl: board, sfOpensLabel }),
     },
     {
       key: "wrap",

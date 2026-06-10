@@ -158,13 +158,14 @@ export function renderLockedIn(p: { firstName: string; leaderboardUrl: string })
   ${emailIntro({
     heading: "You're locked in.",
     paras: [
-      "The World Cup's underway and every bracket is set, yours included. Now we wait.",
+      "The World Cup's underway and every bracket is set, yours included.",
       "Your first points land June 27, when the group stage wraps. That's when the leaderboard comes alive.",
+      "Then the knockouts bring a whole new game: Live Picks. Starting June 28, you'll pick who wins each match for more points, and you can climb even if your champion is out. We'll email you the moment each round opens.",
     ],
   })}
   ${cta(p.leaderboardUrl, "See who's playing")}
-  ${nextLine("Back here June 27 with your first points.")}`;
-  return emailShell({ preheader: "Brackets are locked. First points June 27.", body });
+  ${nextLine("Back here June 27 with your first points, then Live Picks at the knockouts.")}`;
+  return emailShell({ preheader: "Brackets are locked. First points June 27, Live Picks at the knockouts.", body });
 }
 
 // ── 4. First points (group stage ends) ───────────────────────────────
@@ -178,20 +179,24 @@ export function renderFirstPoints(p: { firstName: string; rank: number; total: n
   })}
   ${standings(p.rank, p.total)}
   ${cta(p.leaderboardUrl, "See the leaderboard")}
-  ${nextLine("Your card keeps scoring through the knockouts — we'll let you know when you move.")}`;
-  return emailShell({ preheader: `You're #${p.rank} of ${p.total} in the Familia.`, body });
+  ${nextLine("Next up: Live Picks. Each knockout round you'll pick the winner of every match for more points, starting with the Round of 32. Watch for our email when it opens.")}`;
+  return emailShell({ preheader: `You're #${p.rank} of ${p.total} in the Familia. Live Picks start at the knockouts.`, body });
 }
 
 // ── 5. Round opens (each knockout round) ─────────────────────────────
-export function renderRoundOpen(p: { round: string; picksUrl: string; locksLabel: string }): string {
+export function renderRoundOpen(p: { round: string; picksUrl: string; locksLabel: string; rank?: number; total?: number }): string {
+  // When we know their standing, lead with a quick "here's where you stand"
+  // recap so each new round doubles as a score update.
+  const standingBlock = p.rank && p.rank > 0 && p.total ? standings(p.rank, p.total) : "";
   const body = `
   ${emailIntro({
     heading: `${p.round} picks are open.`,
     paras: [
-      "Pick who wins each match. Get one right and you score — and you can still climb even if your champion's already out.",
+      "Pick who wins each match. Get one right and you score, and you can still climb even if your champion's already out.",
       `Picks lock when the first match starts, ${p.locksLabel}.`,
     ],
   })}
+  ${standingBlock}
   ${cta(p.picksUrl, `Make my ${p.round} picks`)}
   ${nextLine("Once you're in, sit back and watch the points come in.")}`;
   return emailShell({ preheader: `${p.round} picks are open. Lock them in before kickoff.`, body });
@@ -228,17 +233,19 @@ export function renderScoreUpdate(p: { delta: number; rank: number; total: numbe
 }
 
 // ── 8. Final Four ────────────────────────────────────────────────────
-export function renderFinalFour(p: { rank: number; total: number; picksUrl: string }): string {
+export function renderFinalFour(p: { rank: number; total: number; leaderboardUrl: string; sfOpensLabel: string }): string {
   const body = `
   ${emailIntro({
     heading: "Four teams left.",
     paras: [
-      `Your Final Four picks just scored. You're #${p.rank} of ${p.total} in the Familia. Semifinal picks are open now.`,
+      `Your Final Four picks just scored. You're #${p.rank} of ${p.total} in the Familia.`,
+      `Semifinal Live Picks open ${p.sfOpensLabel}. We'll email you the moment they do.`,
     ],
   })}
-  ${cta(p.picksUrl, "Make my semifinal picks")}
-  ${nextLine("The final's almost here.")}`;
-  return emailShell({ preheader: "The Final Four is set. Semifinal picks are open.", body });
+  ${standings(p.rank, p.total)}
+  ${cta(p.leaderboardUrl, "See the leaderboard")}
+  ${nextLine("Then the final, with the biggest points of the tournament.")}`;
+  return emailShell({ preheader: `The Final Four is set. You're #${p.rank} of ${p.total}.`, body });
 }
 
 // ── 9. The final ─────────────────────────────────────────────────────
@@ -291,10 +298,10 @@ export function buildSampleEmails(appUrl: string): SampleEmail[] {
     { key: "last-call", label: "2 · Last call (24h before lock)", subject: "Last day to change your picks", html: renderLastCall({ firstName: "Pilar", picksUrl: picks }) },
     { key: "locked-in", label: "3 · Locked in (kickoff)", subject: "Picks are locked. Game on.", html: renderLockedIn({ firstName: "Pilar", leaderboardUrl: board }) },
     { key: "first-points", label: "4 · First points (group stage ends)", subject: "Your first points are in", html: renderFirstPoints({ firstName: "Pilar", rank: 4, total: 38, leaderboardUrl: board }) },
-    { key: "round-open", label: "5 · Round opens", subject: "Round of 32 picks are open", html: renderRoundOpen({ round: "Round of 32", picksUrl: picks, locksLabel: "Saturday at noon ET" }) },
+    { key: "round-open", label: "5 · Round opens", subject: "Round of 32 picks are open", html: renderRoundOpen({ round: "Round of 32", picksUrl: picks, locksLabel: "Saturday at noon ET", rank: 4, total: 38 }) },
     { key: "closing-soon", label: "6 · Closing soon", subject: "Round of 32 picks lock soon", html: renderClosingSoon({ round: "Round of 32", hours: 2, picksUrl: picks }) },
     { key: "score-update", label: "7 · You moved (after scoring)", subject: "New scores. You're 2nd now.", html: renderScoreUpdate({ delta: 2, rank: 2, total: 38, rivalLine: "You're 3 points behind Mateo.", nextLabel: "Round of 16 picks open Saturday.", leaderboardUrl: board }) },
-    { key: "final-four", label: "8 · Final Four", subject: "The Final Four is set", html: renderFinalFour({ rank: 2, total: 38, picksUrl: picks }) },
+    { key: "final-four", label: "8 · Final Four", subject: "The Final Four is set", html: renderFinalFour({ rank: 2, total: 38, leaderboardUrl: board, sfOpensLabel: "July 14" }) },
     { key: "the-final", label: "9 · The final", subject: "One match left", html: renderTheFinal({ firstName: "Pilar", picksUrl: picks }) },
     { key: "wrap", label: "10 · Winner / wrap", subject: "It's over. You finished 2nd.", html: renderWrap({ firstName: "Pilar", champion: "Brazil", rank: 2, total: 38, isWinner: false, standingsUrl: board }) },
   ];

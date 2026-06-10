@@ -44,12 +44,17 @@ export async function GET(req: Request) {
     const nowMs = (await now()).getTime();
     const sent = settings.sentReminders ?? [];
 
+    // Rounds whose matchups are set — gates the "picks are open" emails so they
+    // never fire into a round with no pick cards yet.
+    const roundsReady = [...new Set((settings.liveMatches ?? []).map((m) => m.round))];
+
     const due = dueReminderCampaigns(
       {
         lockTimeIso: settings.lockTime,
         appUrl: env.NEXT_PUBLIC_APP_URL,
         total: participants.length,
         champion: results.champion ? teamName(results.champion) : null,
+        roundsReady,
       },
       nowMs,
       sent,
