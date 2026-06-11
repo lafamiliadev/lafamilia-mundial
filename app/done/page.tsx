@@ -36,7 +36,6 @@ export default async function DonePage({
   const lockMs = new Date(settings.lockTime).getTime();
   const locked = (await now()).getTime() >= lockMs;
   const lockLabel = relativeLockLabel(lockMs - (await now()).getTime());
-  // Momentum + a gentle "before they lock" nudge — the best moment to share is now.
   const shareMomentum = locked
     ? "Picks are locked — the race is on. Follow it on the leaderboard."
     : `${count} of the Familia are in. Picks lock ${lockLabel} — challenge your friends before then.`;

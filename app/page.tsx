@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Countdown } from "@/components/Countdown";
 import { InviteRivalryCard } from "@/components/InviteRivalryCard";
+import type { ScoreMatch } from "@/lib/types";
 import {
   ArrowRightIcon,
   GroupsIcon,
@@ -50,8 +51,10 @@ export default async function Home() {
       getRivalry(me.resumeToken),
     ]);
     const nowD = await now();
+    const nowIso = nowD.toISOString();
     const status = pickStatus(nowD, settings.lockTime);
     const bonusFilled = Object.values(me.predictions.bonus ?? EMPTY_BONUS).filter(Boolean).length;
+    const upcomingScoreMatches = await repo.getUpcomingScoreMatches(nowIso, 24);
 
     let open: OpenAction | null = null;
     if (status.state === "bonus-open") {
@@ -94,6 +97,7 @@ export default async function Home() {
           nowMs={nowD.getTime()}
           signups={signups}
           rivalry={rivalry}
+          upcomingScoreMatches={upcomingScoreMatches}
         />
         <WhatHappensNext
           kickoffIso={settings.lockTime}
@@ -331,6 +335,7 @@ function ReturningHero({
   nowMs,
   signups,
   rivalry,
+  upcomingScoreMatches,
 }: {
   name: string;
   rank: number | null;
@@ -340,6 +345,7 @@ function ReturningHero({
   nowMs: number;
   signups: number;
   rivalry: Rivalry | null;
+  upcomingScoreMatches: ScoreMatch[];
 }) {
   const started = nowMs >= new Date(lockTime).getTime();
   return (
@@ -397,6 +403,26 @@ function ReturningHero({
             </>
           )}
         </div>
+
+        {upcomingScoreMatches.length > 0 && (
+          <Link
+            href="/picks/score"
+            className="mt-4 block overflow-hidden rounded-2xl border border-[var(--color-gold-soft)]/40 bg-white/[0.06] backdrop-blur-sm transition hover:bg-white/[0.09]"
+          >
+            <div className="px-4 py-3">
+              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--color-gold-soft)]">
+                ⚽ Bonus pick of the day
+              </p>
+              <p className="mt-0.5 text-sm font-bold text-white">Predict the final score</p>
+              <p className="mt-0.5 text-xs text-white/70">
+                {upcomingScoreMatches[0].teamA} vs {upcomingScoreMatches[0].teamB} · {upcomingScoreMatches[0].displayTimePt}
+              </p>
+            </div>
+            <div className="border-t border-[var(--color-gold-soft)]/20 px-4 py-2 text-right text-xs font-bold text-[var(--color-gold-soft)]">
+              Lock my score →
+            </div>
+          </Link>
+        )}
 
         <div className="mt-4">
           <LinkButton href="/leaderboard" variant="outline" className="w-full !bg-white/12 !border-white/15 !text-white backdrop-blur">

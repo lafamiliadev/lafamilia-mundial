@@ -31,8 +31,23 @@ function reachedAtLeast(results: Results, code: string | null, stage: Stage): bo
 }
 
 /**
+ * Score one bonus score prediction: +3 for exact score, +1 for correct result
+ * (winner or draw), 0 for wrong result. Pure function — no side effects.
+ */
+export function scoreMatchPrediction(
+  predicted: { scoreA: number; scoreB: number },
+  actual: { scoreA: number; scoreB: number },
+): number {
+  if (predicted.scoreA === actual.scoreA && predicted.scoreB === actual.scoreB) return 3;
+  const predictedResult = Math.sign(predicted.scoreA - predicted.scoreB);
+  const actualResult = Math.sign(actual.scoreA - actual.scoreB);
+  return predictedResult === actualResult ? 1 : 0;
+}
+
+/**
  * Pure scoring for one participant across all competitions: the original
- * bracket, the bonus picks, and (when supplied) the live knockout picks.
+ * bracket, the bonus picks, the live knockout picks, and (when supplied) the
+ * bonus score prediction points already awarded in the DB.
  * Returns a per-slice breakdown so the Overall / Bracket / Live leaderboard
  * views can each rank on their own number. Deterministic + side-effect free.
  */
@@ -41,6 +56,7 @@ export function scorePredictions(
   results: Results,
   settings: Settings,
   livePicks: LivePick[] = [],
+  scorePredictionBonus: number = 0,
 ): ScoreResult {
   const w = settings.weights;
   const lines: ScoreLine[] = [];
@@ -92,6 +108,11 @@ export function scorePredictions(
     }
   }
 
+  // ─── LatAm + Spain Score Prediction Bonus ───
+  if (scorePredictionBonus > 0) {
+    lines.push({ label: "Score picks", points: scorePredictionBonus, group: "score-pick" });
+  }
+
   // ─── Live Knockout Picks ───
   // Engine-level invariants, independent of how the picks were written: score
   // each match at most once, and double at most ONE correct High Conviction
@@ -118,8 +139,9 @@ export function scorePredictions(
   const bracket = sum("bracket");
   const bonus = sum("bonus");
   const live = sum("live");
+  const scorePick = sum("score-pick");
 
-  return { bracket, bonus, live, total: bracket + bonus + live, lines };
+  return { bracket, bonus, live, scorePick, total: bracket + bonus + live + scorePick, lines };
 }
 
 /**

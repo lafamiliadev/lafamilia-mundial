@@ -2,7 +2,7 @@ import "server-only";
 import { supabaseAdmin } from "../supabase/admin";
 import { baseSlug, uniqueSlug } from "../slug";
 import { DEFAULT_SETTINGS, DEFAULT_WEIGHTS, EMPTY_RESULTS } from "../types";
-import type { BonusPicks, DailyPick, LivePick, Participant, Predictions, Results, Settings } from "../types";
+import type { BonusPicks, DailyPick, LivePick, Participant, Predictions, Results, ScoreMatch, ScorePrediction, Settings } from "../types";
 import type {
   ContentItem,
   CreateParticipantInput,
@@ -61,6 +61,33 @@ function toParticipant(row: ParticipantRow, pred?: PredictionRow | null): Partic
     city: row.city ?? null,
     createdAt: row.created_at,
     predictions: toPredictions(pred),
+  };
+}
+
+function toScoreMatch(r: Record<string, unknown>): ScoreMatch {
+  return {
+    matchId: r.match_id as string,
+    teamA: r.team_a as string,
+    teamB: r.team_b as string,
+    eligibleTeam: r.eligible_team as string,
+    kickoffUtc: r.kickoff_utc as string,
+    displayTimeEt: r.display_time_et as string,
+    displayTimePt: r.display_time_pt as string,
+    finalScoreA: r.final_score_a as number | null,
+    finalScoreB: r.final_score_b as number | null,
+  };
+}
+
+function toScorePrediction(r: Record<string, unknown>): ScorePrediction {
+  return {
+    id: r.id as string,
+    participantId: r.participant_id as string,
+    matchId: r.match_id as string,
+    scoreA: r.score_a as number,
+    scoreB: r.score_b as number,
+    pointsAwarded: r.points_awarded as number | null,
+    submittedAt: r.submitted_at as string,
+    updatedAt: r.updated_at as string,
   };
 }
 
@@ -291,11 +318,12 @@ export const supabaseRepo: Repo = {
     const { data } = await db.from("scores").select("*");
     const out: Record<string, Omit<ScoreRow, "participantId">> = {};
     for (const r of data ?? []) {
-      const row = r as { bracket_points: number | null; bonus_points: number | null; live_points: number | null; total: number; rank: number; previous_rank: number | null; start_rank: number | null; participant_id: string };
+      const row = r as { bracket_points: number | null; bonus_points: number | null; live_points: number | null; score_pick_points: number | null; total: number; rank: number; previous_rank: number | null; start_rank: number | null; participant_id: string };
       out[row.participant_id] = {
         bracket: row.bracket_points ?? 0,
         bonus: row.bonus_points ?? 0,
         live: row.live_points ?? 0,
+        scorePick: row.score_pick_points ?? 0,
         total: row.total,
         rank: row.rank,
         previousRank: row.previous_rank ?? 0,
@@ -312,6 +340,7 @@ export const supabaseRepo: Repo = {
         bracket_points: r.bracket,
         bonus_points: r.bonus,
         live_points: r.live,
+        score_pick_points: r.scorePick,
         total: r.total,
         rank: r.rank,
         previous_rank: r.previousRank,
@@ -348,6 +377,134 @@ export const supabaseRepo: Repo = {
   async saveDailyPicks(participantId, picks) {
     const db = supabaseAdmin();
     await db.from("daily_picks").upsert({ participant_id: participantId, picks }, { onConflict: "participant_id" });
+  },
+
+  async getScoreMatches() {
+    const db = supabaseAdmin();
+    const { data } = await db.from("score_matches").select("*").order("kickoff_utc", { ascending: true });
+    return (data ?? []).map(toScoreMatch);
+  },
+
+  async getUpcomingScoreMatches(nowIso, withinHours = 24) {
+    const db = supabaseAdmin();
+    const cutoff = new Date(new Date(nowIso).getTime() + withinHours * 60 * 60 * 1000).toISOString();
+    const { data } = await db
+      .from("score_matches")
+      .select("*")
+      .gt("kickoff_utc", nowIso)
+      .lte("kickoff_utc", cutoff)
+      .order("kickoff_utc", { ascending: true });
+    return (data ?? []).map(toScoreMatch);
+  },
+
+  async getScoreMatch(matchId) {
+    const db = supabaseAdmin();
+    const { data } = await db.from("score_matches").select("*").eq("match_id", matchId).maybeSingle();
+    return data ? toScoreMatch(data) : null;
+  },
+
+  async getScorePrediction(participantId, matchId) {
+    const db = supabaseAdmin();
+    const { data } = await db
+      .from("score_predictions")
+      .select("*")
+      .eq("participant_id", participantId)
+      .eq("match_id", matchId)
+      .maybeSingle();
+    return data ? toScorePrediction(data) : null;
+  },
+
+  async upsertScorePrediction({ participantId, matchId, scoreA, scoreB }) {
+    const db = supabaseAdmin();
+    const { data, error } = await db
+      .from("score_predictions")
+      .upsert(
+        {
+          participant_id: participantId,
+          match_id: matchId,
+          score_a: scoreA,
+          score_b: scoreB,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "participant_id,match_id" },
+      )
+      .select()
+      .single();
+    if (error || !data) throw error ?? new Error("Failed to save score prediction");
+    return toScorePrediction(data);
+  },
+
+  async getScorePredictionTotals() {
+    const db = supabaseAdmin();
+    const { data } = await db
+      .from("score_predictions")
+      .select("participant_id, points_awarded")
+      .not("points_awarded", "is", null);
+    const totals: Record<string, number> = {};
+    for (const r of data ?? []) {
+      const row = r as { participant_id: string; points_awarded: number };
+      totals[row.participant_id] = (totals[row.participant_id] ?? 0) + (row.points_awarded ?? 0);
+    }
+    return totals;
+  },
+
+  async scoreMatch(matchId, finalScoreA, finalScoreB) {
+    const db = supabaseAdmin();
+    // Store the final score.
+    await db
+      .from("score_matches")
+      .update({ final_score_a: finalScoreA, final_score_b: finalScoreB })
+      .eq("match_id", matchId);
+    // Fetch all unscored predictions for this match.
+    const { data: preds } = await db
+      .from("score_predictions")
+      .select("id, score_a, score_b")
+      .eq("match_id", matchId)
+      .is("points_awarded", null);
+    if (!preds || preds.length === 0) return { scored: 0 };
+    const actualResult = Math.sign(finalScoreA - finalScoreB);
+    let scored = 0;
+    for (const p of preds) {
+      const pred = p as { id: string; score_a: number; score_b: number };
+      let pts: number;
+      if (pred.score_a === finalScoreA && pred.score_b === finalScoreB) {
+        pts = 3;
+      } else if (Math.sign(pred.score_a - pred.score_b) === actualResult) {
+        pts = 1;
+      } else {
+        pts = 0;
+      }
+      await db.from("score_predictions").update({ points_awarded: pts }).eq("id", pred.id);
+      scored++;
+    }
+    return { scored };
+  },
+
+  async hasReceivedScoreEmail(participantId, templateId) {
+    const db = supabaseAdmin();
+    const { data } = await db
+      .from("score_email_log")
+      .select("id")
+      .eq("participant_id", participantId)
+      .eq("template_id", templateId)
+      .maybeSingle();
+    return Boolean(data);
+  },
+
+  async logScoreEmail(participantId, templateId, status) {
+    const db = supabaseAdmin();
+    await db
+      .from("score_email_log")
+      .upsert({ participant_id: participantId, template_id: templateId, status }, { onConflict: "participant_id,template_id" });
+  },
+
+  async getScoreEmailRecipients(templateId) {
+    const db = supabaseAdmin();
+    const { data } = await db
+      .from("score_email_log")
+      .select("participant_id")
+      .eq("template_id", templateId);
+    return new Set((data ?? []).map((r) => (r as { participant_id: string }).participant_id));
   },
 
   async listContent() {

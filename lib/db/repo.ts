@@ -1,4 +1,4 @@
-import type { DailyPick, LivePick, Participant, Predictions, Results, Settings } from "../types";
+import type { DailyPick, LivePick, Participant, Predictions, Results, ScoreMatch, ScorePrediction, Settings } from "../types";
 
 export type CreateParticipantInput = {
   name: string;
@@ -21,10 +21,12 @@ export type UpdateInput = {
 
 export type ScoreRow = {
   participantId: string;
-  /** Per-competition slices (Overall = bracket + bonus + live). */
+  /** Per-competition slices (total = bracket + bonus + live + scorePick). */
   bracket: number;
   bonus: number;
   live: number;
+  /** LatAm + Spain score prediction bonus — stored separately from bonus picks. */
+  scorePick: number;
   total: number;
   rank: number;
   /** Rank at the previous scoring run — powers ▲/▼ movement (0 = no prior rank). */
@@ -78,4 +80,30 @@ export interface Repo {
 
   listContent(): Promise<ContentItem[]>;
   addContent(items: Omit<ContentItem, "id" | "createdAt">[]): Promise<void>;
+
+  // ── Score Predictions (bonus pick of the day) ──
+  getScoreMatches(): Promise<ScoreMatch[]>;
+  /** Matches whose kickoff_utc is within the next `withinHours` hours and has not passed. */
+  getUpcomingScoreMatches(nowIso: string, withinHours?: number): Promise<ScoreMatch[]>;
+  getScoreMatch(matchId: string): Promise<ScoreMatch | null>;
+  getScorePrediction(participantId: string, matchId: string): Promise<ScorePrediction | null>;
+  upsertScorePrediction(input: {
+    participantId: string;
+    matchId: string;
+    scoreA: number;
+    scoreB: number;
+  }): Promise<ScorePrediction>;
+  /** Sum of all awarded score prediction points per participant_id. */
+  getScorePredictionTotals(): Promise<Record<string, number>>;
+  /**
+   * Set the final score for a match and compute points_awarded for every
+   * prediction on it. Idempotent: predictions where points_awarded is already
+   * set are skipped. Returns the number of predictions scored.
+   */
+  scoreMatch(matchId: string, finalScoreA: number, finalScoreB: number): Promise<{ scored: number }>;
+
+  hasReceivedScoreEmail(participantId: string, templateId: string): Promise<boolean>;
+  logScoreEmail(participantId: string, templateId: string, status: string): Promise<void>;
+  /** All participant IDs that have already received a given email template. */
+  getScoreEmailRecipients(templateId: string): Promise<Set<string>>;
 }

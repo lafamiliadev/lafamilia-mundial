@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { rankParticipants, scorePredictions } from "./scoring";
+import { rankParticipants, scoreMatchPrediction, scorePredictions } from "./scoring";
 import { DEFAULT_SETTINGS, EMPTY_RESULTS } from "./types";
 import type { LivePick, Predictions, Results } from "./types";
 
@@ -281,10 +281,9 @@ describe("scorePredictions — engine self-protects against bad input", () => {
   it("never double-counts a duplicated semifinalist", () => {
     const predictions: Predictions = {
       ...blankPrediction,
-      semifinalists: ["BRA", "BRA", "FRA", "ESP"], // BRA duplicated (validation normally blocks this)
+      semifinalists: ["BRA", "BRA", "FRA", "ESP"],
     };
     const results: Results = { ...EMPTY_RESULTS, stageReached: { sf: ["BRA", "FRA", "GER", "NED"] } };
-    // BRA + FRA are correct, but BRA must score once → 2 × semifinalist, not 3.
     expect(scorePredictions(predictions, results, DEFAULT_SETTINGS).bracket).toBe(W.semifinalist * 2);
   });
 
@@ -299,12 +298,55 @@ describe("scorePredictions — engine self-protects against bad input", () => {
 
   it("doubles at most one High Conviction pick per round", () => {
     const results: Results = { ...EMPTY_RESULTS, matchWinners: { a: "BRA", b: "FRA" } };
-    // Two ⚡ picks in the same round (invalid) — only one may double.
     const picks: LivePick[] = [
       { matchId: "a", round: "qf", team: "BRA", highConviction: true },
       { matchId: "b", round: "qf", team: "FRA", highConviction: true },
     ];
-    // qf base 4: one doubled (8) + one base (4) = 12, NOT 16.
     expect(scorePredictions(blankPrediction, results, DEFAULT_SETTINGS, picks).live).toBe(W.liveQf * 2 + W.liveQf);
+  });
+});
+
+describe("scoreMatchPrediction — bonus score picks", () => {
+  it("awards 3 for an exact score", () => {
+    expect(scoreMatchPrediction({ scoreA: 2, scoreB: 1 }, { scoreA: 2, scoreB: 1 })).toBe(3);
+  });
+
+  it("awards 1 for correct winner (not exact)", () => {
+    expect(scoreMatchPrediction({ scoreA: 1, scoreB: 0 }, { scoreA: 2, scoreB: 1 })).toBe(1);
+  });
+
+  it("awards 1 for correct draw (not exact)", () => {
+    expect(scoreMatchPrediction({ scoreA: 0, scoreB: 0 }, { scoreA: 1, scoreB: 1 })).toBe(1);
+  });
+
+  it("awards 3 for exact 0-0 draw", () => {
+    expect(scoreMatchPrediction({ scoreA: 0, scoreB: 0 }, { scoreA: 0, scoreB: 0 })).toBe(3);
+  });
+
+  it("awards 0 for predicted win but actual draw", () => {
+    expect(scoreMatchPrediction({ scoreA: 2, scoreB: 1 }, { scoreA: 1, scoreB: 1 })).toBe(0);
+  });
+
+  it("awards 0 for predicted draw but actual win", () => {
+    expect(scoreMatchPrediction({ scoreA: 1, scoreB: 1 }, { scoreA: 2, scoreB: 0 })).toBe(0);
+  });
+
+  it("awards 0 for predicted wrong team winning", () => {
+    expect(scoreMatchPrediction({ scoreA: 0, scoreB: 1 }, { scoreA: 2, scoreB: 1 })).toBe(0);
+  });
+
+  it("scorePredictions includes score prediction bonus in the scorePick slice (not bonus)", () => {
+    const r = scorePredictions(blankPrediction, EMPTY_RESULTS, DEFAULT_SETTINGS, [], 4);
+    expect(r.scorePick).toBe(4);
+    expect(r.bonus).toBe(0);
+    expect(r.total).toBe(4);
+    expect(r.lines.some((l) => l.label === "Score picks" && l.group === "score-pick")).toBe(true);
+  });
+
+  it("scorePredictions with zero bonus adds nothing", () => {
+    const r = scorePredictions(blankPrediction, EMPTY_RESULTS, DEFAULT_SETTINGS, [], 0);
+    expect(r.scorePick).toBe(0);
+    expect(r.bonus).toBe(0);
+    expect(r.lines.find((l) => l.label === "Score picks")).toBeUndefined();
   });
 });

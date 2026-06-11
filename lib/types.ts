@@ -202,14 +202,43 @@ export const EMPTY_RESULTS: Results = {
 };
 
 /** Per-competition slice of a participant's score. */
-export type ScoreLine = { label: string; points: number; group: "bracket" | "bonus" | "live" };
+export type ScoreLine = { label: string; points: number; group: "bracket" | "bonus" | "live" | "score-pick" };
 
 export type ScoreResult = {
-  bracket: number; // original bracket points
-  bonus: number; // bonus picks points
-  live: number; // live knockout points
-  total: number;
+  bracket: number;   // original bracket points
+  bonus: number;     // bonus picks (Golden Ball/Boot/Glove + Dark Horse)
+  live: number;      // live knockout picks
+  scorePick: number; // LatAm + Spain score prediction bonus points (separate slice)
+  total: number;     // bracket + bonus + live + scorePick
   lines: ScoreLine[];
+};
+
+/** An eligible World Cup match for bonus score predictions. */
+export type ScoreMatch = {
+  matchId: string;
+  teamA: string;
+  teamB: string;
+  eligibleTeam: string;
+  kickoffUtc: string;
+  displayTimeEt: string;
+  displayTimePt: string;
+  finalScoreA: number | null;
+  finalScoreB: number | null;
+};
+
+/** A member's predicted scoreline for one eligible match. */
+export type ScorePrediction = {
+  id: string;
+  participantId: string;
+  matchId: string;
+  /** Score for team_a (home/first listed). */
+  scoreA: number;
+  /** Score for team_b (away/second listed). */
+  scoreB: number;
+  /** null = not yet scored. 0 = wrong result. 1 = correct result only. 3 = exact score. */
+  pointsAwarded: number | null;
+  submittedAt: string;
+  updatedAt: string;
 };
 
 export type LeaderboardRow = {

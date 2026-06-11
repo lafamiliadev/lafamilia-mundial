@@ -271,6 +271,53 @@ export function renderWrap(p: { firstName: string; champion: string; rank: numbe
   return emailShell({ preheader: p.isWinner ? "You won La Copa de LaFamilia." : `You finished #${p.rank} in the Familia.`, body });
 }
 
+// ── 11. Bonus score pick announcement ────────────────────────────────
+export const SCORE_PICK_ANNOUNCEMENT_TEMPLATE_ID = "score-picks-announcement-2026-06-11";
+export const SCORE_PICK_ANNOUNCEMENT_SUBJECT = "New today: bonus score picks ⚽️";
+
+export function renderScorePickAnnouncement(p: { appUrl: string }): string {
+  const ctaUrl = "wc26.lafamiliafoundation.com";
+  const body = `
+  <tr><td style="padding:32px 28px 6px;font-family:${SANS};">
+    <div style="font-size:34px;">⚽</div>
+    <h1 style="margin:10px 0 0;font-size:26px;font-weight:800;color:${INK};">Familiaaaa, surprise bonus round ⚽️</h1>
+    <p style="margin:12px 0 0;font-size:16px;line-height:1.6;color:${MUTED};">
+      Starting today, you can earn extra points by predicting the exact score for select World Cup matches.
+    </p>
+    <p style="margin:12px 0 0;font-size:16px;line-height:1.6;color:${MUTED};">
+      We&rsquo;re keeping it very LaFamilia: LatAm teams + Spain only.
+    </p>
+  </td></tr>
+  <tr><td style="padding:20px 28px 0;font-family:${SANS};">
+    <div style="background:${PAGE};border-radius:14px;padding:18px 20px;">
+      <p style="margin:0;font-size:15px;font-weight:700;color:${INK};">First up: Mexico vs South Africa</p>
+      <p style="margin:6px 0 0;font-size:14px;color:${MUTED};">Kickoff is today at 12:00 p.m. PT / 3:00 p.m. ET</p>
+      <p style="margin:14px 0 0;font-size:14px;color:${MUTED};">Lock your score before kickoff:</p>
+      <p style="margin:6px 0 0;font-size:15px;font-weight:700;color:${INK};">Mexico __ &mdash; __ South Africa</p>
+    </div>
+  </td></tr>
+  <tr><td style="padding:18px 28px 0;font-family:${SANS};">
+    <p style="margin:0;font-size:15px;line-height:1.6;color:${MUTED};">
+      Exact score gets you <strong style="color:${INK};">3 bonus points</strong>.<br>
+      Correct winner or draw gets you <strong style="color:${INK};">1 bonus point</strong>.
+    </p>
+    <p style="margin:12px 0 0;font-size:15px;line-height:1.6;color:${MUTED};">
+      No soccer expertise required. Honestly, vibes may be just as accurate.
+    </p>
+  </td></tr>
+  <tr><td style="padding:22px 28px 6px;">${emailButton(`https://${ctaUrl}`, "Make your bonus pick", { bg: GREEN, color: "#ffffff" })}</td></tr>
+  <tr><td style="padding:18px 28px 0;font-family:${SANS};">
+    <p style="margin:0;font-size:15px;line-height:1.6;color:${MUTED};">Vamos,<br><strong style="color:${INK};">LaFamilia</strong></p>
+  </td></tr>
+  <tr><td style="padding:10px 28px 6px;font-family:${SANS};">
+    <p style="margin:0;font-size:12px;color:${MUTED};text-align:center;">A community game, not betting.</p>
+  </td></tr>`;
+  return emailShell({
+    preheader: "Predict Mexico vs South Africa before kickoff and earn bonus points.",
+    body,
+  });
+}
+
 // ── Sample set (for previews + test sends) ───────────────────────────
 export type SampleEmail = { key: string; label: string; subject: string; html: string };
 

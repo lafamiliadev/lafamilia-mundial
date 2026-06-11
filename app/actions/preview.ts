@@ -1,6 +1,5 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 import { db } from "@/lib/db";
 import { recomputeScores } from "@/lib/services";
@@ -79,7 +78,6 @@ export async function applyPreviewStage(key: PreviewStageKey): Promise<void> {
     /* dev store only — ignore */
   }
 
-  revalidatePath("/", "layout");
 }
 
 /** Dev-only: clear preview (back to the real clock + empty results). */
@@ -93,5 +91,4 @@ export async function clearPreview(): Promise<void> {
   } catch {
     /* ignore */
   }
-  revalidatePath("/", "layout");
 }

@@ -99,7 +99,7 @@ export default async function LeaderboardPage({
   const token = meParam ?? (await getSessionToken()) ?? undefined;
   const view: LeaderboardView =
     rawView === "bracket" || rawView === "live" ? rawView : "overall";
-  const { total, all, me, leaderTotal, meGapToNext, scoringStarted } =
+  const { total, all, me, leaderTotal, meGapToNext, scoringStarted, meScoreBreakdown } =
     await getLeaderboardData(token, 10, view);
   const inviters = await getFamiliaInviters(10, token);
   const nowMs = (await now()).getTime();
@@ -280,6 +280,19 @@ export default async function LeaderboardPage({
                 </p>
                 <div className="card overflow-hidden">
                   <Lane r={me} leaderTotal={leaderTotal} />
+                  {meScoreBreakdown && (
+                    <div className="border-t border-[var(--color-line)] px-4 py-2.5">
+                      <p className="text-xs text-[var(--color-muted)]">
+                        <span className="font-semibold text-[var(--color-ink)]">Breakdown</span>
+                        {" · "}Bracket <strong>{meScoreBreakdown.bracket}</strong>
+                        {" · "}Bonus picks <strong>{meScoreBreakdown.bonus}</strong>
+                        {" · "}Live <strong>{meScoreBreakdown.live}</strong>
+                        {meScoreBreakdown.scorePick > 0 && (
+                          <> · Score predictions <strong>{meScoreBreakdown.scorePick}</strong></>
+                        )}
+                      </p>
+                    </div>
+                  )}
                 </div>
                 {meGapToNext != null && meGapToNext > 0 && (
                   <p className="mt-2 text-center text-sm font-semibold text-[var(--color-ink)]">

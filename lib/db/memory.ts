@@ -3,7 +3,7 @@ import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { DEFAULT_SETTINGS, DEFAULT_WEIGHTS, EMPTY_RESULTS } from "../types";
 import { baseSlug, uniqueSlug } from "../slug";
-import type { DailyPick, LivePick, Participant, Predictions, Results, Settings } from "../types";
+import type { DailyPick, LivePick, Participant, Predictions, Results, ScoreMatch, ScorePrediction, Settings } from "../types";
 import type {
   ContentItem,
   CreateParticipantInput,
@@ -23,6 +23,9 @@ type Shape = {
   livePicks: Record<string, LivePick[]>;
   dailyPicks: Record<string, DailyPick[]>;
   content: ContentItem[];
+  scoreMatches: ScoreMatch[];
+  scorePredictions: ScorePrediction[];
+  scoreEmailLog: Array<{ participantId: string; templateId: string; status: string }>;
 };
 
 const DATA_DIR = path.join(process.cwd(), ".data");
@@ -36,6 +39,9 @@ const EMPTY_SHAPE = (): Shape => ({
   livePicks: {},
   dailyPicks: {},
   content: [],
+  scoreMatches: [],
+  scorePredictions: [],
+  scoreEmailLog: [],
 });
 
 // Backfill fields added after some dev entries were already written, so old
@@ -249,6 +255,7 @@ export const memoryRepo: Repo = {
         bracket: r.bracket,
         bonus: r.bonus,
         live: r.live,
+        scorePick: r.scorePick,
         total: r.total,
         rank: r.rank,
         previousRank: r.previousRank,
@@ -292,5 +299,127 @@ export const memoryRepo: Repo = {
       createdAt: now,
     }));
     await persist({ ...data, content: [...data.content, ...newItems] });
+  },
+
+  async getScoreMatches() {
+    return [...((await load()).scoreMatches ?? [])].sort((a, b) =>
+      a.kickoffUtc.localeCompare(b.kickoffUtc),
+    );
+  },
+
+  async getUpcomingScoreMatches(nowIso, withinHours = 24) {
+    const cutoff = new Date(new Date(nowIso).getTime() + withinHours * 60 * 60 * 1000).toISOString();
+    const data = await load();
+    return (data.scoreMatches ?? [])
+      .filter((m) => m.kickoffUtc > nowIso && m.kickoffUtc <= cutoff)
+      .sort((a, b) => a.kickoffUtc.localeCompare(b.kickoffUtc));
+  },
+
+  async getScoreMatch(matchId) {
+    const data = await load();
+    return (data.scoreMatches ?? []).find((m) => m.matchId === matchId) ?? null;
+  },
+
+  async getScorePrediction(participantId, matchId) {
+    const data = await load();
+    return (data.scorePredictions ?? []).find(
+      (p) => p.participantId === participantId && p.matchId === matchId,
+    ) ?? null;
+  },
+
+  async upsertScorePrediction({ participantId, matchId, scoreA, scoreB }) {
+    const data = await load();
+    const now = new Date().toISOString();
+    const existing = (data.scorePredictions ?? []).findIndex(
+      (p) => p.participantId === participantId && p.matchId === matchId,
+    );
+    let pred: ScorePrediction;
+    if (existing >= 0) {
+      pred = { ...data.scorePredictions[existing], scoreA, scoreB, updatedAt: now };
+      data.scorePredictions[existing] = pred;
+    } else {
+      pred = {
+        id: randomUUID(),
+        participantId,
+        matchId,
+        scoreA,
+        scoreB,
+        pointsAwarded: null,
+        submittedAt: now,
+        updatedAt: now,
+      };
+      data.scorePredictions = [...(data.scorePredictions ?? []), pred];
+    }
+    await persist(data);
+    return pred;
+  },
+
+  async getScorePredictionTotals() {
+    const data = await load();
+    const totals: Record<string, number> = {};
+    for (const p of data.scorePredictions ?? []) {
+      if (p.pointsAwarded != null) {
+        totals[p.participantId] = (totals[p.participantId] ?? 0) + p.pointsAwarded;
+      }
+    }
+    return totals;
+  },
+
+  async scoreMatch(matchId, finalScoreA, finalScoreB) {
+    const data = await load();
+    const matches = data.scoreMatches ?? [];
+    const matchIdx = matches.findIndex((m) => m.matchId === matchId);
+    if (matchIdx >= 0) {
+      matches[matchIdx] = { ...matches[matchIdx], finalScoreA, finalScoreB };
+    }
+    const actualResult = Math.sign(finalScoreA - finalScoreB);
+    let scored = 0;
+    const preds = data.scorePredictions ?? [];
+    for (let i = 0; i < preds.length; i++) {
+      const p = preds[i];
+      if (p.matchId !== matchId || p.pointsAwarded != null) continue;
+      let pts: number;
+      if (p.scoreA === finalScoreA && p.scoreB === finalScoreB) {
+        pts = 3;
+      } else if (Math.sign(p.scoreA - p.scoreB) === actualResult) {
+        pts = 1;
+      } else {
+        pts = 0;
+      }
+      preds[i] = { ...p, pointsAwarded: pts };
+      scored++;
+    }
+    await persist({ ...data, scoreMatches: matches, scorePredictions: preds });
+    return { scored };
+  },
+
+  async hasReceivedScoreEmail(participantId, templateId) {
+    const data = await load();
+    return (data.scoreEmailLog ?? []).some(
+      (e) => e.participantId === participantId && e.templateId === templateId,
+    );
+  },
+
+  async logScoreEmail(participantId, templateId, status) {
+    const data = await load();
+    const log = data.scoreEmailLog ?? [];
+    const existing = log.findIndex(
+      (e) => e.participantId === participantId && e.templateId === templateId,
+    );
+    if (existing >= 0) {
+      log[existing] = { participantId, templateId, status };
+    } else {
+      log.push({ participantId, templateId, status });
+    }
+    await persist({ ...data, scoreEmailLog: log });
+  },
+
+  async getScoreEmailRecipients(templateId) {
+    const data = await load();
+    return new Set(
+      (data.scoreEmailLog ?? [])
+        .filter((e) => e.templateId === templateId)
+        .map((e) => e.participantId),
+    );
   },
 };

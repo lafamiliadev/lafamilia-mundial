@@ -111,10 +111,14 @@ export async function recomputeScores(
   const participants = await repo.listParticipants();
   const actualFinalGoals = null; // could be derived from results in future
   const prevScores = await repo.getScores();
-  const allLivePicks = await repo.listLivePicks(); // empty until Phase 2
+  const [allLivePicks, scorePredictionTotals] = await Promise.all([
+    repo.listLivePicks(),
+    repo.getScorePredictionTotals(),
+  ]);
 
   const scored = participants.map((p) => {
-    const s = scorePredictions(p.predictions, merged, settings, allLivePicks[p.id] ?? []);
+    const spBonus = scorePredictionTotals[p.id] ?? 0;
+    const s = scorePredictions(p.predictions, merged, settings, allLivePicks[p.id] ?? [], spBonus);
     return {
       participantId: p.id,
       name: p.name,
@@ -122,6 +126,7 @@ export async function recomputeScores(
       bracket: s.bracket,
       bonus: s.bonus,
       live: s.live,
+      scorePick: s.scorePick,
       finalTotalGoals: p.predictions.finalTotalGoals,
       // Tie-break inputs (spec order): champion → live picks → goals → submission.
       championCorrect: Boolean(merged.champion) && p.predictions.champion === merged.champion,
@@ -147,6 +152,7 @@ export async function recomputeScores(
         bracket: s.bracket,
         bonus: s.bonus,
         live: s.live,
+        scorePick: s.scorePick,
         total: s.total,
         rank: newRank,
         previousRank: prev?.rank ?? 0,
@@ -164,6 +170,14 @@ export async function recomputeScores(
   };
 }
 
+export type ScoreBreakdown = {
+  bracket: number;
+  bonus: number;
+  live: number;
+  scorePick: number;
+  total: number;
+};
+
 export type LeaderboardData = {
   total: number;
   /** The first `topN` ranked rows (podium + first chasers). */
@@ -178,6 +192,8 @@ export type LeaderboardData = {
   meGapToNext: number | null;
   /** True once any points have been scored (drives "starting line" vs race UI). */
   scoringStarted: boolean;
+  /** Score breakdown for the viewer (bracket / bonus picks / live / score predictions). */
+  meScoreBreakdown: ScoreBreakdown | null;
 };
 
 export type LeaderboardView = "overall" | "bracket" | "live";
@@ -265,15 +281,26 @@ export async function getLeaderboardData(
 
   let me: LeaderboardRow | null = null;
   let meGapToNext: number | null = null;
+  let meScoreBreakdown: ScoreBreakdown | null = null;
   if (meId) {
     const meIdx = rows.findIndex((r) => r.id === meId);
     if (meIdx >= 0) {
       me = withDelta(rows[meIdx]);
       if (meIdx > 0) meGapToNext = rows[meIdx - 1].total - rows[meIdx].total;
+      const s = scores[meId];
+      if (s) {
+        meScoreBreakdown = {
+          bracket: s.bracket,
+          bonus: s.bonus,
+          live: s.live,
+          scorePick: s.scorePick ?? 0,
+          total: s.total,
+        };
+      }
     }
   }
 
-  return { total: participants.length, top, all, me, leaderTotal, meGapToNext, scoringStarted };
+  return { total: participants.length, top, all, me, leaderTotal, meGapToNext, scoringStarted, meScoreBreakdown };
 }
 
 /** La Familia Honors — derived from everyone's picks + final scores. */

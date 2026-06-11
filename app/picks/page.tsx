@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { PicksSummary } from "@/components/PicksSummary";
 import { LinkButton, PageShell, SectionTitle, TopNav } from "@/components/ui";
 import { db } from "@/lib/db";
 import { LIVE_PICKS_ENABLED } from "@/lib/flags";
@@ -53,11 +54,14 @@ export default async function PicksHubPage({
   }
 
   const settings = await repo.getSettings();
-  const nowMs = (await now()).getTime();
-  const status = pickStatus(new Date(nowMs), settings.lockTime);
+  const nowD = await now();
+  const nowMs = nowD.getTime();
+  const nowIso = nowD.toISOString();
+  const status = pickStatus(nowD, settings.lockTime);
   const bonus = me.predictions.bonus ?? EMPTY_BONUS;
   const bonusFilled = Object.values(bonus).filter(Boolean).length;
   const bonusOpen = status.state === "bonus-open";
+  const upcomingScoreMatches = await repo.getUpcomingScoreMatches(nowIso, 24);
 
   // Live Picks are testable locally via the preview clock before the flag flips.
   const livePlayable = LIVE_PICKS_ENABLED || PREVIEW_ENABLED;
@@ -89,6 +93,37 @@ export default async function PicksHubPage({
         <p className="mb-2 text-xs font-bold uppercase tracking-wider text-[var(--color-muted)]">
           Open now
         </p>
+
+        {upcomingScoreMatches.length > 0 && (
+          <Link
+            href="/picks/score"
+            className="card mb-3 block overflow-hidden border-2 border-[var(--color-gold)] shadow-sm transition hover:shadow-md"
+          >
+            <div className="flex items-center gap-4 p-4">
+              <span
+                className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl text-3xl shadow-sm"
+                style={{ background: "linear-gradient(135deg, var(--color-gold-soft) 0%, var(--color-gold) 100%)" }}
+              >
+                ⚽
+              </span>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <p className="font-bold">Bonus score pick</p>
+                  <span className="shrink-0 rounded-full bg-[var(--color-gold-soft)]/70 px-2 py-0.5 text-xs font-extrabold text-[#3a2b00]">
+                    +3 pts
+                  </span>
+                </div>
+                <p className="mt-0.5 text-sm text-[var(--color-muted)]">
+                  LatAm + Spain · {upcomingScoreMatches[0].teamA} vs {upcomingScoreMatches[0].teamB} · {upcomingScoreMatches[0].displayTimePt}
+                </p>
+              </div>
+              <span className="shrink-0 text-lg text-[var(--color-gold)]">›</span>
+            </div>
+            <div className="bg-[var(--color-gold)] px-4 py-2.5 text-center text-sm font-bold text-[#3a2b00]">
+              Lock my score →
+            </div>
+          </Link>
+        )}
 
         {bonusOpen ? (
           <Link
@@ -169,22 +204,26 @@ export default async function PicksHubPage({
           </div>
         )}
 
-        {/* Bracket — done + locked context */}
-        <Link
-          href={`/r/${me.resumeToken}`}
-          className="card mb-6 flex items-center gap-4 p-4 transition hover:shadow-sm"
-        >
-          <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[var(--color-cream)] text-2xl">
-            ✅
-          </span>
-          <div className="min-w-0 flex-1">
-            <p className="font-bold">Your bracket is in</p>
-            <p className="text-sm text-[var(--color-muted)]">
-              {bonusOpen ? "Editable until kickoff." : "Locked for the tournament."}
-            </p>
+        {/* Bracket — your submitted picks, always visible (editable or locked) */}
+        <div className="card mb-6 overflow-hidden">
+          <div className="flex items-center gap-4 p-4">
+            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[var(--color-cream)] text-2xl">
+              {bonusOpen ? "✅" : "🔒"}
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="font-bold">Your bracket{bonusOpen ? " is in" : " is locked in"}</p>
+              <p className="text-sm text-[var(--color-muted)]">
+                {bonusOpen ? "Editable until kickoff." : "Locked for the tournament — here's what you picked."}
+              </p>
+            </div>
+            {bonusOpen && (
+              <Link href={`/r/${me.resumeToken}`} className="shrink-0 text-sm font-semibold text-[var(--color-pitch)]">
+                Edit ›
+              </Link>
+            )}
           </div>
-          {bonusOpen && <span className="shrink-0 text-sm font-semibold text-[var(--color-pitch)]">Edit ›</span>}
-        </Link>
+          <PicksSummary predictions={me.predictions} />
+        </div>
 
         {/* ── Coming next — only when Live Picks is actually playable. While it's
             off we don't list rounds users can't pick yet (no broken promises). ── */}
