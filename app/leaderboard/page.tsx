@@ -15,9 +15,9 @@ import { teamFlag } from "@/lib/teams";
 import { DEFAULT_WEIGHTS, type LeaderboardRow } from "@/lib/types";
 
 const VIEWS: { key: LeaderboardView; label: string }[] = [
-  { key: "overall", label: "Overall Race" },
+  { key: "overall", label: "Overall" },
   { key: "bracket", label: "Bracket" },
-  { key: "live", label: "Live Picks" },
+  { key: "live", label: "Knockouts" },
 ];
 
 function ViewTabs({ active, token }: { active: LeaderboardView; token?: string }) {
@@ -109,6 +109,10 @@ export default async function LeaderboardPage({
   const settings = await repo.getSettings();
   const honorsLive = settings.awardsRevealed ?? false;
   const w = settings.weights ?? DEFAULT_WEIGHTS;
+  // The next open score prediction — the live, do-it-now way to earn points
+  // during the group stage. Drives the "Predict the next score" action card.
+  const nextScoreMatch =
+    (await repo.getUpcomingScoreMatches(new Date(nowMs).toISOString(), 48))[0] ?? null;
 
   // Live Picks isn't playable yet (LIVE_PICKS_ENABLED) — and even once it is, the
   // board is empty until the first knockout round locks. Either way, show a calm
@@ -118,9 +122,9 @@ export default async function LeaderboardPage({
   const liveComingSoon = view === "live" && (!livePlayable || !liveOpened);
 
   const viewBlurb: Record<LeaderboardView, string> = {
-    overall: livePlayable ? "Bracket + Bonus + Live Picks combined." : "Bracket + Bonus picks combined.",
-    bracket: "Your original 3-minute bracket only.",
-    live: "Coming later in the tournament.",
+    overall: "Your full score — every way you've earned points.",
+    bracket: "Your original bracket only.",
+    live: "Knockout picks — opens with the Round of 32.",
   };
 
   const podiumRows = all.slice(0, 3);
@@ -140,51 +144,51 @@ export default async function LeaderboardPage({
         <ViewTabs active={view} token={token} />
         <p className="-mt-2 mb-5 text-xs text-[var(--color-muted)]">{viewBlurb[view]}</p>
 
-        {/* Mission, front and center — supporting Siembra is why we play. */}
-        <div className="mb-5">
-          <SiembraBanner />
-        </div>
+        {/* Next action, near the top: earn points RIGHT NOW by predicting a score.
+            This is the live, do-it-today path during the group stage. */}
+        {nextScoreMatch && view !== "live" && (
+          <Link
+            href="/picks/score"
+            className="mb-3 block rounded-2xl bg-[var(--color-pitch)] px-4 py-4 text-white"
+          >
+            <p className="text-xs font-bold uppercase tracking-wider text-[var(--color-gold-soft)]">
+              ⚡ Earn points now
+            </p>
+            <p className="mt-1 text-lg font-black leading-tight">
+              Predict the score — {nextScoreMatch.teamA} vs {nextScoreMatch.teamB}
+            </p>
+            <p className="mt-0.5 text-sm text-white/85">
+              +3 for the exact score · +1 for the winner →
+            </p>
+          </Link>
+        )}
 
-        {/* Bringing the Familia — the invite competition. Alive before any match
-            is played, so it's the live race during the pre-tournament window. */}
-        <div className="mb-5">
-          <FamiliaInvitersBoard top={inviters.top} me={inviters.me} total={inviters.total} />
-        </div>
-
-        {/* Always link the Hall of Honors — before the finale it builds
-            anticipation (8 awards up for grabs), after it shows the winners. */}
-        <Link
-          href="/awards"
-          className="mb-5 flex items-center justify-between rounded-2xl bg-[var(--color-gold-soft)]/50 px-4 py-3 font-semibold"
-        >
-          <span>🏆 {honorsLive ? "The Familia Honors are in" : "8 Familia Honors up for grabs"}</span>
-          <span className="text-sm">{honorsLive ? "See the winners →" : "See them all →"}</span>
-        </Link>
-
-        {/* Next points drop — explained for someone new to soccer/fantasy. */}
+        {/* Next BIG points drop — the bracket milestone (group stage / Final Four /
+            Final). Secondary to the action card above. */}
         {nextDrop && view !== "live" && (
           <div className="mb-5 rounded-2xl bg-[var(--color-navy)] px-4 py-5 text-center text-white">
             <p className="text-xs font-bold uppercase tracking-wider text-[var(--color-gold-soft)]">
-              ⚡ {scoringStarted ? "Next points awarded in" : "First points awarded in"}
+              ⚡ {scoringStarted ? "Next big points in" : "First bracket points in"}
             </p>
             <div className="mt-3 flex justify-center">
               <Countdown lockTime={nextDrop.dateIso} />
             </div>
             <p className="mt-3 text-sm font-semibold">{nextDrop.whenLabel}</p>
             <p className="mt-1 text-xs text-white/75">
-              Up to {nextDrop.pointsInPlay} points available from {nextDrop.fromPicks}
+              Up to {nextDrop.pointsInPlay} points from {nextDrop.fromPicks}
             </p>
           </div>
         )}
 
+        {/* ── THE STANDINGS — the main event, front and center ── */}
         {liveComingSoon ? (
           <div className="card overflow-hidden">
             <div className="bg-[var(--color-navy)] px-5 py-7 text-center text-white">
               <p className="text-3xl">⚡</p>
-              <p className="mt-2 font-black">More ways to play are coming</p>
+              <p className="mt-2 font-black">Knockout picks are coming</p>
               <p className="mt-3 text-sm leading-relaxed text-white/85">
-                We&apos;re adding a new way to earn points during the tournament. For now, every point
-                from your bracket and Bonus Picks counts in the Overall race.
+                When the knockouts start, you&apos;ll pick who advances each round. For now, every
+                point from your bracket, Bonus Picks, and score predictions counts here.
               </p>
             </div>
           </div>
@@ -229,15 +233,15 @@ export default async function LeaderboardPage({
                       <span className="font-semibold">{w.champion}</span>
                     </li>
                     <li className="flex items-center justify-between gap-3">
-                      <span>🧹 All 12 groups right</span>
-                      <span className="font-semibold">+{w.groupSweepBonus}</span>
+                      <span>⚽ Predict a score</span>
+                      <span className="font-semibold">+3 each</span>
                     </li>
                   </ul>
                   <p className="mt-2 text-xs text-white/75">
                     Ties are broken by your goals-in-the-final guess.
                   </p>
                   <p className="mt-1 text-xs font-semibold">
-                    Sharpest read across the whole tournament wins — not just the champion.
+                    Keep earning all tournament — not just from your champion.
                   </p>
                 </div>
               </details>
@@ -287,7 +291,7 @@ export default async function LeaderboardPage({
                         <span className="font-semibold text-[var(--color-ink)]">Breakdown</span>
                         {" · "}Bracket <strong>{meScoreBreakdown.bracket}</strong>
                         {" · "}Bonus picks <strong>{meScoreBreakdown.bonus}</strong>
-                        {" · "}Live <strong>{meScoreBreakdown.live}</strong>
+                        {" · "}Knockouts <strong>{meScoreBreakdown.live}</strong>
                         {meScoreBreakdown.scorePick > 0 && (
                           <> · Score predictions <strong>{meScoreBreakdown.scorePick}</strong></>
                         )}
@@ -314,6 +318,40 @@ export default async function LeaderboardPage({
             to see your spot.
           </p>
         )}
+
+        {/* ── Secondary, below the race: honors, the separate Familia challenge,
+            and the mission. Moved down so the competition leads. ── */}
+        <div className="mt-10 space-y-4">
+          <Link
+            href="/awards"
+            className="flex items-center justify-between rounded-2xl bg-[var(--color-gold-soft)]/50 px-4 py-3 font-semibold"
+          >
+            <span>🏆 {honorsLive ? "The Familia Honors are in" : "8 Familia Honors up for grabs"}</span>
+            <span className="text-sm">{honorsLive ? "See the winners →" : "See them all →"}</span>
+          </Link>
+
+          {/* Bringing the Familia — a SEPARATE side challenge, tucked behind a
+              toggle so it doesn't compete with the main race. */}
+          <details className="overflow-hidden rounded-2xl border border-[var(--color-line)]">
+            <summary className="flex cursor-pointer list-none items-center justify-between px-4 py-3 [&::-webkit-details-marker]:hidden">
+              <span className="font-semibold">
+                🤝 Bringing the Familia{" "}
+                <span className="text-xs font-normal text-[var(--color-muted)]">
+                  · a separate side challenge
+                </span>
+              </span>
+              <span className="text-[var(--color-muted)]">▾</span>
+            </summary>
+            <div className="px-4 pb-4">
+              <p className="mb-3 text-xs text-[var(--color-muted)]">
+                A fun side game — these points don&apos;t count toward your main score.
+              </p>
+              <FamiliaInvitersBoard top={inviters.top} me={inviters.me} total={inviters.total} />
+            </div>
+          </details>
+
+          <SiembraBanner />
+        </div>
       </PageShell>
       <LedgerDrawer />
     </main>

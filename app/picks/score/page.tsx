@@ -7,14 +7,14 @@ import { ScoreForm } from "./ScoreForm";
 import type { ScoreMatch } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Bonus Score Pick · La Copa de LaFamilia 2026" };
+export const metadata = { title: "Predict the Score · La Copa de LaFamilia 2026" };
 
 function MatchCard({ match, isToday }: { match: ScoreMatch; isToday: boolean }) {
   return (
     <div className="card overflow-hidden">
       <div className="bg-[var(--color-pitch)] px-4 py-2 text-center">
         <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--color-gold-soft)]">
-          LatAm + Spain · {isToday ? "Today's bonus pick" : "Bonus pick of the day"}
+          LatAm + Spain · {isToday ? "Today's match" : "Score prediction"}
         </span>
       </div>
       <div className="px-5 py-4 text-center">
@@ -57,7 +57,7 @@ export default async function ScorePredictionPage() {
         <PageShell>
           <div className="card mt-10 p-8 text-center">
             <div className="text-5xl">⚽</div>
-            <h1 className="mt-3 text-xl font-extrabold tracking-tight">No bonus picks right now</h1>
+            <h1 className="mt-3 text-xl font-extrabold tracking-tight">No score to predict right now</h1>
             <p className="mt-2 text-sm text-[var(--color-muted)]">
               Check back when the next eligible match is coming up.
             </p>
@@ -80,13 +80,13 @@ export default async function ScorePredictionPage() {
       <PageShell>
         <div className="py-6">
           <p className="text-xs font-bold uppercase tracking-wider text-[var(--color-muted)]">
-            LatAm + Spain bonus matches
+            LatAm + Spain matches
           </p>
           <h1 className="mt-1 text-2xl font-extrabold tracking-tight text-[var(--color-ink)]">
             Predict the final score
           </h1>
           <p className="mt-1 text-sm text-[var(--color-muted)]">
-            Lock your score before kickoff and earn bonus points if you call it right.
+            Lock your score before kickoff and earn points if you call it right.
           </p>
         </div>
 

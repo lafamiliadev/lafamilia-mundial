@@ -78,10 +78,10 @@ export default async function Home() {
             };
     } else if (LIVE_PICKS_ENABLED && status.state === "round-open") {
       open = {
-        title: `${status.round.label} Live Picks are open`,
-        detail: `Pick the winners of ${status.round.plain}`,
+        title: `${status.round.label} — pick who advances`,
+        detail: `Pick who moves on in ${status.round.plain}`,
         pts: status.round.pointsInPlay,
-        action: "Make my Live Picks",
+        action: "Pick who advances",
         href: "/picks",
       };
     }
@@ -411,9 +411,9 @@ function ReturningHero({
           >
             <div className="px-4 py-3">
               <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--color-gold-soft)]">
-                ⚽ Bonus pick of the day
+                ⚽ Earn points now
               </p>
-              <p className="mt-0.5 text-sm font-bold text-white">Predict the final score</p>
+              <p className="mt-0.5 text-sm font-bold text-white">Predict the score · +3 pts</p>
               <p className="mt-0.5 text-xs text-white/70">
                 {upcomingScoreMatches[0].teamA} vs {upcomingScoreMatches[0].teamB} · {upcomingScoreMatches[0].displayTimePt}
               </p>

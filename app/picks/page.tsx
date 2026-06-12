@@ -38,7 +38,7 @@ export default async function PicksHubPage({
             <div className="text-5xl">🎯</div>
             <h1 className="mt-3 text-2xl font-extrabold tracking-tight">Your picks live here</h1>
             <p className="mt-2 text-sm text-[var(--color-muted)]">
-              Make your 3-minute bracket first. Then this is where you add Bonus Picks and Live Picks
+              Make your 3-minute bracket first. Then this is where you keep earning points
               all tournament long.
             </p>
             <LinkButton href="/play" variant="primary" className="mt-5 w-full">
@@ -108,13 +108,13 @@ export default async function PicksHubPage({
               </span>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
-                  <p className="font-bold">Bonus score pick</p>
+                  <p className="font-bold">Predict the score</p>
                   <span className="shrink-0 rounded-full bg-[var(--color-gold-soft)]/70 px-2 py-0.5 text-xs font-extrabold text-[#3a2b00]">
                     +3 pts
                   </span>
                 </div>
                 <p className="mt-0.5 text-sm text-[var(--color-muted)]">
-                  LatAm + Spain · {upcomingScoreMatches[0].teamA} vs {upcomingScoreMatches[0].teamB} · {upcomingScoreMatches[0].displayTimePt}
+                  {upcomingScoreMatches[0].teamA} vs {upcomingScoreMatches[0].teamB} · {upcomingScoreMatches[0].displayTimePt}
                 </p>
               </div>
               <span className="shrink-0 text-lg text-[var(--color-gold)]">›</span>
@@ -170,7 +170,7 @@ export default async function PicksHubPage({
               </span>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
-                  <p className="font-bold">{openRound.label} — Live Picks</p>
+                  <p className="font-bold">{openRound.label} — pick who advances</p>
                   <span className="shrink-0 rounded-full bg-[var(--color-navy)]/10 px-2 py-0.5 text-xs font-extrabold text-[var(--color-navy)]">
                     +{openRound.pointsInPlay} pts
                   </span>
@@ -188,10 +188,10 @@ export default async function PicksHubPage({
             </div>
             <div className="bg-[var(--color-navy)] px-4 py-2.5 text-center text-sm font-bold text-white">
               {myRoundPicks === 0
-                ? "Make my Live Picks →"
+                ? "Pick who advances →"
                 : myRoundPicks < roundMatches.length
-                  ? "Finish my Live Picks →"
-                  : "Edit my Live Picks →"}
+                  ? "Finish my picks →"
+                  : "Edit my picks →"}
             </div>
           </Link>
         ) : livePlayable && openRound ? (

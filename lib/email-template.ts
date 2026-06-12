@@ -158,13 +158,13 @@ export function renderLockedIn(p: { firstName: string; leaderboardUrl: string })
   ${emailIntro({
     heading: "You're locked in.",
     paras: [
-      "The World Cup's underway and every bracket is set, yours included. Now we wait.",
-      "Your first points land June 27, when the group stage wraps. That's when the leaderboard comes alive.",
+      "The World Cup's underway and every bracket is set, yours included.",
+      "You can still earn points right now: predict the final score of LatAm + Spain matches — +3 for the exact score, +1 for the winner. Your bracket's big points land June 27, when the group stage wraps.",
     ],
   })}
-  ${cta(p.leaderboardUrl, "See who's playing")}
-  ${nextLine("Back here June 27 with your first points.")}`;
-  return emailShell({ preheader: "Brackets are locked. First points June 27.", body });
+  ${cta(p.leaderboardUrl, "See the race")}
+  ${nextLine("Predict a score today, or check back June 27 for your bracket points.")}`;
+  return emailShell({ preheader: "Brackets are locked — but you can earn points now.", body });
 }
 
 // ── 4. First points (group stage ends) ───────────────────────────────
@@ -273,10 +273,10 @@ export function renderWrap(p: { firstName: string; champion: string; rank: numbe
 
 // ── 11. Bonus score pick announcement ────────────────────────────────
 export const SCORE_PICK_ANNOUNCEMENT_TEMPLATE_ID = "score-picks-announcement-2026-06-11";
-export const SCORE_PICK_ANNOUNCEMENT_SUBJECT = "New today: bonus score picks ⚽️";
+export const SCORE_PICK_ANNOUNCEMENT_SUBJECT = "New: predict the score, earn points ⚽️";
 
 export function renderScorePickAnnouncement(p: { appUrl: string }): string {
-  const ctaUrl = "wc26.lafamiliafoundation.com";
+  const scoreUrl = `${p.appUrl.replace(/\/$/, "")}/picks/score`;
   const body = `
   <tr><td style="padding:32px 28px 6px;font-family:${SANS};">
     <div style="font-size:34px;">⚽</div>
@@ -305,7 +305,7 @@ export function renderScorePickAnnouncement(p: { appUrl: string }): string {
       No soccer expertise required. Honestly, vibes may be just as accurate.
     </p>
   </td></tr>
-  <tr><td style="padding:22px 28px 6px;">${emailButton(`https://${ctaUrl}`, "Make your bonus pick", { bg: GREEN, color: "#ffffff" })}</td></tr>
+  <tr><td style="padding:22px 28px 6px;">${emailButton(scoreUrl, "Predict the score →", { bg: GREEN, color: "#ffffff" })}</td></tr>
   <tr><td style="padding:18px 28px 0;font-family:${SANS};">
     <p style="margin:0;font-size:15px;line-height:1.6;color:${MUTED};">Vamos,<br><strong style="color:${INK};">LaFamilia</strong></p>
   </td></tr>
