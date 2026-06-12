@@ -63,6 +63,9 @@ export default async function PicksHubPage({
   const bonusFilled = Object.values(bonus).filter(Boolean).length;
   const bonusOpen = status.state === "bonus-open";
   const upcomingScoreMatches = await repo.getUpcomingScoreMatches(nowIso, 24);
+  // The next couple weeks of LatAm + Spain score-prediction windows, so members
+  // can see when the next bonus-point chances open (not just today's).
+  const scoreWindows = await repo.getUpcomingScoreMatches(nowIso, 24 * 14);
 
   // Live Picks are testable locally via the preview clock before the flag flips.
   const livePlayable = LIVE_PICKS_ENABLED || PREVIEW_ENABLED;
@@ -225,6 +228,45 @@ export default async function PicksHubPage({
           </div>
           <PicksSummary predictions={me.predictions} />
         </div>
+
+        {/* ── Predict the score — the upcoming LatAm + Spain windows, so members
+            know when the next bonus-point chances open. ── */}
+        {scoreWindows.length > 0 && (
+          <>
+            <p className="mb-2 mt-6 text-xs font-bold uppercase tracking-wider text-[var(--color-muted)]">
+              Predict the score — coming up
+            </p>
+            <div className="card divide-y divide-[var(--color-line)] overflow-hidden">
+              {scoreWindows.slice(0, 6).map((m, i) => (
+                <div key={m.matchId} className="flex items-center gap-3 px-4 py-3.5">
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--color-cream)] text-base">
+                    ⚽
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-bold">
+                      {m.teamA} vs {m.teamB}
+                    </p>
+                    <p className="text-xs text-[var(--color-muted)]">
+                      LatAm + Spain · +3 exact, +1 winner
+                    </p>
+                  </div>
+                  <span
+                    className={
+                      i === 0
+                        ? "shrink-0 rounded-full bg-[var(--color-pitch)] px-2.5 py-1 text-xs font-bold text-white"
+                        : "shrink-0 text-xs font-semibold text-[var(--color-muted)]"
+                    }
+                  >
+                    {i === 0 ? "Open now" : fmtDate(m.kickoffUtc)}
+                  </span>
+                </div>
+              ))}
+            </div>
+            <p className="mt-3 text-center text-xs text-[var(--color-muted)]">
+              Each one locks at kickoff — predict before then to earn.
+            </p>
+          </>
+        )}
 
         {/* ── Coming next — only when Live Picks is actually playable. While it's
             off we don't list rounds users can't pick yet (no broken promises). ── */}

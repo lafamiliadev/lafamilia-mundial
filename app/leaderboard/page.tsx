@@ -119,10 +119,11 @@ export default async function LeaderboardPage({
   const myScorePredictedIds = meParticipant
     ? new Set((await repo.listScorePredictions(meParticipant.id)).map((p) => p.matchId))
     : new Set<string>();
-  const nextScoreMatch =
-    (await repo.getUpcomingScoreMatches(new Date(nowMs).toISOString(), 48)).find(
-      (m) => !myScorePredictedIds.has(m.matchId),
-    ) ?? null;
+  const upcomingScore = await repo.getUpcomingScoreMatches(new Date(nowMs).toISOString(), 24 * 30);
+  // The next match the VIEWER still needs to predict — drives the action card.
+  const nextScoreMatch = upcomingScore.find((m) => !myScorePredictedIds.has(m.matchId)) ?? null;
+  // The soonest upcoming match overall — drives the Scores-tab countdown.
+  const nextScoreKickoff = upcomingScore[0] ?? null;
 
   // Live Picks isn't playable yet (LIVE_PICKS_ENABLED) — and even once it is, the
   // board is empty until the first knockout round locks. Either way, show a calm
@@ -174,9 +175,25 @@ export default async function LeaderboardPage({
           </Link>
         )}
 
-        {/* Next BIG points drop — the bracket milestone (group stage / Final Four /
-            Final). Secondary to the action card above. */}
-        {nextDrop && view !== "live" && (
+        {/* Countdown box. On the Scores tab it counts to the next LatAm + Spain
+            match (the relevant deadline there). Elsewhere it's the next BIG
+            bracket points drop (group stage / Final Four / Final). */}
+        {view === "score" && nextScoreKickoff ? (
+          <div className="mb-5 rounded-2xl bg-[var(--color-navy)] px-4 py-5 text-center text-white">
+            <p className="text-xs font-bold uppercase tracking-wider text-[var(--color-gold-soft)]">
+              ⚡ Next LatAm + Spain match in
+            </p>
+            <div className="mt-3 flex justify-center">
+              <Countdown lockTime={nextScoreKickoff.kickoffUtc} />
+            </div>
+            <p className="mt-3 text-sm font-semibold">
+              {nextScoreKickoff.teamA} vs {nextScoreKickoff.teamB}
+            </p>
+            <p className="mt-1 text-xs text-white/75">
+              Predict the score before kickoff — up to +3 pts
+            </p>
+          </div>
+        ) : nextDrop && view !== "live" ? (
           <div className="mb-5 rounded-2xl bg-[var(--color-navy)] px-4 py-5 text-center text-white">
             <p className="text-xs font-bold uppercase tracking-wider text-[var(--color-gold-soft)]">
               ⚡ {scoringStarted ? "Next big points in" : "First bracket points in"}
@@ -189,7 +206,7 @@ export default async function LeaderboardPage({
               Up to {nextDrop.pointsInPlay} points from {nextDrop.fromPicks}
             </p>
           </div>
-        )}
+        ) : null}
 
         {/* ── THE STANDINGS — the main event, front and center ── */}
         {liveComingSoon ? (
