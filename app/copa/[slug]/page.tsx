@@ -58,11 +58,24 @@ export default async function CopaPage({
 
   // Live context — so a friend landing here instantly feels the game is active:
   // how many are in, how long they have, and where the friend stands.
-  const [count, settings, board] = await Promise.all([
+  const [count, settings, board, scores] = await Promise.all([
     repo.countParticipants(),
     repo.getSettings(),
     getLeaderboardData(),
+    repo.getScores(),
   ]);
+  const myScore = scores[me.id];
+  // Points so far, broken out by how they were earned — shown once the player
+  // has any points, so a visitor sees the full picture (not just the bracket).
+  const scoreSlices =
+    board.scoringStarted && myScore && myScore.total > 0
+      ? ([
+          { label: "Bracket", value: myScore.bracket },
+          { label: "Score predictions", value: myScore.scorePick },
+          { label: "Knockouts", value: myScore.live },
+          { label: "Bonus picks", value: myScore.bonus },
+        ].filter((s) => s.value > 0) as { label: string; value: number }[])
+      : [];
   const lockMs = new Date(settings.lockTime).getTime();
   const locked = (await now()).getTime() >= lockMs;
   const lockLabel = relativeLockLabel(lockMs - (await now()).getTime());
@@ -127,6 +140,26 @@ export default async function CopaPage({
             className="w-full"
           />
         </div>
+
+        {/* Points so far — broken out by how they were earned */}
+        {scoreSlices.length > 0 && myScore && (
+          <div className="mt-6 card p-5 text-center">
+            <p className="text-xs font-bold uppercase tracking-wider text-[var(--color-muted)]">
+              {firstName}&apos;s points so far
+            </p>
+            <p className="mt-1 text-4xl font-black tabular-nums">{myScore.total}</p>
+            <div className="mt-3 flex flex-wrap justify-center gap-2">
+              {scoreSlices.map((s) => (
+                <span
+                  key={s.label}
+                  className="rounded-full bg-[var(--color-cream)] px-3 py-1 text-xs font-semibold"
+                >
+                  {s.label} <strong className="tabular-nums">{s.value}</strong>
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* CTA — join the game, with a friendly nudge about where the friend stands */}
         <div className="mt-6">

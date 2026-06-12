@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { HowPointsWork } from "@/components/HowPointsWork";
 import { PicksSummary } from "@/components/PicksSummary";
 import { LinkButton, PageShell, SectionTitle, TopNav } from "@/components/ui";
 import { db } from "@/lib/db";
@@ -272,6 +273,11 @@ export default async function PicksHubPage({
             </p>
           </div>
         )}
+
+        {/* Always-available plain-language explainer for non-experts. */}
+        <div className="mt-6">
+          <HowPointsWork />
+        </div>
 
         {/* Single, clear action — grow the competition. Leaderboard lives in
             the header nav, so it isn't duplicated here. */}
