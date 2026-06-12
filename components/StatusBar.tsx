@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { LIVE_PICKS_ENABLED } from "@/lib/flags";
 import { getSessionParticipant } from "@/lib/session";
 import { now } from "@/lib/preview";
+import { nextOpenUnpredicted } from "@/lib/score-picks";
 import { bonusPointsRemaining, pickStatus } from "@/lib/schedule";
 
 function whenLabel(iso: string, nowMs: number): string {
@@ -25,16 +26,18 @@ export async function StatusBar() {
   const settings = await repo.getSettings();
   const nowD = await now();
   const status = pickStatus(nowD, settings.lockTime);
-  // Is there a score prediction the viewer still needs to make? That's the live,
-  // earn-today path during the group stage — it takes priority over "knockouts
-  // in N days". Skip matches they've already predicted so the bar doesn't nag.
-  const myScorePredictedIds = new Set(
-    (await repo.listScorePredictions(me.id)).map((p) => p.matchId),
+  // Is there a Bonus Score Pick OPEN (within its 24h window) the viewer still
+  // needs to make? That's the live, earn-today path — it takes priority over
+  // "knockouts in N days". Skip matches they've predicted so the bar doesn't nag.
+  const [allScoreMatches, myPreds] = await Promise.all([
+    repo.getScoreMatches(),
+    repo.listScorePredictions(me.id),
+  ]);
+  const nextScore = nextOpenUnpredicted(
+    allScoreMatches,
+    nowD.getTime(),
+    new Set(myPreds.map((p) => p.matchId)),
   );
-  const nextScore =
-    (await repo.getUpcomingScoreMatches(nowD.toISOString(), 48)).find(
-      (m) => !myScorePredictedIds.has(m.matchId),
-    ) ?? null;
 
   let label: string;
   let href = "/picks";

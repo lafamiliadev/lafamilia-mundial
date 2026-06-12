@@ -53,7 +53,10 @@ jobs:
             esac
           }
 
-          # Score first, then fire any due reminder emails. Both are idempotent,
-          # so running hourly is safe (reminders also no-op until RESEND is set).
+          # Score first, then fire any due reminder emails. All idempotent, so
+          # running hourly is safe (reminders no-op until RESEND is set; the
+          # Bonus Score Pick window emails no-op until SCORE_WINDOW_EMAILS_ENABLED
+          # is "true" in Vercel).
           ping "score" "/api/cron/score"
           ping "reminders" "/api/cron/reminders"
+          ping "score-window-email" "/api/cron/score-window-email"

@@ -344,6 +344,13 @@ export const memoryRepo: Repo = {
     return (data.scorePredictions ?? []).filter((p) => p.participantId === participantId);
   },
 
+  async getScorePredictionParticipantIds(matchId) {
+    const data = await load();
+    return (data.scorePredictions ?? [])
+      .filter((p) => p.matchId === matchId)
+      .map((p) => p.participantId);
+  },
+
   async upsertScorePrediction({ participantId, matchId, scoreA, scoreB }) {
     const data = await load();
     const now = new Date().toISOString();

@@ -318,6 +318,42 @@ export function renderScorePickAnnouncement(p: { appUrl: string }): string {
   });
 }
 
+// ── Per-match Bonus Score Pick window-open reminder ──────────────────
+/** Stable, per-match template id for the email log (idempotency). */
+export function scoreWindowTemplateId(matchId: string): string {
+  return `score-window-${matchId}`;
+}
+export function scoreWindowSubject(teamA: string, teamB: string): string {
+  return `Predict the score: ${teamA} vs ${teamB} ⚽`;
+}
+/** Sent once when a match's 24h prediction window opens. Says which match is
+ * open, the points available, when it locks, and links straight to the pick. */
+export function renderScoreWindowOpen(p: {
+  firstName: string;
+  teamA: string;
+  teamB: string;
+  /** Human kickoff time (PT), e.g. "June 12, 2026, 6:00 p.m. PT". */
+  locksLabel: string;
+  scoreUrl: string;
+}): string {
+  const body = `
+  ${emailIntro({
+    emoji: "⚽",
+    heading: `Predict the score, ${p.firstName}`,
+    paras: [
+      `<strong style="color:${INK};">${p.teamA} vs ${p.teamB}</strong> is open for score predictions. Call the scoreline and earn bonus points.`,
+      `<strong style="color:${INK};">+3</strong> for the exact score · <strong style="color:${INK};">+1</strong> for the correct winner or draw.`,
+      `Locks at kickoff — <strong style="color:${INK};">${p.locksLabel}</strong>. Get your pick in before then.`,
+    ],
+  })}
+  ${cta(p.scoreUrl, "Predict the score →")}
+  ${nextLine("LatAm + Spain matches only. Edit anytime before kickoff.")}`;
+  return emailShell({
+    preheader: `${p.teamA} vs ${p.teamB} — predict the score for bonus points.`,
+    body,
+  });
+}
+
 // ── Sample set (for previews + test sends) ───────────────────────────
 export type SampleEmail = { key: string; label: string; subject: string; html: string };
 

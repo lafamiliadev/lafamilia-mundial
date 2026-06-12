@@ -1,8 +1,9 @@
-import { notFound } from "next/navigation";
+import { Countdown } from "@/components/Countdown";
 import { PageShell, TopNav } from "@/components/ui";
 import { db } from "@/lib/db";
 import { getSessionParticipant } from "@/lib/session";
 import { now } from "@/lib/preview";
+import { nextUpcomingScoreMatch, openScoreMatches, windowOpensAtMs } from "@/lib/score-picks";
 import { ScoreForm } from "./ScoreForm";
 import type { ScoreMatch } from "@/lib/types";
 
@@ -33,34 +34,42 @@ export default async function ScorePredictionPage() {
   const repo = await db();
   const me = await getSessionParticipant();
   const nowD = await now();
-  const nowIso = nowD.toISOString();
+  const nowMs = nowD.getTime();
 
-  // Show all upcoming matches in the next 24 hours, or the next single match if
-  // there's nothing today. For now, drive from "upcoming within 24 hours".
-  const upcoming = await repo.getUpcomingScoreMatches(nowIso, 24);
+  // Only matches whose 24h window is OPEN are predictable here. Nothing before
+  // the window opens, nothing after kickoff — the single source of truth.
+  const allMatches = await repo.getScoreMatches();
+  const matches = openScoreMatches(allMatches, nowMs);
 
-  // If nothing upcoming, show the last kicked-off match (locked state) as a fallback.
-  let matches: ScoreMatch[] = upcoming;
+  // Nothing open right now → show the next one as "coming soon" with the time
+  // its window opens (24h before kickoff), so people know when to come back.
   if (matches.length === 0) {
-    // Find the most recent match that kicked off but hasn't been scored yet.
-    const all = await repo.getScoreMatches();
-    const recent = all
-      .filter((m) => m.kickoffUtc <= nowIso && m.finalScoreA == null)
-      .slice(-1);
-    if (recent.length > 0) matches = recent;
-  }
-
-  if (matches.length === 0) {
+    const next = nextUpcomingScoreMatch(allMatches, nowMs);
     return (
       <main className="flex flex-1 flex-col">
         <TopNav active="picks" />
         <PageShell>
-          <div className="card mt-10 p-8 text-center">
-            <div className="text-5xl">⚽</div>
-            <h1 className="mt-3 text-xl font-extrabold tracking-tight">No score to predict right now</h1>
-            <p className="mt-2 text-sm text-[var(--color-muted)]">
-              Check back when the next eligible match is coming up.
-            </p>
+          <div className="card mt-10 overflow-hidden text-center">
+            <div className="bg-[var(--color-navy)] px-5 py-7 text-white">
+              <div className="text-5xl">⚽</div>
+              <h1 className="mt-3 text-xl font-extrabold tracking-tight">
+                {next ? "No score to predict just yet" : "That's all the score picks for now"}
+              </h1>
+              {next ? (
+                <>
+                  <p className="mt-2 text-sm text-white/85">
+                    Next up: <strong>{next.teamA} vs {next.teamB}</strong>. Predictions open 24
+                    hours before kickoff.
+                  </p>
+                  <div className="mt-4 flex justify-center">
+                    <Countdown lockTime={new Date(windowOpensAtMs(next)).toISOString()} />
+                  </div>
+                  <p className="mt-3 text-xs text-white/70">until predictions open · {next.displayTimePt}</p>
+                </>
+              ) : (
+                <p className="mt-2 text-sm text-white/85">Check back when the next eligible match is coming up.</p>
+              )}
+            </div>
           </div>
         </PageShell>
       </main>

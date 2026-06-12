@@ -89,6 +89,9 @@ export interface Repo {
   getScorePrediction(participantId: string, matchId: string): Promise<ScorePrediction | null>;
   /** All of one participant's score predictions — for their points ledger. */
   listScorePredictions(participantId: string): Promise<ScorePrediction[]>;
+  /** Participant ids who have predicted a given match — to skip them in the
+   * window-open email reminder. */
+  getScorePredictionParticipantIds(matchId: string): Promise<string[]>;
   upsertScorePrediction(input: {
     participantId: string;
     matchId: string;

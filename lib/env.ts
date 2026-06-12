@@ -23,6 +23,10 @@ const schema = z.object({
   ADMIN_PASSWORD: z.string().min(1).default("lafamilia-admin"),
   CRON_SECRET: z.string().min(1).default("dev-cron-secret"),
 
+  // Per-match Bonus Score Pick window-open emails. OFF by default so the cron
+  // can be wired up without sending; flip to "true" to actually email members.
+  SCORE_WINDOW_EMAILS_ENABLED: z.string().optional(),
+
   // Optional email (magic resume + milestone nudges).
   RESEND_API_KEY: z.string().optional(),
   // Must be a Resend-verified domain/address in production. We send from the

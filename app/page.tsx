@@ -13,6 +13,7 @@ import {
 import { LinkButton } from "@/components/ui";
 import { db } from "@/lib/db";
 import { LIVE_PICKS_ENABLED } from "@/lib/flags";
+import { openScoreMatches } from "@/lib/score-picks";
 import { getLeaderboardData, getReferralStats, getRivalry, getTopChampionPick } from "@/lib/services";
 import type { Rivalry } from "@/lib/services";
 import { getSessionParticipant } from "@/lib/session";
@@ -54,7 +55,16 @@ export default async function Home() {
     const nowIso = nowD.toISOString();
     const status = pickStatus(nowD, settings.lockTime);
     const bonusFilled = Object.values(me.predictions.bonus ?? EMPTY_BONUS).filter(Boolean).length;
-    const upcomingScoreMatches = await repo.getUpcomingScoreMatches(nowIso, 24);
+    // Only Bonus Score Picks whose 24h window is OPEN and the member hasn't
+    // predicted yet — the home nudge never points at a match that isn't
+    // predictable, nor nags about one they've already done.
+    const allScoreMatches = await repo.getScoreMatches();
+    const myScorePredictedIds = new Set(
+      (await repo.listScorePredictions(me.id)).map((p) => p.matchId),
+    );
+    const upcomingScoreMatches = openScoreMatches(allScoreMatches, nowD.getTime()).filter(
+      (m) => !myScorePredictedIds.has(m.matchId),
+    );
 
     let open: OpenAction | null = null;
     if (status.state === "bonus-open") {
@@ -430,10 +440,13 @@ function ReturningHero({
           </LinkButton>
         </div>
 
-        {/* Invite feedback + your rivalry — the reason to come back and re-share. */}
-        <div className="mt-4">
-          <InviteRivalryCard signups={signups} rivalry={rivalry} tone="dark" />
-        </div>
+        {/* Invite feedback — only before kickoff. Once the game's locked, new
+            people can't join, so we don't push sharing (no dead ends). */}
+        {!started && (
+          <div className="mt-4">
+            <InviteRivalryCard signups={signups} rivalry={rivalry} tone="dark" />
+          </div>
+        )}
 
         {/* Calm Siembra nudge — community-first, never blocking the game. */}
         <a

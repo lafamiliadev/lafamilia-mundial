@@ -4,6 +4,7 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { getSessionParticipant } from "@/lib/session";
 import { now } from "@/lib/preview";
+import { scorePickState } from "@/lib/score-picks";
 import type { ScorePrediction } from "@/lib/types";
 
 const submitSchema = z.object({
@@ -39,10 +40,19 @@ export async function submitScorePrediction(
     const match = await repo.getScoreMatch(matchId);
     if (!match) return { ok: false, error: "Match not found." };
 
-    // Backend kickoff lock — server clock, not browser.
+    // Backend window enforcement — server clock, not browser. The window opens
+    // exactly 24h before kickoff and closes at kickoff. Reject anything outside
+    // it, even if the UI is bypassed.
     const nowMs = (await now()).getTime();
-    if (nowMs >= new Date(match.kickoffUtc).getTime()) {
-      return { ok: false, error: "Score picks are locked for this match." };
+    const state = scorePickState(match, nowMs);
+    if (state === "closed") {
+      return { ok: false, error: "Score picks are locked for this match — it's kicked off." };
+    }
+    if (state === "upcoming") {
+      return {
+        ok: false,
+        error: "This match isn't open for predictions yet — it opens 24 hours before kickoff.",
+      };
     }
 
     const prediction = await repo.upsertScorePrediction({

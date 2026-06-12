@@ -10,6 +10,12 @@ import { LIVE_PICKS_ENABLED } from "@/lib/flags";
 import { getSessionToken } from "@/lib/session";
 import { now, PREVIEW_ENABLED } from "@/lib/preview";
 import { getFamiliaInviters, getLeaderboardData, type LeaderboardView } from "@/lib/services";
+import {
+  nextOpenUnpredicted,
+  nextUpcomingScoreMatch,
+  openScoreMatches,
+  windowOpensAtMs,
+} from "@/lib/score-picks";
 import { LIVE_ROUNDS, nextScoringMilestone } from "@/lib/schedule";
 import { teamFlag } from "@/lib/teams";
 import { DEFAULT_WEIGHTS, type LeaderboardRow } from "@/lib/types";
@@ -113,20 +119,21 @@ export default async function LeaderboardPage({
   // final, not a live race — relabel it as a result.
   const inviteChallengeClosed = nowMs >= new Date(settings.lockTime).getTime();
   const w = settings.weights ?? DEFAULT_WEIGHTS;
-  // The next score prediction the VIEWER still needs to make — the live,
-  // do-it-now way to earn points during the group stage. We skip matches they've
-  // already predicted, so the "Predict the score" card disappears once they're
-  // done (and stays hidden if they've handled every upcoming match). Logged-out
-  // visitors just see the soonest match as a nudge.
+  // Bonus Score Pick windows. A match is only predictable in its 24h window
+  // (opens 24h before kickoff, closes at kickoff) — the single source of truth.
+  const allScoreMatches = await repo.getScoreMatches();
   const meParticipant = token ? await repo.getByToken(token) : null;
   const myScorePredictedIds = meParticipant
     ? new Set((await repo.listScorePredictions(meParticipant.id)).map((p) => p.matchId))
     : new Set<string>();
-  const upcomingScore = await repo.getUpcomingScoreMatches(new Date(nowMs).toISOString(), 24 * 30);
-  // The next match the VIEWER still needs to predict — drives the action card.
-  const nextScoreMatch = upcomingScore.find((m) => !myScorePredictedIds.has(m.matchId)) ?? null;
-  // The soonest upcoming match overall — drives the Scores-tab countdown.
-  const nextScoreKickoff = upcomingScore[0] ?? null;
+  // The "earn points now" card: the next OPEN match the viewer hasn't predicted.
+  // Disappears once they've handled every open match (and never shows a match
+  // whose window hasn't opened yet).
+  const nextScoreMatch = nextOpenUnpredicted(allScoreMatches, nowMs, myScorePredictedIds);
+  // Scores-tab countdown: count to kickoff if something's open, otherwise to when
+  // the next window opens ("coming soon").
+  const openScoreNow = openScoreMatches(allScoreMatches, nowMs)[0] ?? null;
+  const upcomingScoreSoon = nextUpcomingScoreMatch(allScoreMatches, nowMs);
 
   // Live Picks isn't playable yet (LIVE_PICKS_ENABLED) — and even once it is, the
   // board is empty until the first knockout round locks. Either way, show a calm
@@ -179,21 +186,29 @@ export default async function LeaderboardPage({
         )}
 
         {/* Countdown box. On the Scores tab it counts to the next LatAm + Spain
-            match (the relevant deadline there). Elsewhere it's the next BIG
-            bracket points drop (group stage / Final Four / Final). */}
-        {view === "score" && nextScoreKickoff ? (
+            deadline: if a window is open, the kickoff it locks at; otherwise when
+            the next window opens. Elsewhere it's the next BIG bracket points drop. */}
+        {view === "score" && (openScoreNow || upcomingScoreSoon) ? (
           <div className="mb-5 rounded-2xl bg-[var(--color-navy)] px-4 py-5 text-center text-white">
             <p className="text-xs font-bold uppercase tracking-wider text-[var(--color-gold-soft)]">
-              ⚡ Next LatAm + Spain match in
+              ⚡ {openScoreNow ? "Predicting closes in" : "Next match opens in"}
             </p>
             <div className="mt-3 flex justify-center">
-              <Countdown lockTime={nextScoreKickoff.kickoffUtc} />
+              <Countdown
+                lockTime={
+                  openScoreNow
+                    ? openScoreNow.kickoffUtc
+                    : new Date(windowOpensAtMs(upcomingScoreSoon!)).toISOString()
+                }
+              />
             </div>
             <p className="mt-3 text-sm font-semibold">
-              {nextScoreKickoff.teamA} vs {nextScoreKickoff.teamB}
+              {(openScoreNow ?? upcomingScoreSoon)!.teamA} vs {(openScoreNow ?? upcomingScoreSoon)!.teamB}
             </p>
             <p className="mt-1 text-xs text-white/75">
-              Predict the score before kickoff — up to +3 pts
+              {openScoreNow
+                ? "Predict the score before kickoff — up to +3 pts"
+                : "Predictions open 24 hours before kickoff"}
             </p>
           </div>
         ) : nextDrop && view !== "live" ? (
