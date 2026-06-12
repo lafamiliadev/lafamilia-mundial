@@ -9,7 +9,8 @@ import {
   SyncResultsButton,
   TestEmailButton,
 } from "@/components/admin";
-import { Button, SectionTitle } from "@/components/ui";
+import { Button } from "@/components/ui";
+import { AdminSection } from "@/components/AdminSection";
 import { InsightsBoard } from "@/components/InsightsBoard";
 import { FunFactsBoard } from "@/components/FunFactsBoard";
 import { LiveMatchesAdmin } from "@/components/LiveMatchesAdmin";
@@ -114,68 +115,71 @@ export default async function AdminDashboard() {
         ))}
       </div>
 
-      {/* Referral leaderboard */}
-      {topReferrers.length > 0 && (
-        <section className="card mt-6 p-5">
-          <SectionTitle emoji="🔗">Top referrers</SectionTitle>
-          <ul className="mt-3 space-y-2">
-            {topReferrers.map((r, i) => (
-              <li key={r.name} className="flex items-center justify-between text-sm">
-                <span className="font-semibold">
-                  {i + 1}. {r.name}
-                </span>
-                <span className="tabular-nums text-[var(--color-muted)]">
-                  {r.count} {r.count === 1 ? "join" : "joins"}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
+      <p className="mt-6 text-xs font-semibold uppercase tracking-wider text-[var(--color-muted)]">
+        Tap a section to open it
+      </p>
 
-      {/* API status + actions */}
-      <section className="card mt-6 p-5">
-        <SectionTitle emoji="🛰️">API status</SectionTitle>
-        <div className="mt-3 flex items-center gap-3">
-          <span
-            className={`inline-block h-3 w-3 rounded-full ${
-              status.ok ? "bg-[var(--color-pitch)]" : "bg-[var(--color-coral)]"
-            }`}
-          />
-          <div className="text-sm">
-            <p className="font-semibold">
-              Provider: {status.provider} {status.ok ? "· healthy" : "· unavailable"}
-            </p>
-            <p className="text-[var(--color-muted)]">{status.detail}</p>
-          </div>
-        </div>
-        <div className="mt-4 flex flex-wrap gap-3">
-          <RecalcButton />
-          <a href="/api/admin/export?kind=participants" className="inline-block">
-            <Button variant="outline">⬇ Export participants CSV</Button>
-          </a>
-          <a href="/api/admin/export?kind=leaderboard" className="inline-block">
-            <Button variant="outline">⬇ Export leaderboard CSV</Button>
-          </a>
-        </div>
-      </section>
-
-      {/* Email check — confirm Resend delivery without touching members */}
-      <section className="card mt-6 p-5">
-        <SectionTitle emoji="📧">Email check</SectionTitle>
-        <p className="mt-1 text-sm text-[var(--color-muted)]">
-          Send one of every email design to yourself to confirm delivery works. Members are not
-          touched — this only emails the address you type.
+      {/* Bonus score predictions — link to API, confirm the score, award points.
+          Shadow-first: the API score is shown for confirmation; nothing is
+          awarded until you click. Manual entry is always available as fallback. */}
+      <AdminSection emoji="🎲" title="Bonus score matches" defaultOpen>
+        <p className="text-sm text-[var(--color-muted)]">
+          {status.provider === "api-football"
+            ? "Final scores come from API-Football. Link the matches, then confirm each result to award points — the leaderboard updates right away. If the API is missing or wrong, enter the score by hand. Nothing is awarded automatically yet."
+            : "Final scores for these matches are entered by hand on the free provider. Set API-Football to pull scores automatically. Enter each result below to award points."}
         </p>
         <div className="mt-4">
-          <TestEmailButton />
+          <ScoreMatchesAdmin rows={scoreMatchRows} />
         </div>
-      </section>
+      </AdminSection>
+
+      {/* Live Picks — Step 2: confirm who advanced (foolproof, plain-language) */}
+      <AdminSection emoji="✅" title="Live Picks — confirm results" defaultOpen>
+        <p className="text-sm text-[var(--color-muted)]">
+          {status.provider === "api-football"
+            ? "Results sync automatically from API-Football every day. Tap below to update instantly, or confirm any match by hand — your choice always wins."
+            : "After each knockout game, confirm which team advanced. Tap Check the result to see who won, pick the team, and review the points before saving."}
+        </p>
+        {status.provider === "api-football" && (
+          <div className="mt-3 flex flex-wrap items-center gap-3">
+            <SyncResultsButton />
+            <span className="text-xs text-[var(--color-muted)]">
+              {settings.liveMatchesSyncedAt
+                ? `Matchups last synced ${new Date(settings.liveMatchesSyncedAt).toLocaleString()}`
+                : "Not synced yet — runs once the knockout draw is set."}
+            </span>
+          </div>
+        )}
+        <div className="mt-4">
+          <LiveResultsConfirm impacts={liveImpacts} />
+        </div>
+      </AdminSection>
+
+      {/* Live Picks — Step 1: set the matchups */}
+      <AdminSection emoji="⚽" title="Live Picks — set matchups">
+        <p className="text-sm text-[var(--color-muted)]">
+          Set each knockout round&apos;s matchups (who plays whom) once the bracket is known, so
+          members can pick winners. Confirm the results in the section above.
+          {settings.liveMatches.length === 0 ? " No matchups entered yet." : ""}
+        </p>
+        <div className="mt-4">
+          <LiveMatchesAdmin initialMatches={settings.liveMatches} />
+        </div>
+      </AdminSection>
+
+      {/* Results editor */}
+      <AdminSection emoji="🎯" title="Tournament results">
+        <p className="text-sm text-[var(--color-muted)]">
+          Auto-pulled by the scoring cron; edit here to override. Saving recomputes every score.
+        </p>
+        <div className="mt-4">
+          <ResultsForm initial={results} />
+        </div>
+      </AdminSection>
 
       {/* Tournament setup — group draw */}
-      <section className="card mt-6 p-5">
-        <SectionTitle emoji="🌐">Tournament setup</SectionTitle>
-        <p className="mt-1 text-sm text-[var(--color-muted)]">
+      <AdminSection emoji="🌐" title="Tournament setup">
+        <p className="text-sm text-[var(--color-muted)]">
           {Object.keys(settings.groups ?? {}).length === 12
             ? `All 12 groups loaded${settings.groupsSyncedAt ? ` · synced ${new Date(settings.groupsSyncedAt).toLocaleString()}` : ""}. Verify they match the official draw below.`
             : `${Object.keys(settings.groups ?? {}).length}/12 groups loaded — sync the draw so members can pick group winners.`}
@@ -197,86 +201,80 @@ export default async function AdminDashboard() {
               ))}
           </div>
         )}
-      </section>
+      </AdminSection>
 
-      {/* Results editor */}
-      <section className="card mt-6 p-5">
-        <SectionTitle emoji="🎯">Tournament results</SectionTitle>
-        <p className="mt-1 text-sm text-[var(--color-muted)]">
-          Auto-pulled by the scoring cron; edit here to override. Saving recomputes every score.
-        </p>
-        <div className="mt-4">
-          <ResultsForm initial={results} />
-        </div>
-      </section>
+      {/* Referral leaderboard — a SEPARATE challenge (not part of the winner total) */}
+      {topReferrers.length > 0 && (
+        <AdminSection emoji="🔗" title="Referrals (separate challenge)">
+          <p className="mb-3 text-sm text-[var(--color-muted)]">
+            A side challenge — these points do not count toward the main leaderboard total.
+          </p>
+          <ul className="space-y-2">
+            {topReferrers.map((r, i) => (
+              <li key={r.name} className="flex items-center justify-between text-sm">
+                <span className="font-semibold">
+                  {i + 1}. {r.name}
+                </span>
+                <span className="tabular-nums text-[var(--color-muted)]">
+                  {r.count} {r.count === 1 ? "join" : "joins"}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </AdminSection>
+      )}
 
-      {/* Live Picks — Step 2: confirm who advanced (foolproof, plain-language) */}
-      <section className="card mt-6 p-5">
-        <SectionTitle emoji="✅">Live Picks — confirm results</SectionTitle>
-        <p className="mt-1 text-sm text-[var(--color-muted)]">
-          {status.provider === "api-football"
-            ? "Results sync automatically from API-Football every day. Tap below to update instantly, or confirm any match by hand — your choice always wins."
-            : "After each knockout game, confirm which team advanced. Tap Check the result to see who won, pick the team, and review the points before saving."}
-        </p>
-        {status.provider === "api-football" && (
-          <div className="mt-3 flex flex-wrap items-center gap-3">
-            <SyncResultsButton />
-            <span className="text-xs text-[var(--color-muted)]">
-              {settings.liveMatchesSyncedAt
-                ? `Matchups last synced ${new Date(settings.liveMatchesSyncedAt).toLocaleString()}`
-                : "Not synced yet — runs once the knockout draw is set."}
-            </span>
+      {/* API status + actions */}
+      <AdminSection emoji="🛰️" title="API status & tools">
+        <div className="flex items-center gap-3">
+          <span
+            className={`inline-block h-3 w-3 rounded-full ${
+              status.ok ? "bg-[var(--color-pitch)]" : "bg-[var(--color-coral)]"
+            }`}
+          />
+          <div className="text-sm">
+            <p className="font-semibold">
+              Provider: {status.provider} {status.ok ? "· healthy" : "· unavailable"}
+            </p>
+            <p className="text-[var(--color-muted)]">{status.detail}</p>
           </div>
-        )}
-        <div className="mt-4">
-          <LiveResultsConfirm impacts={liveImpacts} />
         </div>
-      </section>
+        <div className="mt-4 flex flex-wrap gap-3">
+          <RecalcButton />
+          <a href="/api/admin/export?kind=participants" className="inline-block">
+            <Button variant="outline">⬇ Export participants CSV</Button>
+          </a>
+          <a href="/api/admin/export?kind=leaderboard" className="inline-block">
+            <Button variant="outline">⬇ Export leaderboard CSV</Button>
+          </a>
+        </div>
+      </AdminSection>
 
-      {/* Live Picks — Step 1: set the matchups */}
-      <section className="card mt-6 p-5">
-        <SectionTitle emoji="⚽">Live Picks — set matchups</SectionTitle>
-        <p className="mt-1 text-sm text-[var(--color-muted)]">
-          Set each knockout round&apos;s matchups (who plays whom) once the bracket is known, so
-          members can pick winners. Confirm the results in the section above.
-          {settings.liveMatches.length === 0 ? " No matchups entered yet." : ""}
+      {/* Email check — confirm Resend delivery without touching members */}
+      <AdminSection emoji="📧" title="Email check">
+        <p className="text-sm text-[var(--color-muted)]">
+          Send one of every email design to yourself to confirm delivery works. Members are not
+          touched — this only emails the address you type.
         </p>
         <div className="mt-4">
-          <LiveMatchesAdmin initialMatches={settings.liveMatches} />
+          <TestEmailButton />
         </div>
-      </section>
-
-      {/* Bonus score predictions — link to API, confirm the score, award points.
-          Shadow-first: the API score is shown for confirmation; nothing is
-          awarded until you click. Manual entry is always available as fallback. */}
-      <section className="card mt-6 p-5">
-        <SectionTitle emoji="🎲">Bonus score matches</SectionTitle>
-        <p className="mt-1 text-sm text-[var(--color-muted)]">
-          {status.provider === "api-football"
-            ? "Final scores come from API-Football. Link the matches, then confirm each result to award points — the leaderboard updates right away. If the API is missing or wrong, enter the score by hand. Nothing is awarded automatically yet."
-            : "Final scores for these matches are entered by hand on the free provider. Set API-Football to pull scores automatically. Enter each result below to award points."}
-        </p>
-        <div className="mt-4">
-          <ScoreMatchesAdmin rows={scoreMatchRows} />
-        </div>
-      </section>
+      </AdminSection>
 
       {/* La Familia Honors */}
-      <section className="card mt-6 p-5">
-        <SectionTitle emoji="🏆">La Familia Honors</SectionTitle>
-        <p className="mt-1 text-sm text-[var(--color-muted)]">
+      <AdminSection emoji="🏆" title="La Familia Honors">
+        <p className="text-sm text-[var(--color-muted)]">
           Preview the awards, then reveal them on /awards for the finale.
         </p>
         <div className="mt-4">
           <AwardsAdmin awards={awards} revealed={settings.awardsRevealed ?? false} />
         </div>
-      </section>
+      </AdminSection>
 
       {/* Fun Facts — casual, group-chat-ready observations for WhatsApp.
           Internal only; not awards, not analytics. Players never see this. */}
-      <section className="card mt-6 p-5">
-        <SectionTitle emoji="🎉">Fun Facts</SectionTitle>
-        <p className="mt-1 text-sm text-[var(--color-muted)]">
+      <AdminSection emoji="🎉" title="Fun Facts">
+        <p className="text-sm text-[var(--color-muted)]">
           Internal — funny, surprising patterns in the picks to drop in WhatsApp. Tap{" "}
           <strong>Copy</strong> on any one to grab the ready-to-paste version. Not awards, just
           conversation starters. Refreshes every time you load this page.
@@ -292,24 +290,22 @@ export default async function AdminDashboard() {
             })}
           />
         </div>
-      </section>
+      </AdminSection>
 
       {/* Community Insights — internal tool (moved out of the player app). */}
-      <section className="card mt-6 p-5">
-        <SectionTitle emoji="📊">Community Insights</SectionTitle>
-        <p className="mt-1 text-sm text-[var(--color-muted)]">
+      <AdminSection emoji="📊" title="Community Insights">
+        <p className="text-sm text-[var(--color-muted)]">
           Internal — what the {participants.length} Familia are predicting. Use for WhatsApp updates,
           leaderboard announcements, and community storytelling.
         </p>
         <div className="mt-4">
           <InsightsBoard participants={participants} />
         </div>
-      </section>
+      </AdminSection>
 
       {/* WhatsApp generator */}
-      <section className="card mt-6 p-5">
-        <SectionTitle emoji="📲">WhatsApp update generator</SectionTitle>
-        <p className="mt-1 text-sm text-[var(--color-muted)]">
+      <AdminSection emoji="📲" title="WhatsApp update generator">
+        <p className="text-sm text-[var(--color-muted)]">
           One tap turns the live data into shareable community posts.
         </p>
         <div className="mt-4">
@@ -328,17 +324,14 @@ export default async function AdminDashboard() {
             ))}
           </ul>
         )}
-      </section>
+      </AdminSection>
 
       {/* Participants */}
-      <section className="card mt-6 overflow-hidden">
-        <div className="p-5 pb-3">
-          <SectionTitle emoji="👥">Participants</SectionTitle>
-        </div>
+      <AdminSection emoji="👥" title={`Participants (${participants.length})`}>
         {participants.length === 0 ? (
-          <p className="px-5 pb-5 text-sm text-[var(--color-muted)]">No participants yet.</p>
+          <p className="text-sm text-[var(--color-muted)]">No participants yet.</p>
         ) : (
-          <div className="overflow-x-auto">
+          <div className="-mx-5 overflow-x-auto">
             <table className="w-full text-left text-sm">
               <thead className="bg-black/[0.03] text-xs uppercase tracking-wider text-[var(--color-muted)]">
                 <tr>
@@ -394,7 +387,7 @@ export default async function AdminDashboard() {
             </table>
           </div>
         )}
-      </section>
+      </AdminSection>
 
       <p className="mt-6 text-center text-xs text-[var(--color-muted)]">
         Lock time: {new Date(settings.lockTime).toUTCString()} · Stage: {settings.tournamentStage}
