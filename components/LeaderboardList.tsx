@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { openLedger } from "@/components/LedgerDrawer";
 import { teamFlag } from "@/lib/teams";
 import type { LeaderboardRow } from "@/lib/types";
 
@@ -21,13 +22,16 @@ export function Move({ delta }: { delta?: number }) {
   );
 }
 
-/** A race "lane": rank + name + flag + movement, a progress bar, and the score. */
+/** A race "lane": rank + name + flag + movement, a progress bar, and the score.
+ * Tapping opens the player's points ledger (how they earned every point). */
 export function Lane({ r, leaderTotal }: { r: LeaderboardRow; leaderTotal: number }) {
   const pct = leaderTotal > 0 ? Math.max(4, Math.round((r.total / leaderTotal) * 100)) : 0;
   return (
-    <Link
-      href={`/copa/${r.slug}`}
-      className={`block px-4 py-3 transition hover:bg-black/[0.02] ${r.isMe ? "bg-[var(--color-gold-soft)]/40" : ""}`}
+    <button
+      type="button"
+      onClick={() => openLedger({ slug: r.slug, name: r.name })}
+      aria-label={`See how ${r.name} earned their points`}
+      className={`block w-full px-4 py-3 text-left transition hover:bg-black/[0.02] ${r.isMe ? "bg-[var(--color-gold-soft)]/40" : ""}`}
     >
       <div className="flex items-center gap-3">
         <div className="w-6 text-center text-sm font-black tabular-nums text-[var(--color-muted)]">
@@ -60,7 +64,7 @@ export function Lane({ r, leaderTotal }: { r: LeaderboardRow; leaderTotal: numbe
           }}
         />
       </div>
-    </Link>
+    </button>
   );
 }
 

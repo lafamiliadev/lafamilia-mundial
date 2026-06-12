@@ -437,6 +437,15 @@ export const supabaseRepo: Repo = {
     return toScorePrediction(data);
   },
 
+  async listScorePredictions(participantId) {
+    const db = supabaseAdmin();
+    const { data } = await db
+      .from("score_predictions")
+      .select("*")
+      .eq("participant_id", participantId);
+    return (data ?? []).map(toScorePrediction);
+  },
+
   async getScorePredictionTotals() {
     const db = supabaseAdmin();
     const { data } = await db

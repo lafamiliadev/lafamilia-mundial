@@ -339,6 +339,11 @@ export const memoryRepo: Repo = {
     ) ?? null;
   },
 
+  async listScorePredictions(participantId) {
+    const data = await load();
+    return (data.scorePredictions ?? []).filter((p) => p.participantId === participantId);
+  },
+
   async upsertScorePrediction({ participantId, matchId, scoreA, scoreB }) {
     const data = await load();
     const now = new Date().toISOString();

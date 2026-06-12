@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Countdown } from "@/components/Countdown";
 import { FamiliaInvitersBoard } from "@/components/FamiliaInvitersBoard";
 import { Lane, LeaderboardList } from "@/components/LeaderboardList";
+import { LedgerDrawer } from "@/components/LedgerDrawer";
 import { SiembraBanner } from "@/components/Siembra";
 import { LinkButton, PageShell, SectionTitle, TopNav } from "@/components/ui";
 import { db } from "@/lib/db";
@@ -314,6 +315,7 @@ export default async function LeaderboardPage({
           </p>
         )}
       </PageShell>
+      <LedgerDrawer />
     </main>
   );
 }

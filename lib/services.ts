@@ -2,6 +2,7 @@ import "server-only";
 import { db } from "./db";
 import { computeAwards, isTeamMember, type AwardsResult } from "./awards";
 import { getProvider, type ProviderMatchStatus, type ProviderScore } from "./football";
+import { buildLedgerLines, type LedgerLine } from "./ledger";
 import { orientApiScore, scoreMatchKey } from "./score-match-link";
 import { rankParticipants, scorePredictions } from "./scoring";
 import { resolveTeamCode, teamName } from "./teams";
@@ -461,6 +462,52 @@ export async function getLeaderboardData(
   }
 
   return { total: participants.length, top, all, me, leaderTotal, meGapToNext, scoringStarted, meScoreBreakdown };
+}
+
+export type PlayerLedger = {
+  name: string;
+  slug: string;
+  total: number;
+  lines: LedgerLine[];
+  /** Next upcoming, unscored bonus match — for the "you can still climb" nudge. */
+  nextMatch: string | null;
+};
+
+/**
+ * One player's points ledger for the leaderboard drawer: every positive-point
+ * entry (bracket, bonus picks, Live Picks, and per-match score picks), biggest
+ * first, plus the next match they can still earn on. Read-only; referrals are a
+ * separate challenge and never appear here. Returns null if the slug is unknown.
+ */
+export async function getPlayerLedger(slug: string): Promise<PlayerLedger | null> {
+  const repo = await db();
+  const me = await repo.getBySlug(slug);
+  if (!me) return null;
+
+  const [settings, results, livePicks, predictions, matches] = await Promise.all([
+    repo.getSettings(),
+    repo.getResults(),
+    repo.getLivePicks(me.id),
+    repo.listScorePredictions(me.id),
+    repo.getScoreMatches(),
+  ]);
+
+  const scorePickTotal = predictions.reduce((s, p) => s + (p.pointsAwarded ?? 0), 0);
+  const score = scorePredictions(me.predictions, results, settings, livePicks, scorePickTotal);
+  const lines = buildLedgerLines(score.lines, predictions, matches);
+
+  const nowMs = Date.now();
+  const upcoming = matches
+    .filter((m) => m.finalScoreA == null && new Date(m.kickoffUtc).getTime() > nowMs)
+    .sort((a, b) => a.kickoffUtc.localeCompare(b.kickoffUtc))[0];
+
+  return {
+    name: me.name,
+    slug: me.slug,
+    total: score.total,
+    lines,
+    nextMatch: upcoming ? `${upcoming.teamA} vs ${upcoming.teamB}` : null,
+  };
 }
 
 /** La Familia Honors — derived from everyone's picks + final scores. */

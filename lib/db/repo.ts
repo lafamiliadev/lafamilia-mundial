@@ -87,6 +87,8 @@ export interface Repo {
   getUpcomingScoreMatches(nowIso: string, withinHours?: number): Promise<ScoreMatch[]>;
   getScoreMatch(matchId: string): Promise<ScoreMatch | null>;
   getScorePrediction(participantId: string, matchId: string): Promise<ScorePrediction | null>;
+  /** All of one participant's score predictions — for their points ledger. */
+  listScorePredictions(participantId: string): Promise<ScorePrediction[]>;
   upsertScorePrediction(input: {
     participantId: string;
     matchId: string;
