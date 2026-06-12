@@ -339,17 +339,17 @@ export function renderScoreWindowOpen(p: {
   const body = `
   ${emailIntro({
     emoji: "⚽",
-    heading: `Predict the score, ${p.firstName}`,
+    heading: `${p.teamA} vs ${p.teamB}`,
     paras: [
-      `<strong style="color:${INK};">${p.teamA} vs ${p.teamB}</strong> is open for score predictions. Call the scoreline and earn bonus points.`,
-      `<strong style="color:${INK};">+3</strong> for the exact score · <strong style="color:${INK};">+1</strong> for the correct winner or draw.`,
-      `Locks at kickoff — <strong style="color:${INK};">${p.locksLabel}</strong>. Get your pick in before then.`,
+      `It's open, ${p.firstName} — predict the final score before kickoff.`,
+      `Exact score is <strong style="color:${INK};">+3</strong>. Correct winner is <strong style="color:${INK};">+1</strong>.`,
+      `Locks at kickoff: <strong style="color:${INK};">${p.locksLabel}</strong>.`,
     ],
   })}
   ${cta(p.scoreUrl, "Predict the score →")}
-  ${nextLine("LatAm + Spain matches only. Edit anytime before kickoff.")}`;
+  ${nextLine("Edit anytime before it locks.")}`;
   return emailShell({
-    preheader: `${p.teamA} vs ${p.teamB} — predict the score for bonus points.`,
+    preheader: `${p.teamA} vs ${p.teamB} — predict the final score before kickoff.`,
     body,
   });
 }
