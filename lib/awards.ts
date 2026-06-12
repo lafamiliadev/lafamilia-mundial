@@ -40,7 +40,7 @@ export type AwardsResult = {
 };
 
 /** Score lookup shape (subset of what repo.getScores returns). */
-type ScoreLite = { rank: number; total: number; startRank: number; bracket?: number; live?: number };
+type ScoreLite = { rank: number; total: number; startRank: number; bracket?: number; live?: number; scorePick?: number };
 type Scores = Record<string, ScoreLite>;
 
 function correctGroupCount(p: Participant, results: Results): number {
@@ -65,6 +65,7 @@ export function computeAwards(
   const total = (p: Participant) => scores[p.id]?.total ?? 0;
   const live = (p: Participant) => scores[p.id]?.live ?? 0;
   const bracketPts = (p: Participant) => scores[p.id]?.bracket ?? 0;
+  const scorePickPts = (p: Participant) => scores[p.id]?.scorePick ?? 0;
   const championCorrect = (p: Participant) =>
     Boolean(results.champion) && p.predictions.champion === results.champion;
   const semis = results.stageReached.sf ?? [];
@@ -119,6 +120,25 @@ export function computeAwards(
         title: "El Oráculo",
         subtitle: "Saw the group stage coming.",
         winners: [winnerOf(tied[0], `Called ${best} of 12 group winners.`)],
+      });
+    }
+  }
+
+  // 🎯 El Pronosticador — most points from LatAm + Spain score predictions.
+  // Live from the very first scored match, so it's one of the earliest honors.
+  {
+    let best = 0;
+    for (const p of participants) best = Math.max(best, scorePickPts(p));
+    if (best > 0) {
+      const tied = participants
+        .filter((p) => scorePickPts(p) === best)
+        .sort((a, b) => total(b) - total(a) || a.name.localeCompare(b.name));
+      honors.push({
+        id: "pronosticador",
+        emoji: "🎯",
+        title: "El Pronosticador",
+        subtitle: "Called the scorelines nobody else could.",
+        winners: [winnerOf(tied[0], `${best} pts from score predictions.`)],
       });
     }
   }
@@ -398,6 +418,19 @@ export const AWARD_CATALOG: AwardCatalogEntry[] = [
     availableAfter: "The end of the Group Stage",
     unlockOrder: 1,
     emptyState: "⚽ Ask us again after the group stage.",
+  },
+  {
+    id: "pronosticador",
+    emoji: "🎯",
+    name: "El Pronosticador",
+    group: "prediction",
+    blurb: "Called the scorelines nobody else could.",
+    howItsAwarded:
+      "The most points from the LatAm + Spain score predictions — guessing exact match scores all through the group stage.",
+    availableAfter: "The first scored match",
+    unlockOrder: 0,
+    emptyState: "🎯 Waiting for the first score predictions to land.",
+    liveNote: "Out front for now — every match can still shuffle it.",
   },
   {
     id: "finalfour",

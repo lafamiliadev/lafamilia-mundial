@@ -528,7 +528,7 @@ export async function getAwards(): Promise<AwardsResult> {
   const lite = Object.fromEntries(
     Object.entries(scores).map(([id, s]) => [
       id,
-      { rank: s.rank, total: s.total, startRank: s.startRank, bracket: s.bracket, live: s.live },
+      { rank: s.rank, total: s.total, startRank: s.startRank, bracket: s.bracket, live: s.live, scorePick: s.scorePick },
     ]),
   );
   return computeAwards(participants, lite, results);

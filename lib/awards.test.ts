@@ -248,3 +248,29 @@ describe("computeAwards — added honors + deterministic La Copa", () => {
     expect(champion?.winners[0].name).toBe("Yamil");
   });
 });
+
+describe("computeAwards — El Pronosticador (score predictions)", () => {
+  it("awards the most score-prediction points", () => {
+    const { honors } = computeAwards(
+      [maria, carlos, sofia],
+      {
+        p1: { rank: 2, total: 10, startRank: 1, scorePick: 3 },
+        p2: { rank: 1, total: 12, startRank: 1, scorePick: 9 },
+        p3: { rank: 3, total: 5, startRank: 1, scorePick: 0 },
+      },
+      EMPTY_RESULTS,
+    );
+    const pron = honors.find((h) => h.id === "pronosticador");
+    expect(pron?.winners.map((w) => w.name)).toEqual(["Carlos"]);
+    expect(pron?.winners[0].detail).toContain("9 pts");
+  });
+
+  it("is absent when nobody has score-prediction points", () => {
+    const { honors } = computeAwards(
+      [maria],
+      { p1: { rank: 1, total: 0, startRank: 0 } },
+      EMPTY_RESULTS,
+    );
+    expect(honors.find((h) => h.id === "pronosticador")).toBeUndefined();
+  });
+});
