@@ -14,7 +14,12 @@ import { generateCommunityUpdates } from "@/lib/community";
 import { sendEmail } from "@/lib/email";
 import { buildSampleEmails } from "@/lib/email-template";
 import { env } from "@/lib/env";
-import { recomputeScores, syncTournamentGroups } from "@/lib/services";
+import {
+  getScoreMatchAdminView,
+  recomputeScores,
+  syncScoreMatchFixtures,
+  syncTournamentGroups,
+} from "@/lib/services";
 import type { KnockoutRound, LiveMatch, Results, Settings } from "@/lib/types";
 
 async function requireAdmin() {
@@ -214,4 +219,93 @@ export async function sendTestEmailsAction(
 
 export async function deleteParticipantAction() {
   // Reserved: deletion not exposed in MVP admin to avoid accidental data loss.
+}
+
+// ── Bonus score predictions (Phase 1: shadow-first, admin-confirmed) ──────────
+
+function revalidateScoreViews() {
+  revalidatePath("/admin");
+  revalidatePath("/leaderboard");
+}
+
+/** Link the seeded score-prediction matches to API fixtures (metadata only). */
+export async function linkScoreFixturesAction(): Promise<{ ok: boolean; message: string }> {
+  await requireAdmin();
+  try {
+    const r = await syncScoreMatchFixtures();
+    revalidatePath("/admin");
+    if (r.provider !== "api-football") {
+      return { ok: false, message: `Provider is "${r.provider}", which has no fixture ids to link. Set API-Football to enable linking.` };
+    }
+    return {
+      ok: true,
+      message: `Linked ${r.linked} new · ${r.alreadyLinked} already linked · ${r.ambiguous} ambiguous · ${r.unmatched} unmatched (via ${r.provider}).`,
+    };
+  } catch (e) {
+    return { ok: false, message: (e as Error).message };
+  }
+}
+
+/** Confirm the API's final score for a match and award points. Re-reads the
+ * view server-side so we award the verified, team-oriented API value — never a
+ * number passed from the client. */
+export async function useApiScoreAction(matchId: string): Promise<{ ok: boolean; message: string }> {
+  await requireAdmin();
+  try {
+    const row = (await getScoreMatchAdminView()).find((r) => r.match.matchId === matchId);
+    if (!row) return { ok: false, message: "Match not found." };
+    if (row.state === "scored") return { ok: false, message: "Already scored. Use Correct & re-score to change it." };
+    if (row.state !== "final-unscored" || row.apiFinalA == null || row.apiFinalB == null) {
+      return { ok: false, message: "No confirmed API final score for this match yet. Score by hand if needed." };
+    }
+    const repo = await db();
+    const { scored } = await repo.scoreMatch(matchId, row.apiFinalA, row.apiFinalB, "api");
+    await recomputeScores({ pullFromProvider: false });
+    revalidateScoreViews();
+    return { ok: true, message: `Scored from API — ${row.apiScoreLabel}. ${scored} prediction${scored === 1 ? "" : "s"} awarded. Leaderboard updated.` };
+  } catch (e) {
+    return { ok: false, message: (e as Error).message };
+  }
+}
+
+/** Score a match by hand (fallback when the API is missing/wrong). */
+export async function scoreManuallyAction(
+  matchId: string,
+  finalScoreA: number,
+  finalScoreB: number,
+): Promise<{ ok: boolean; message: string }> {
+  await requireAdmin();
+  const valid = (n: unknown) => typeof n === "number" && Number.isInteger(n) && n >= 0 && n <= 30;
+  if (!valid(finalScoreA) || !valid(finalScoreB)) {
+    return { ok: false, message: "Enter whole-number scores between 0 and 30." };
+  }
+  try {
+    const repo = await db();
+    const match = await repo.getScoreMatch(matchId);
+    if (!match) return { ok: false, message: `Match not found: ${matchId}` };
+    if (match.finalScoreA != null && match.scoredBy != null) {
+      return { ok: false, message: "Already scored. Use Correct & re-score to change it." };
+    }
+    const { scored } = await repo.scoreMatch(matchId, finalScoreA, finalScoreB, "admin");
+    await recomputeScores({ pullFromProvider: false });
+    revalidateScoreViews();
+    return { ok: true, message: `Scored by hand — ${match.teamA} ${finalScoreA}–${finalScoreB} ${match.teamB}. ${scored} prediction${scored === 1 ? "" : "s"} awarded. Leaderboard updated.` };
+  } catch (e) {
+    return { ok: false, message: (e as Error).message };
+  }
+}
+
+/** Safely undo ONE match's scoring (clears its points), then recompute, so a
+ * wrong score can be re-entered. Other matches are untouched. */
+export async function resetScoreAction(matchId: string): Promise<{ ok: boolean; message: string }> {
+  await requireAdmin();
+  try {
+    const repo = await db();
+    const { reset } = await repo.resetMatchScoring(matchId);
+    await recomputeScores({ pullFromProvider: false });
+    revalidateScoreViews();
+    return { ok: true, message: `Reset this match — ${reset} prediction${reset === 1 ? "" : "s"} cleared. Re-enter or confirm the correct score.` };
+  } catch (e) {
+    return { ok: false, message: (e as Error).message };
+  }
 }

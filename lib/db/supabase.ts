@@ -75,6 +75,9 @@ function toScoreMatch(r: Record<string, unknown>): ScoreMatch {
     displayTimePt: r.display_time_pt as string,
     finalScoreA: r.final_score_a as number | null,
     finalScoreB: r.final_score_b as number | null,
+    providerFixtureId: (r.provider_fixture_id as string | null) ?? null,
+    scoredBy: (r.scored_by as "api" | "admin" | null) ?? null,
+    scoredAt: (r.scored_at as string | null) ?? null,
   };
 }
 
@@ -448,12 +451,36 @@ export const supabaseRepo: Repo = {
     return totals;
   },
 
-  async scoreMatch(matchId, finalScoreA, finalScoreB) {
+  async getScorePredictionCounts() {
     const db = supabaseAdmin();
-    // Store the final score.
+    const { data } = await db.from("score_predictions").select("match_id");
+    const counts: Record<string, number> = {};
+    for (const r of data ?? []) {
+      const row = r as { match_id: string };
+      counts[row.match_id] = (counts[row.match_id] ?? 0) + 1;
+    }
+    return counts;
+  },
+
+  async linkScoreMatchFixture(matchId, providerFixtureId) {
+    const db = supabaseAdmin();
     await db
       .from("score_matches")
-      .update({ final_score_a: finalScoreA, final_score_b: finalScoreB })
+      .update({ provider_fixture_id: providerFixtureId })
+      .eq("match_id", matchId);
+  },
+
+  async scoreMatch(matchId, finalScoreA, finalScoreB, scoredBy) {
+    const db = supabaseAdmin();
+    // Store the final score + provenance.
+    await db
+      .from("score_matches")
+      .update({
+        final_score_a: finalScoreA,
+        final_score_b: finalScoreB,
+        scored_by: scoredBy,
+        scored_at: new Date().toISOString(),
+      })
       .eq("match_id", matchId);
     // Fetch all unscored predictions for this match.
     const { data: preds } = await db
@@ -478,6 +505,28 @@ export const supabaseRepo: Repo = {
       scored++;
     }
     return { scored };
+  },
+
+  async resetMatchScoring(matchId) {
+    const db = supabaseAdmin();
+    // Clear the final score + provenance on the match.
+    await db
+      .from("score_matches")
+      .update({ final_score_a: null, final_score_b: null, scored_by: null, scored_at: null })
+      .eq("match_id", matchId);
+    // Reset points only on this match's already-scored predictions.
+    const { data: preds } = await db
+      .from("score_predictions")
+      .select("id")
+      .eq("match_id", matchId)
+      .not("points_awarded", "is", null);
+    const ids = (preds ?? []).map((p) => (p as { id: string }).id);
+    if (ids.length === 0) return { reset: 0 };
+    await db
+      .from("score_predictions")
+      .update({ points_awarded: null, updated_at: new Date().toISOString() })
+      .in("id", ids);
+    return { reset: ids.length };
   },
 
   async hasReceivedScoreEmail(participantId, templateId) {

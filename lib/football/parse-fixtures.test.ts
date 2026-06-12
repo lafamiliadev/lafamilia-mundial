@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { parseKnockoutFixtures, roundToKnockout, type RawFixture } from "./parse-fixtures";
+import {
+  fixtureStatus,
+  parseFixtureScores,
+  parseKnockoutFixtures,
+  roundToKnockout,
+  type RawFixture,
+} from "./parse-fixtures";
 
 function fx(
   id: number,
@@ -103,5 +109,91 @@ describe("parseKnockoutFixtures", () => {
   it("skips fixtures with no id (no stable key)", () => {
     const bad: RawFixture = { league: { round: "Round of 16" }, teams: { home: { name: "Argentina" }, away: { name: "Mexico" } } };
     expect(parseKnockoutFixtures([bad]).matches).toHaveLength(0);
+  });
+});
+
+// A group-stage fixture with goals + status — the bonus-score-prediction input.
+function gfx(
+  id: number,
+  home: string,
+  away: string,
+  opts: { status?: string; gh?: number | null; ga?: number | null; date?: string } = {},
+): RawFixture {
+  return {
+    fixture: { id, date: opts.date ?? "2026-06-11T19:00:00+00:00", status: { short: opts.status ?? "NS" } },
+    league: { round: "Group Stage - 1" },
+    teams: { home: { name: home }, away: { name: away } },
+    goals: { home: opts.gh ?? null, away: opts.ga ?? null },
+  };
+}
+
+describe("fixtureStatus — code → lifecycle", () => {
+  it("maps finished codes to final", () => {
+    for (const s of ["FT", "AET", "PEN"]) expect(fixtureStatus(s)).toBe("final");
+  });
+  it("maps in-play codes to live", () => {
+    for (const s of ["1H", "HT", "2H", "ET", "P", "SUSP"]) expect(fixtureStatus(s)).toBe("live");
+  });
+  it("maps PST to postponed and CANC/ABD to canceled", () => {
+    expect(fixtureStatus("PST")).toBe("postponed");
+    expect(fixtureStatus("CANC")).toBe("canceled");
+    expect(fixtureStatus("ABD")).toBe("canceled");
+  });
+  it("falls back to scheduled for NS/TBD/unknown", () => {
+    expect(fixtureStatus("NS")).toBe("scheduled");
+    expect(fixtureStatus("TBD")).toBe("scheduled");
+    expect(fixtureStatus(undefined)).toBe("scheduled");
+  });
+});
+
+describe("parseFixtureScores — bonus score inputs", () => {
+  it("returns a final score with team codes resolved (Mexico vs South Africa)", () => {
+    const out = parseFixtureScores([gfx(101, "Mexico", "South Africa", { status: "FT", gh: 2, ga: 0 })]);
+    expect(out).toEqual([
+      {
+        fixtureId: "101",
+        status: "final",
+        kickoffIso: "2026-06-11T19:00:00+00:00",
+        homeCode: "MEX",
+        awayCode: "RSA",
+        homeGoals: 2,
+        awayGoals: 0,
+      },
+    ]);
+  });
+
+  it("never surfaces goals for a non-final match (a live 0-0 is not a result)", () => {
+    const [live] = parseFixtureScores([gfx(102, "Mexico", "South Africa", { status: "1H", gh: 0, ga: 0 })]);
+    expect(live.status).toBe("live");
+    expect(live.homeGoals).toBeNull();
+    expect(live.awayGoals).toBeNull();
+  });
+
+  it("resolves the awkward names (Congo DR, Curaçao, Türkiye)", () => {
+    const out = parseFixtureScores([
+      gfx(103, "Colombia", "Congo DR", { status: "FT", gh: 1, ga: 1 }),
+      gfx(104, "Ecuador", "Curaçao", { status: "FT", gh: 3, ga: 0 }),
+      gfx(105, "Türkiye", "Paraguay", { status: "FT", gh: 0, ga: 2 }),
+    ]);
+    expect(out.map((s) => [s.homeCode, s.awayCode])).toEqual([
+      ["COL", "COD"],
+      ["ECU", "CUW"],
+      ["TUR", "PAR"],
+    ]);
+  });
+
+  it("postponed/canceled carry status but no goals", () => {
+    const out = parseFixtureScores([
+      gfx(106, "Spain", "Cape Verde", { status: "PST" }),
+      gfx(107, "Brazil", "Morocco", { status: "CANC" }),
+    ]);
+    expect(out[0].status).toBe("postponed");
+    expect(out[1].status).toBe("canceled");
+    expect(out[0].homeGoals).toBeNull();
+  });
+
+  it("skips fixtures with no id", () => {
+    const bad: RawFixture = { teams: { home: { name: "Mexico" }, away: { name: "South Africa" } } };
+    expect(parseFixtureScores([bad])).toHaveLength(0);
   });
 });

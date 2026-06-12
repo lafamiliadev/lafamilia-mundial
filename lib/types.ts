@@ -224,6 +224,14 @@ export type ScoreMatch = {
   displayTimePt: string;
   finalScoreA: number | null;
   finalScoreB: number | null;
+  /** Football-provider fixture id this match is linked to (for shadow/auto
+   * scoring), or null when not yet linked. Resolved once by the linker. */
+  providerFixtureId: string | null;
+  /** Who recorded the final score: "api" (admin confirmed the API value) or
+   * "admin" (typed by hand). null until the match is scored. */
+  scoredBy: "api" | "admin" | null;
+  /** When the final score was recorded (ISO), or null. */
+  scoredAt: string | null;
 };
 
 /** A member's predicted scoreline for one eligible match. */

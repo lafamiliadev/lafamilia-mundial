@@ -14,13 +14,14 @@ import { InsightsBoard } from "@/components/InsightsBoard";
 import { FunFactsBoard } from "@/components/FunFactsBoard";
 import { LiveMatchesAdmin } from "@/components/LiveMatchesAdmin";
 import { LiveResultsConfirm } from "@/components/LiveResultsConfirm";
+import { ScoreMatchesAdmin } from "@/components/ScoreMatchesAdmin";
 import { matchImpact } from "@/lib/live";
 import { adminLogout } from "@/app/actions/admin";
 import { isAdmin } from "@/lib/admin-auth";
 import { db } from "@/lib/db";
 import { env } from "@/lib/env";
 import { getProvider } from "@/lib/football";
-import { getAwards } from "@/lib/services";
+import { getAwards, getScoreMatchAdminView } from "@/lib/services";
 import { teamFlag, teamName } from "@/lib/teams";
 import type { ProviderStatus } from "@/lib/football";
 
@@ -31,7 +32,7 @@ export default async function AdminDashboard() {
   if (!(await isAdmin())) redirect("/admin/login");
 
   const repo = await db();
-  const [participants, scores, settings, results, content, awards, livePicksByUser] =
+  const [participants, scores, settings, results, content, awards, livePicksByUser, scoreMatchRows] =
     await Promise.all([
       repo.listParticipants(),
       repo.getScores(),
@@ -40,6 +41,7 @@ export default async function AdminDashboard() {
       repo.listContent(),
       getAwards(),
       repo.listLivePicks(),
+      getScoreMatchAdminView(),
     ]);
 
   // Impact preview for the foolproof results-confirm screen: who picked each
@@ -241,6 +243,21 @@ export default async function AdminDashboard() {
         </p>
         <div className="mt-4">
           <LiveMatchesAdmin initialMatches={settings.liveMatches} />
+        </div>
+      </section>
+
+      {/* Bonus score predictions — link to API, confirm the score, award points.
+          Shadow-first: the API score is shown for confirmation; nothing is
+          awarded until you click. Manual entry is always available as fallback. */}
+      <section className="card mt-6 p-5">
+        <SectionTitle emoji="🎲">Bonus score matches</SectionTitle>
+        <p className="mt-1 text-sm text-[var(--color-muted)]">
+          {status.provider === "api-football"
+            ? "Final scores come from API-Football. Link the matches, then confirm each result to award points — the leaderboard updates right away. If the API is missing or wrong, enter the score by hand. Nothing is awarded automatically yet."
+            : "Final scores for these matches are entered by hand on the free provider. Set API-Football to pull scores automatically. Enter each result below to award points."}
+        </p>
+        <div className="mt-4">
+          <ScoreMatchesAdmin rows={scoreMatchRows} />
         </div>
       </section>
 

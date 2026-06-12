@@ -12,4 +12,9 @@ export function getProvider(): FootballProvider {
   return new OpenFootballProvider();
 }
 
-export type { FootballProvider, ProviderStatus } from "./provider";
+export type {
+  FootballProvider,
+  ProviderMatchStatus,
+  ProviderScore,
+  ProviderStatus,
+} from "./provider";

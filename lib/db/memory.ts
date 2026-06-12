@@ -125,6 +125,16 @@ async function persist(data: Shape): Promise<void> {
   await fs.writeFile(DATA_FILE, JSON.stringify(data, null, 2), "utf8");
 }
 
+/** Backfill the provider-link fields on a score match read from an older store. */
+function smDefaults(m: ScoreMatch): ScoreMatch {
+  return {
+    ...m,
+    providerFixtureId: m.providerFixtureId ?? null,
+    scoredBy: m.scoredBy ?? null,
+    scoredAt: m.scoredAt ?? null,
+  };
+}
+
 export const memoryRepo: Repo = {
   async getSettings() {
     const s = (await load()).settings;
@@ -302,9 +312,9 @@ export const memoryRepo: Repo = {
   },
 
   async getScoreMatches() {
-    return [...((await load()).scoreMatches ?? [])].sort((a, b) =>
-      a.kickoffUtc.localeCompare(b.kickoffUtc),
-    );
+    return [...((await load()).scoreMatches ?? [])]
+      .map(smDefaults)
+      .sort((a, b) => a.kickoffUtc.localeCompare(b.kickoffUtc));
   },
 
   async getUpcomingScoreMatches(nowIso, withinHours = 24) {
@@ -312,12 +322,14 @@ export const memoryRepo: Repo = {
     const data = await load();
     return (data.scoreMatches ?? [])
       .filter((m) => m.kickoffUtc > nowIso && m.kickoffUtc <= cutoff)
+      .map(smDefaults)
       .sort((a, b) => a.kickoffUtc.localeCompare(b.kickoffUtc));
   },
 
   async getScoreMatch(matchId) {
     const data = await load();
-    return (data.scoreMatches ?? []).find((m) => m.matchId === matchId) ?? null;
+    const m = (data.scoreMatches ?? []).find((m) => m.matchId === matchId);
+    return m ? smDefaults(m) : null;
   },
 
   async getScorePrediction(participantId, matchId) {
@@ -365,12 +377,35 @@ export const memoryRepo: Repo = {
     return totals;
   },
 
-  async scoreMatch(matchId, finalScoreA, finalScoreB) {
+  async getScorePredictionCounts() {
+    const data = await load();
+    const counts: Record<string, number> = {};
+    for (const p of data.scorePredictions ?? []) {
+      counts[p.matchId] = (counts[p.matchId] ?? 0) + 1;
+    }
+    return counts;
+  },
+
+  async linkScoreMatchFixture(matchId, providerFixtureId) {
+    const data = await load();
+    const matches = (data.scoreMatches ?? []).map((m) =>
+      m.matchId === matchId ? { ...smDefaults(m), providerFixtureId } : m,
+    );
+    await persist({ ...data, scoreMatches: matches });
+  },
+
+  async scoreMatch(matchId, finalScoreA, finalScoreB, scoredBy) {
     const data = await load();
     const matches = data.scoreMatches ?? [];
     const matchIdx = matches.findIndex((m) => m.matchId === matchId);
     if (matchIdx >= 0) {
-      matches[matchIdx] = { ...matches[matchIdx], finalScoreA, finalScoreB };
+      matches[matchIdx] = {
+        ...smDefaults(matches[matchIdx]),
+        finalScoreA,
+        finalScoreB,
+        scoredBy,
+        scoredAt: new Date().toISOString(),
+      };
     }
     const actualResult = Math.sign(finalScoreA - finalScoreB);
     let scored = 0;
@@ -391,6 +426,26 @@ export const memoryRepo: Repo = {
     }
     await persist({ ...data, scoreMatches: matches, scorePredictions: preds });
     return { scored };
+  },
+
+  async resetMatchScoring(matchId) {
+    const data = await load();
+    const matches = (data.scoreMatches ?? []).map((m) =>
+      m.matchId === matchId
+        ? { ...smDefaults(m), finalScoreA: null, finalScoreB: null, scoredBy: null, scoredAt: null }
+        : m,
+    );
+    let reset = 0;
+    const now = new Date().toISOString();
+    const preds = (data.scorePredictions ?? []).map((p) => {
+      if (p.matchId === matchId && p.pointsAwarded != null) {
+        reset++;
+        return { ...p, pointsAwarded: null, updatedAt: now };
+      }
+      return p;
+    });
+    await persist({ ...data, scoreMatches: matches, scorePredictions: preds });
+    return { reset };
   },
 
   async hasReceivedScoreEmail(participantId, templateId) {

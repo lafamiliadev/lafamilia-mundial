@@ -95,12 +95,29 @@ export interface Repo {
   }): Promise<ScorePrediction>;
   /** Sum of all awarded score prediction points per participant_id. */
   getScorePredictionTotals(): Promise<Record<string, number>>;
+  /** How many predictions exist per match id — for the admin "who's affected" view. */
+  getScorePredictionCounts(): Promise<Record<string, number>>;
+  /** Link a score match to a provider fixture id (or null to unlink). Pure
+   * metadata — never touches predictions or points. */
+  linkScoreMatchFixture(matchId: string, providerFixtureId: string | null): Promise<void>;
   /**
    * Set the final score for a match and compute points_awarded for every
    * prediction on it. Idempotent: predictions where points_awarded is already
-   * set are skipped. Returns the number of predictions scored.
+   * set are skipped. `scoredBy` records provenance (API-confirmed vs manual).
+   * Returns the number of predictions scored.
    */
-  scoreMatch(matchId: string, finalScoreA: number, finalScoreB: number): Promise<{ scored: number }>;
+  scoreMatch(
+    matchId: string,
+    finalScoreA: number,
+    finalScoreB: number,
+    scoredBy: "api" | "admin",
+  ): Promise<{ scored: number }>;
+  /**
+   * Undo scoring for ONE match: clear its final score + provenance and reset
+   * points_awarded to null on its predictions, so a corrected score can be
+   * re-applied cleanly. Scoped to this match only. Returns predictions cleared.
+   */
+  resetMatchScoring(matchId: string): Promise<{ reset: number }>;
 
   hasReceivedScoreEmail(participantId: string, templateId: string): Promise<boolean>;
   logScoreEmail(participantId: string, templateId: string, status: string): Promise<void>;

@@ -1,8 +1,8 @@
 import { env } from "../env";
 import { resolveTeamCode } from "../teams";
 import { EMPTY_RESULTS, type GroupMap, type LiveMatch, type Results } from "../types";
-import { parseKnockoutFixtures, type RawFixture } from "./parse-fixtures";
-import type { FootballProvider, ProviderStatus } from "./provider";
+import { parseFixtureScores, parseKnockoutFixtures, type RawFixture } from "./parse-fixtures";
+import type { FootballProvider, ProviderScore, ProviderStatus } from "./provider";
 
 // Production provider: API-Football (api-sports.io v3). The World Cup is league
 // id 1; season 2026. Reliable, affordable, explicit WC2026 coverage.
@@ -143,6 +143,16 @@ export class ApiFootballProvider implements FootballProvider {
   async fetchKnockoutMatches(): Promise<LiveMatch[]> {
     try {
       return parseKnockoutFixtures(await this.fetchFixtures()).matches;
+    } catch {
+      return [];
+    }
+  }
+
+  /** Final scores + status for every fixture (group stage included), for the
+   * bonus score-prediction matches. Same /fixtures call as the other readers. */
+  async fetchScores(): Promise<ProviderScore[]> {
+    try {
+      return parseFixtureScores(await this.fetchFixtures());
     } catch {
       return [];
     }

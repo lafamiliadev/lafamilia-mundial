@@ -1,4 +1,5 @@
 import { resolveTeamCode } from "../teams";
+import type { ProviderMatchStatus, ProviderScore } from "./provider";
 import type { KnockoutRound, LiveMatch, Stage } from "../types";
 
 // Pure parser for API-Football /fixtures responses → the Live Picks knockout
@@ -13,10 +14,54 @@ export type RawFixture = {
     home?: { name?: string; winner?: boolean | null };
     away?: { name?: string; winner?: boolean | null };
   };
+  /** Full-time goals. Present once the match kicks off; final when status is FT. */
+  goals?: { home?: number | null; away?: number | null };
 };
 
 /** API status codes that mean the match is over and the result is final. */
 const FINISHED = new Set(["FT", "AET", "PEN"]);
+/** In-play / paused-but-ongoing codes. */
+const IN_PLAY = new Set(["1H", "HT", "2H", "ET", "BT", "P", "INT", "LIVE", "SUSP"]);
+/** Will not be played as scheduled. */
+const POSTPONED = new Set(["PST"]);
+const CANCELED = new Set(["CANC", "ABD", "AWD", "WO"]);
+
+/** Map an API-Football status short code to our normalized lifecycle. NS/TBD and
+ * anything unrecognized fall back to "scheduled" (safe — never auto-final). */
+export function fixtureStatus(short: string | undefined): ProviderMatchStatus {
+  const s = (short ?? "").toUpperCase();
+  if (FINISHED.has(s)) return "final";
+  if (CANCELED.has(s)) return "canceled";
+  if (POSTPONED.has(s)) return "postponed";
+  if (IN_PLAY.has(s)) return "live";
+  return "scheduled";
+}
+
+/**
+ * Final scores + status for every fixture, team-resolved to our codes. Pure +
+ * provider-agnostic so it can be unit-tested against fake fixtures. Includes
+ * group-stage matches (unlike parseKnockoutFixtures, which filters to knockouts).
+ */
+export function parseFixtureScores(fixtures: RawFixture[]): ProviderScore[] {
+  const out: ProviderScore[] = [];
+  for (const fx of fixtures) {
+    const id = fx.fixture?.id;
+    if (id == null) continue;
+    const status = fixtureStatus(fx.fixture?.status?.short);
+    out.push({
+      fixtureId: String(id),
+      status,
+      kickoffIso: fx.fixture?.date ?? null,
+      homeCode: resolveTeamCode(fx.teams?.home?.name),
+      awayCode: resolveTeamCode(fx.teams?.away?.name),
+      // Only surface goals for a finished match — a 0–0 mid-game must never read
+      // as a final result. (Provider may report live goals; we ignore them.)
+      homeGoals: status === "final" ? fx.goals?.home ?? null : null,
+      awayGoals: status === "final" ? fx.goals?.away ?? null : null,
+    });
+  }
+  return out;
+}
 
 /** Map an API round label to our knockout round (3rd-place game excluded). */
 export function roundToKnockout(round: string | undefined): KnockoutRound | null {

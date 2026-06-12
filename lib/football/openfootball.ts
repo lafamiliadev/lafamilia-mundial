@@ -1,6 +1,6 @@
 import { resolveTeamCode } from "../teams";
 import { EMPTY_RESULTS, type GroupMap, type LiveMatch, type Results, type Stage } from "../types";
-import type { FootballProvider, ProviderStatus } from "./provider";
+import type { FootballProvider, ProviderScore, ProviderStatus } from "./provider";
 
 // Free, public-domain provider (github.com/openfootball/worldcup.json).
 // No API key. Used for local dev + zero-cost production fallback. Best-effort:
@@ -161,6 +161,12 @@ export class OpenFootballProvider implements FootballProvider {
   /** OpenFootball doesn't supply per-match knockout matchups with stable ids, so
    * the Live Picks matchups are admin-entered when running on this provider. */
   async fetchKnockoutMatches(): Promise<LiveMatch[]> {
+    return [];
+  }
+
+  /** OpenFootball has no stable per-fixture ids, so it can't back the linked
+   * score-prediction scoring. Returns [] — those matches stay admin-only here. */
+  async fetchScores(): Promise<ProviderScore[]> {
     return [];
   }
 }

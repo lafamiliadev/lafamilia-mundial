@@ -1,9 +1,11 @@
 import "server-only";
 import { db } from "./db";
 import { computeAwards, isTeamMember, type AwardsResult } from "./awards";
-import { getProvider } from "./football";
+import { getProvider, type ProviderMatchStatus, type ProviderScore } from "./football";
+import { orientApiScore, scoreMatchKey } from "./score-match-link";
 import { rankParticipants, scorePredictions } from "./scoring";
-import type { GroupMap, LeaderboardRow, Participant, Results } from "./types";
+import { resolveTeamCode, teamName } from "./teams";
+import type { GroupMap, LeaderboardRow, Participant, Results, ScoreMatch } from "./types";
 
 // Merge admin-entered results over provider results. Admin override wins per
 // field, so a human can always correct an API edge case.
@@ -168,6 +170,164 @@ export async function recomputeScores(
     provider: provider.name,
     liveMatches: liveMatchesSynced,
   };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Bonus score predictions — provider linking + admin shadow view (Phase 1).
+// Linking is pure metadata (never awards points). Scoring stays admin-confirmed.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Link each unlinked score-prediction match to its provider fixture by matching
+ * BOTH team codes + the UTC kickoff day. Strict: links only on an unambiguous
+ * single match; leaves ambiguous/unmatched rows unlinked for the admin. Never
+ * touches predictions or points. Safe to re-run (skips already-linked rows).
+ */
+export async function syncScoreMatchFixtures(): Promise<{
+  linked: number;
+  ambiguous: number;
+  unmatched: number;
+  alreadyLinked: number;
+  provider: string;
+}> {
+  const repo = await db();
+  const provider = getProvider();
+  const providerScores = await provider.fetchScores().catch(() => [] as ProviderScore[]);
+  const matches = await repo.getScoreMatches();
+
+  // Index provider fixtures by team-pair + day → fixture ids (usually one).
+  const index = new Map<string, string[]>();
+  for (const s of providerScores) {
+    if (!s.homeCode || !s.awayCode) continue;
+    const key = scoreMatchKey(s.homeCode, s.awayCode, s.kickoffIso);
+    if (!key) continue;
+    const arr = index.get(key) ?? [];
+    arr.push(s.fixtureId);
+    index.set(key, arr);
+  }
+
+  let linked = 0;
+  let ambiguous = 0;
+  let unmatched = 0;
+  let alreadyLinked = 0;
+  for (const m of matches) {
+    if (m.providerFixtureId) {
+      alreadyLinked++;
+      continue;
+    }
+    const codeA = resolveTeamCode(m.teamA);
+    const codeB = resolveTeamCode(m.teamB);
+    if (!codeA || !codeB) {
+      unmatched++;
+      continue;
+    }
+    const key = scoreMatchKey(codeA, codeB, m.kickoffUtc);
+    const hits = key ? index.get(key) ?? [] : [];
+    if (hits.length === 1) {
+      await repo.linkScoreMatchFixture(m.matchId, hits[0]);
+      linked++;
+    } else if (hits.length > 1) {
+      ambiguous++;
+    } else {
+      unmatched++;
+    }
+  }
+  return { linked, ambiguous, unmatched, alreadyLinked, provider: provider.name };
+}
+
+/** Lifecycle of a score match in the admin panel. */
+export type ScoreMatchState =
+  | "unlinked" // no provider fixture id — admin-only
+  | "waiting" // linked, not kicked off / API scheduled
+  | "live" // API reports in progress
+  | "final-unscored" // API final + score confidently oriented; awaiting admin confirm
+  | "scored" // our DB has a final score (by API-confirm or manual)
+  | "review"; // linked but can't auto-confirm (no data, postponed, canceled, or mismatch)
+
+export type ScoreMatchAdminRow = {
+  match: ScoreMatch;
+  maxPoints: number;
+  predictionCount: number;
+  state: ScoreMatchState;
+  apiStatus: ProviderMatchStatus | null;
+  /** API final oriented to teamA/teamB, only when confidently available. */
+  apiFinalA: number | null;
+  apiFinalB: number | null;
+  /** e.g. "Mexico 2–0 South Africa", or null. */
+  apiScoreLabel: string | null;
+  /** Plain-language note for review/unlinked rows. */
+  note: string | null;
+};
+
+/**
+ * Read-only admin view: every score match with its live API status/score and a
+ * derived state. The API value is shown for confirmation only — Phase 1 never
+ * awards automatically. Resilient: if the provider is down, every linked row
+ * just falls back to "review"/"waiting" and manual scoring still works.
+ */
+export async function getScoreMatchAdminView(): Promise<ScoreMatchAdminRow[]> {
+  const repo = await db();
+  const [matches, counts] = await Promise.all([
+    repo.getScoreMatches(),
+    repo.getScorePredictionCounts(),
+  ]);
+  const providerScores = await getProvider()
+    .fetchScores()
+    .catch(() => [] as ProviderScore[]);
+  const byId = new Map(providerScores.map((s) => [s.fixtureId, s]));
+
+  return matches.map((match) => {
+    const predictionCount = counts[match.matchId] ?? 0;
+    const scored = match.finalScoreA != null && match.scoredBy != null;
+    const api = match.providerFixtureId ? byId.get(match.providerFixtureId) ?? null : null;
+
+    // Orient the API home/away goals onto our team_a/team_b ordering — never
+    // trust positional order, the provider may list the teams either way.
+    const oriented = api ? orientApiScore(match, api) : null;
+    const apiFinalA = oriented?.a ?? null;
+    const apiFinalB = oriented?.b ?? null;
+    const apiScoreLabel = oriented
+      ? `${teamName(resolveTeamCode(match.teamA)) ?? match.teamA} ${apiFinalA}–${apiFinalB} ${teamName(resolveTeamCode(match.teamB)) ?? match.teamB}`
+      : null;
+
+    let state: ScoreMatchState;
+    let note: string | null = null;
+    if (scored) {
+      state = "scored";
+    } else if (!match.providerFixtureId) {
+      state = "unlinked";
+      note = "Not linked to an API fixture — link below, or score by hand.";
+    } else if (!api) {
+      state = "review";
+      note = "Linked, but the API has no current data for this fixture.";
+    } else if (api.status === "final") {
+      if (oriented) {
+        state = "final-unscored";
+      } else {
+        state = "review";
+        note = "API says final, but the score didn't match these teams — score by hand.";
+      }
+    } else if (api.status === "live") {
+      state = "live";
+    } else if (api.status === "postponed" || api.status === "canceled") {
+      state = "review";
+      note = `API status: ${api.status}.`;
+    } else {
+      state = "waiting";
+    }
+
+    return {
+      match,
+      maxPoints: 3,
+      predictionCount,
+      state,
+      apiStatus: api?.status ?? null,
+      apiFinalA,
+      apiFinalB,
+      apiScoreLabel,
+      note,
+    };
+  });
 }
 
 export type ScoreBreakdown = {

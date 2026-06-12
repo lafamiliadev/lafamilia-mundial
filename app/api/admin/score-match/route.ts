@@ -54,7 +54,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: false, error: `Match not found: ${matchId}` }, { status: 404 });
     }
 
-    const { scored } = await repo.scoreMatch(matchId, finalScoreA, finalScoreB);
+    const { scored } = await repo.scoreMatch(matchId, finalScoreA, finalScoreB, "admin");
 
     // Recompute the leaderboard so bonus points are immediately reflected.
     await recomputeScores({ pullFromProvider: false }).catch((e) =>
