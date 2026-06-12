@@ -110,10 +110,19 @@ export default async function LeaderboardPage({
   const settings = await repo.getSettings();
   const honorsLive = settings.awardsRevealed ?? false;
   const w = settings.weights ?? DEFAULT_WEIGHTS;
-  // The next open score prediction — the live, do-it-now way to earn points
-  // during the group stage. Drives the "Predict the next score" action card.
+  // The next score prediction the VIEWER still needs to make — the live,
+  // do-it-now way to earn points during the group stage. We skip matches they've
+  // already predicted, so the "Predict the score" card disappears once they're
+  // done (and stays hidden if they've handled every upcoming match). Logged-out
+  // visitors just see the soonest match as a nudge.
+  const meParticipant = token ? await repo.getByToken(token) : null;
+  const myScorePredictedIds = meParticipant
+    ? new Set((await repo.listScorePredictions(meParticipant.id)).map((p) => p.matchId))
+    : new Set<string>();
   const nextScoreMatch =
-    (await repo.getUpcomingScoreMatches(new Date(nowMs).toISOString(), 48))[0] ?? null;
+    (await repo.getUpcomingScoreMatches(new Date(nowMs).toISOString(), 48)).find(
+      (m) => !myScorePredictedIds.has(m.matchId),
+    ) ?? null;
 
   // Live Picks isn't playable yet (LIVE_PICKS_ENABLED) — and even once it is, the
   // board is empty until the first knockout round locks. Either way, show a calm

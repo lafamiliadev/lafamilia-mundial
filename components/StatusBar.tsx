@@ -25,9 +25,16 @@ export async function StatusBar() {
   const settings = await repo.getSettings();
   const nowD = await now();
   const status = pickStatus(nowD, settings.lockTime);
-  // Is there a score prediction open right now? That's the live, earn-today path
-  // during the group stage — it must take priority over "knockouts in N days".
-  const nextScore = (await repo.getUpcomingScoreMatches(nowD.toISOString(), 48))[0] ?? null;
+  // Is there a score prediction the viewer still needs to make? That's the live,
+  // earn-today path during the group stage — it takes priority over "knockouts
+  // in N days". Skip matches they've already predicted so the bar doesn't nag.
+  const myScorePredictedIds = new Set(
+    (await repo.listScorePredictions(me.id)).map((p) => p.matchId),
+  );
+  const nextScore =
+    (await repo.getUpcomingScoreMatches(nowD.toISOString(), 48)).find(
+      (m) => !myScorePredictedIds.has(m.matchId),
+    ) ?? null;
 
   let label: string;
   let href = "/picks";
