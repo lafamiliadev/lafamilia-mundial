@@ -17,6 +17,7 @@ import { DEFAULT_WEIGHTS, type LeaderboardRow } from "@/lib/types";
 const VIEWS: { key: LeaderboardView; label: string }[] = [
   { key: "overall", label: "Overall" },
   { key: "bracket", label: "Bracket" },
+  { key: "score", label: "Scores" },
   { key: "live", label: "Knockouts" },
 ];
 
@@ -99,7 +100,7 @@ export default async function LeaderboardPage({
   // returning-member cookie so a recognized user is spotlighted automatically.
   const token = meParam ?? (await getSessionToken()) ?? undefined;
   const view: LeaderboardView =
-    rawView === "bracket" || rawView === "live" ? rawView : "overall";
+    rawView === "bracket" || rawView === "live" || rawView === "score" ? rawView : "overall";
   const { total, all, me, leaderTotal, meGapToNext, scoringStarted, meScoreBreakdown } =
     await getLeaderboardData(token, 10, view);
   const inviters = await getFamiliaInviters(10, token);
@@ -124,6 +125,7 @@ export default async function LeaderboardPage({
   const viewBlurb: Record<LeaderboardView, string> = {
     overall: "Your full score — every way you've earned points.",
     bracket: "Your original bracket only.",
+    score: "Points from your LatAm + Spain score predictions only.",
     live: "Knockout picks — opens with the Round of 32.",
   };
 
@@ -265,7 +267,7 @@ export default async function LeaderboardPage({
             {chasers.length > 0 && (
               <div className="card mt-4 divide-y divide-[var(--color-line)] overflow-hidden">
                 <div className="bg-black/[0.03] px-4 py-2 text-xs font-bold uppercase tracking-wider text-[var(--color-muted)]">
-                  The chase
+                  ⚡ Who&apos;s Moving Up
                 </div>
                 <LeaderboardList
                   rows={chasers}

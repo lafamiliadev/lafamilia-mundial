@@ -357,11 +357,12 @@ export type LeaderboardData = {
   meScoreBreakdown: ScoreBreakdown | null;
 };
 
-export type LeaderboardView = "overall" | "bracket" | "live";
+export type LeaderboardView = "overall" | "bracket" | "score" | "live";
 
-/** Build a leaderboard view ("overall" total, "bracket"-only, or "live"-only),
- * optionally highlighting the viewer's row by token. `total` on each row is the
- * points for the chosen view; movement (▲/▼) reflects the Overall rank. */
+/** Build a leaderboard view: "overall" total, or a single slice — "bracket",
+ * "score" (LatAm + Spain score predictions), or "live" (knockout picks).
+ * `total` on each row is the points for the chosen view; movement (▲/▼)
+ * reflects the Overall rank. */
 export async function getLeaderboardData(
   token?: string | null,
   topN = 10,
@@ -373,7 +374,13 @@ export async function getLeaderboardData(
   const pointsFor = (id: string) => {
     const s = scores[id];
     if (!s) return 0;
-    return view === "bracket" ? s.bracket : view === "live" ? s.live : s.total;
+    return view === "bracket"
+      ? s.bracket
+      : view === "live"
+        ? s.live
+        : view === "score"
+          ? s.scorePick
+          : s.total;
   };
 
   const rows: (LeaderboardRow & { id: string; previousRank: number })[] = participants
