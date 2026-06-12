@@ -350,3 +350,50 @@ describe("scoreMatchPrediction — bonus score picks", () => {
     expect(r.lines.find((l) => l.label === "Score picks")).toBeUndefined();
   });
 });
+
+// Every bonus score-prediction point must reach the main leaderboard total.
+// `total` is what the Overall board ranks on (services.getLeaderboardData →
+// pointsFor → s.total), so these guard that score picks always count there —
+// never siloed into a separate ranking.
+describe("scorePredictions — bonus score picks count in the main total", () => {
+  it("case 1: bracket + Mexico score pick + a new bonus-match point all land in total", () => {
+    // Bracket: correct champion. Score picks: Mexico exact (3) + a new match's
+    // correct-result point (1) = 4, pre-summed by repo.getScorePredictionTotals.
+    const predictions: Predictions = { ...blankPrediction, champion: "BRA" };
+    const results: Results = { ...EMPTY_RESULTS, champion: "BRA" };
+    const mexicoExact = 3;
+    const newMatchResult = 1;
+    const r = scorePredictions(predictions, results, DEFAULT_SETTINGS, [], mexicoExact + newMatchResult);
+
+    expect(r.bracket).toBe(W.champion);
+    expect(r.scorePick).toBe(4);
+    // The headline guarantee: total includes the bonus points, not just bracket.
+    expect(r.total).toBe(W.champion + 4);
+    // And the breakdown surfaces both, so players see where points came from.
+    expect(r.lines.some((l) => l.group === "bracket")).toBe(true);
+    expect(r.lines.some((l) => l.label === "Score picks" && l.group === "score-pick")).toBe(true);
+  });
+
+  it("case 2: a player with only score-pick points still has a real, rankable total", () => {
+    const r = scorePredictions(blankPrediction, EMPTY_RESULTS, DEFAULT_SETTINGS, [], 5);
+    expect(r.bracket).toBe(0);
+    expect(r.bonus).toBe(0);
+    expect(r.live).toBe(0);
+    expect(r.scorePick).toBe(5);
+    expect(r.total).toBe(5); // > 0, so they appear and rank on the Overall board
+  });
+
+  it("case 3: an unscored bonus match contributes 0 — total never breaks (no NaN)", () => {
+    // repo.getScorePredictionTotals omits predictions with pointsAwarded == null,
+    // so an unscored match simply isn't in the summed bonus. Mirror that here:
+    // only the one scored match (3) reaches the engine; the pending match adds 0.
+    const predictions: Predictions = { ...blankPrediction, champion: "ARG" };
+    const results: Results = { ...EMPTY_RESULTS, champion: "ARG" };
+    const onlyScoredMatch = 3; // a second, still-unscored match contributes nothing
+    const r = scorePredictions(predictions, results, DEFAULT_SETTINGS, [], onlyScoredMatch);
+
+    expect(Number.isNaN(r.total)).toBe(false);
+    expect(r.scorePick).toBe(3);
+    expect(r.total).toBe(W.champion + 3);
+  });
+});
