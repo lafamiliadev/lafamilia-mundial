@@ -109,6 +109,9 @@ export default async function LeaderboardPage({
   const repo = await db();
   const settings = await repo.getSettings();
   const honorsLive = settings.awardsRevealed ?? false;
+  // Once the game locks, no new signups are possible, so the invite challenge is
+  // final, not a live race — relabel it as a result.
+  const inviteChallengeClosed = nowMs >= new Date(settings.lockTime).getTime();
   const w = settings.weights ?? DEFAULT_WEIGHTS;
   // The next score prediction the VIEWER still needs to make — the live,
   // do-it-now way to earn points during the group stage. We skip matches they've
@@ -359,22 +362,30 @@ export default async function LeaderboardPage({
           </Link>
 
           {/* Bringing the Familia — a SEPARATE side challenge, tucked behind a
-              toggle so it doesn't compete with the main race. */}
+              toggle. Once the game locks it's final (no new signups), so it
+              reads as a result, not an active race. */}
           <details className="overflow-hidden rounded-2xl border border-[var(--color-line)]">
             <summary className="flex cursor-pointer list-none items-center justify-between px-4 py-3 [&::-webkit-details-marker]:hidden">
               <span className="font-semibold">
                 🤝 Bringing the Familia{" "}
                 <span className="text-xs font-normal text-[var(--color-muted)]">
-                  · a separate side challenge
+                  · {inviteChallengeClosed ? "final standings" : "a separate side challenge"}
                 </span>
               </span>
               <span className="text-[var(--color-muted)]">▾</span>
             </summary>
             <div className="px-4 pb-4">
               <p className="mb-3 text-xs text-[var(--color-muted)]">
-                A fun side game — these points don&apos;t count toward your main score.
+                {inviteChallengeClosed
+                  ? "A side game from before kickoff — final now that the game's locked. Never counted toward your main score."
+                  : "A fun side game — these points don’t count toward your main score."}
               </p>
-              <FamiliaInvitersBoard top={inviters.top} me={inviters.me} total={inviters.total} />
+              <FamiliaInvitersBoard
+                top={inviters.top}
+                me={inviters.me}
+                total={inviters.total}
+                closed={inviteChallengeClosed}
+              />
             </div>
           </details>
 

@@ -10,10 +10,14 @@ export function FamiliaInvitersBoard({
   top,
   me,
   total,
+  closed = false,
 }: {
   top: Inviter[];
   me: Inviter | null;
   total: number;
+  /** True once the game has locked — no new signups possible, so this board is
+   * final, not an active race. Swaps the copy from "bring them in" to a result. */
+  closed?: boolean;
 }) {
   const MEDAL = ["🥇", "🥈", "🥉"];
 
@@ -21,19 +25,26 @@ export function FamiliaInvitersBoard({
     <div className="card overflow-hidden">
       <div className="bg-[var(--color-navy)] px-5 py-5 text-center text-white">
         <p className="text-2xl">🤝</p>
-        <p className="mt-1 font-black">Bringing the Familia</p>
+        <p className="mt-1 font-black">
+          Bringing the Familia{closed ? " — final" : ""}
+        </p>
         <p className="mx-auto mt-1.5 max-w-xs text-sm leading-relaxed text-white/85">
-          Every friend who joins from your link counts. Whoever brings in the most
-          of the Familia wins a prize. 🎁
+          {closed
+            ? "How it finished — the members who brought the most of the Familia in before the game locked. 🎁"
+            : "Every friend who joins from your link counts. Whoever brings in the most of the Familia wins a prize. 🎁"}
         </p>
       </div>
 
       {top.length === 0 ? (
         <div className="px-5 py-6 text-center">
-          <p className="text-sm font-semibold">Nobody&apos;s brought a friend in yet.</p>
-          <p className="mt-1 text-sm text-[var(--color-muted)]">
-            Be the first to open the door — share your card and get one friend in.
+          <p className="text-sm font-semibold">
+            {closed ? "No invites were logged." : "Nobody’s brought a friend in yet."}
           </p>
+          {!closed && (
+            <p className="mt-1 text-sm text-[var(--color-muted)]">
+              Be the first to open the door — share your card and get one friend in.
+            </p>
+          )}
         </div>
       ) : (
         <div className="divide-y divide-[var(--color-line)]">

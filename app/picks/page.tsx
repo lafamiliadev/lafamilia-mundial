@@ -62,6 +62,9 @@ export default async function PicksHubPage({
   const bonus = me.predictions.bonus ?? EMPTY_BONUS;
   const bonusFilled = Object.values(bonus).filter(Boolean).length;
   const bonusOpen = status.state === "bonus-open";
+  // Once the game locks, new people can't make a bracket, so "challenge a friend"
+  // is a dead end — point locked-in members at the live game instead.
+  const locked = nowMs >= new Date(settings.lockTime).getTime();
   const upcomingScoreMatches = await repo.getUpcomingScoreMatches(nowIso, 24);
   // The next couple weeks of LatAm + Spain score-prediction windows, so members
   // can see when the next bonus-point chances open (not just today's).
@@ -321,11 +324,17 @@ export default async function PicksHubPage({
           <HowPointsWork />
         </div>
 
-        {/* Single, clear action — grow the competition. Leaderboard lives in
-            the header nav, so it isn't duplicated here. */}
-        <LinkButton href={`/done?token=${me.resumeToken}`} variant="primary" className="mt-6 w-full">
-          🔥 Challenge a Friend
-        </LinkButton>
+        {/* Before kickoff, grow the competition. Once locked, new players can't
+            join — so send people to the live race instead of a dead-end invite. */}
+        {locked ? (
+          <LinkButton href="/leaderboard" variant="primary" className="mt-6 w-full">
+            🏆 See the leaderboard
+          </LinkButton>
+        ) : (
+          <LinkButton href={`/done?token=${me.resumeToken}`} variant="primary" className="mt-6 w-full">
+            🔥 Challenge a Friend
+          </LinkButton>
+        )}
       </PageShell>
     </main>
   );
