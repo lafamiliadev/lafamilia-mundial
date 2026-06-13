@@ -3,7 +3,7 @@ import { PageShell, TopNav } from "@/components/ui";
 import { db } from "@/lib/db";
 import { getSessionParticipant } from "@/lib/session";
 import { now } from "@/lib/preview";
-import { nextUpcomingScoreMatch, openScoreMatches, windowOpensAtMs } from "@/lib/score-picks";
+import { dayUnlockAtMs, nextUpcomingScoreMatch, openScoreMatches } from "@/lib/score-picks";
 import { ScoreForm } from "./ScoreForm";
 import type { ScoreMatch } from "@/lib/types";
 
@@ -62,7 +62,7 @@ export default async function ScorePredictionPage() {
                     hours before kickoff.
                   </p>
                   <div className="mt-4 flex justify-center">
-                    <Countdown lockTime={new Date(windowOpensAtMs(next)).toISOString()} />
+                    <Countdown lockTime={new Date(dayUnlockAtMs(next, allMatches)).toISOString()} />
                   </div>
                   <p className="mt-3 text-xs text-white/70">until predictions open · {next.displayTimePt}</p>
                 </>

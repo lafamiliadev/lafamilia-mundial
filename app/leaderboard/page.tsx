@@ -11,10 +11,10 @@ import { getSessionToken } from "@/lib/session";
 import { now, PREVIEW_ENABLED } from "@/lib/preview";
 import { getFamiliaInviters, getLeaderboardData, type LeaderboardView } from "@/lib/services";
 import {
+  dayUnlockAtMs,
   nextOpenUnpredicted,
   nextUpcomingScoreMatch,
   openScoreMatches,
-  windowOpensAtMs,
 } from "@/lib/score-picks";
 import { LIVE_ROUNDS, nextScoringMilestone } from "@/lib/schedule";
 import { teamFlag } from "@/lib/teams";
@@ -198,7 +198,7 @@ export default async function LeaderboardPage({
                 lockTime={
                   openScoreNow
                     ? openScoreNow.kickoffUtc
-                    : new Date(windowOpensAtMs(upcomingScoreSoon!)).toISOString()
+                    : new Date(dayUnlockAtMs(upcomingScoreSoon!, allScoreMatches)).toISOString()
                 }
               />
             </div>

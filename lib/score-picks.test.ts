@@ -7,11 +7,9 @@ import {
   openScoreMatches,
   planScoreDayEmails,
   scorePickState,
-  scoreWindowEmailDue,
   windowOpenPtDate,
   windowOpensAtMs,
   SCORE_PICK_WINDOW_MS,
-  SCORE_WINDOW_EMAIL_FRESH_MS,
 } from "./score-picks";
 import type { ScoreMatch } from "./types";
 
@@ -34,27 +32,28 @@ const KICK = "2026-06-13T01:00:00Z"; // USA vs Paraguay kickoff
 const k = new Date(KICK).getTime();
 const m = match("USA_PAR", KICK);
 
-describe("scorePickState — 24h window", () => {
+describe("scorePickState — 24h window (single match)", () => {
+  const solo = [m];
   it("is upcoming before the window opens (25h before kickoff)", () => {
-    expect(scorePickState(m, k - 25 * 3600_000)).toBe("upcoming");
+    expect(scorePickState(m, solo, k - 25 * 3600_000)).toBe("upcoming");
   });
   it("is open exactly at 24h before kickoff", () => {
-    expect(scorePickState(m, k - SCORE_PICK_WINDOW_MS)).toBe("open");
+    expect(scorePickState(m, solo, k - SCORE_PICK_WINDOW_MS)).toBe("open");
   });
   it("is open one second after the window opens", () => {
-    expect(scorePickState(m, k - SCORE_PICK_WINDOW_MS + 1000)).toBe("open");
+    expect(scorePickState(m, solo, k - SCORE_PICK_WINDOW_MS + 1000)).toBe("open");
   });
   it("is open one second before kickoff", () => {
-    expect(scorePickState(m, k - 1000)).toBe("open");
+    expect(scorePickState(m, solo, k - 1000)).toBe("open");
   });
   it("is closed exactly at kickoff", () => {
-    expect(scorePickState(m, k)).toBe("closed");
+    expect(scorePickState(m, solo, k)).toBe("closed");
   });
   it("is closed after kickoff", () => {
-    expect(scorePickState(m, k + 1000)).toBe("closed");
+    expect(scorePickState(m, solo, k + 1000)).toBe("closed");
   });
   it("is upcoming just before the window opens", () => {
-    expect(scorePickState(m, k - SCORE_PICK_WINDOW_MS - 1000)).toBe("upcoming");
+    expect(scorePickState(m, solo, k - SCORE_PICK_WINDOW_MS - 1000)).toBe("upcoming");
   });
 });
 
@@ -70,10 +69,10 @@ describe("openScoreMatches / nextUpcoming / nextOpenUnpredicted", () => {
   const braMar = match("BRA_MAR", "2026-06-13T22:00:00Z", "Brazil", "Morocco");
   const all = [usaPar, braMar];
 
-  it("at noon Jun 12, only USA_PAR is open (BRA_MAR window not started)", () => {
+  it("at noon Jun 12, only USA_PAR is open (BRA_MAR is a different day, not started)", () => {
     const now = new Date("2026-06-12T12:00:00Z").getTime();
     expect(openScoreMatches(all, now).map((x) => x.matchId)).toEqual(["USA_PAR"]);
-    expect(isScorePickOpen(braMar, now)).toBe(false);
+    expect(isScorePickOpen(braMar, all, now)).toBe(false);
     // The next not-yet-open match is BRA_MAR.
     expect(nextUpcomingScoreMatch(all, now)?.matchId).toBe("BRA_MAR");
   });
@@ -97,21 +96,30 @@ describe("openScoreMatches / nextUpcoming / nextOpenUnpredicted", () => {
   });
 });
 
-describe("scoreWindowEmailDue — fresh-open only (no catch-up blast)", () => {
-  const k = new Date("2026-06-13T01:00:00Z").getTime();
-  const m = match("USA_PAR", "2026-06-13T01:00:00Z");
-  it("is due right when the window opens", () => {
-    expect(scoreWindowEmailDue(m, k - SCORE_PICK_WINDOW_MS + 60_000)).toBe(true);
+describe("same-day games unlock together", () => {
+  // Brazil window opens Jun 12 22:00Z (3pm PT); Haiti's own window opens Jun 13
+  // 01:00Z (6pm PT). Both are the same PT day, so they unlock TOGETHER when
+  // Brazil's window opens — and each still closes at its own kickoff.
+  const braMar = match("BRA_MAR", "2026-06-13T22:00:00Z", "Brazil", "Morocco");
+  const haiSco = match("HAI_SCO", "2026-06-14T01:00:00Z", "Haiti", "Scotland");
+  const all = [braMar, haiSco];
+
+  it("at Brazil's window-open, BOTH are open (Haiti's own 24h window hasn't started)", () => {
+    const now = new Date("2026-06-12T22:05:00Z").getTime();
+    expect(isScorePickOpen(haiSco, all, now)).toBe(true); // unlocked early with the day
+    expect(openScoreMatches(all, now).map((x) => x.matchId)).toEqual(["BRA_MAR", "HAI_SCO"]);
   });
-  it("is due a few hours after opening (within the freshness window)", () => {
-    expect(scoreWindowEmailDue(m, k - SCORE_PICK_WINDOW_MS + SCORE_WINDOW_EMAIL_FRESH_MS - 1000)).toBe(true);
+
+  it("before the day unlocks, neither is open", () => {
+    const now = new Date("2026-06-12T20:00:00Z").getTime();
+    expect(openScoreMatches(all, now)).toEqual([]);
+    expect(nextUpcomingScoreMatch(all, now)?.matchId).toBe("BRA_MAR");
   });
-  it("is NOT due long after opening (no catch-up blast)", () => {
-    expect(scoreWindowEmailDue(m, k - SCORE_PICK_WINDOW_MS + SCORE_WINDOW_EMAIL_FRESH_MS + 1000)).toBe(false);
-  });
-  it("is NOT due before the window opens or after kickoff", () => {
-    expect(scoreWindowEmailDue(m, k - SCORE_PICK_WINDOW_MS - 1000)).toBe(false);
-    expect(scoreWindowEmailDue(m, k + 1000)).toBe(false);
+
+  it("each still closes at its OWN kickoff", () => {
+    const now = new Date("2026-06-13T22:30:00Z").getTime(); // Brazil kicked off; Haiti hasn't
+    expect(scorePickState(braMar, all, now)).toBe("closed");
+    expect(scorePickState(haiSco, all, now)).toBe("open");
   });
 });
 

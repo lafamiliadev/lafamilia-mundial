@@ -23,32 +23,54 @@ export function windowOpensAtMs(m: { kickoffUtc: string }): number {
   return kickoffMs(m) - SCORE_PICK_WINDOW_MS;
 }
 
-/** Open (predict now) / upcoming (not yet) / closed (kicked off). */
-export function scorePickState(m: { kickoffUtc: string }, nowMs: number): ScorePickState {
+/** When this match's DAY unlocks for predictions: the EARLIEST window-open among
+ * all matches that open on the same PT day. Same-day games unlock together — the
+ * moment the first one's 24h window opens — and each still closes at its own
+ * kickoff. (Single-match days unlock at their own 24h window, as before.) */
+export function dayUnlockAtMs(
+  m: { kickoffUtc: string },
+  allMatches: { kickoffUtc: string }[],
+): number {
+  const day = windowOpenPtDate(m);
+  const opens = allMatches
+    .filter((x) => windowOpenPtDate(x) === day)
+    .map((x) => windowOpensAtMs(x));
+  return opens.length ? Math.min(...opens) : windowOpensAtMs(m);
+}
+
+/** Open (predict now) / upcoming (not yet) / closed (kicked off). A match is
+ * OPEN once its DAY has unlocked, so two same-day games become predictable at
+ * the same time — when the first one's window opens. Needs the full match list
+ * to find same-day siblings. */
+export function scorePickState(
+  m: ScoreMatch,
+  allMatches: ScoreMatch[],
+  nowMs: number,
+): ScorePickState {
   const k = kickoffMs(m);
   if (Number.isNaN(k)) return "closed";
   if (nowMs >= k) return "closed";
-  if (nowMs >= k - SCORE_PICK_WINDOW_MS) return "open";
+  if (nowMs >= dayUnlockAtMs(m, allMatches)) return "open";
   return "upcoming";
 }
 
-export function isScorePickOpen(m: { kickoffUtc: string }, nowMs: number): boolean {
-  return scorePickState(m, nowMs) === "open";
+export function isScorePickOpen(m: ScoreMatch, allMatches: ScoreMatch[], nowMs: number): boolean {
+  return scorePickState(m, allMatches, nowMs) === "open";
 }
 
-/** Matches currently in their open window, soonest kickoff first. */
+/** Matches predictable right now (their day has unlocked), soonest kickoff first. */
 export function openScoreMatches(matches: ScoreMatch[], nowMs: number): ScoreMatch[] {
   return matches
-    .filter((m) => scorePickState(m, nowMs) === "open")
+    .filter((m) => scorePickState(m, matches, nowMs) === "open")
     .sort((a, b) => a.kickoffUtc.localeCompare(b.kickoffUtc));
 }
 
-/** The soonest match whose window hasn't opened yet — for the "coming soon"
- * countdown. */
+/** The soonest match whose day hasn't unlocked yet — for the "coming soon"
+ * countdown (count to dayUnlockAtMs of this match). */
 export function nextUpcomingScoreMatch(matches: ScoreMatch[], nowMs: number): ScoreMatch | null {
   return (
     matches
-      .filter((m) => scorePickState(m, nowMs) === "upcoming")
+      .filter((m) => scorePickState(m, matches, nowMs) === "upcoming")
       .sort((a, b) => a.kickoffUtc.localeCompare(b.kickoffUtc))[0] ?? null
   );
 }
@@ -63,17 +85,9 @@ export function nextOpenUnpredicted(
   return openScoreMatches(matches, nowMs).find((m) => !predictedIds.has(m.matchId)) ?? null;
 }
 
-/** A window-open email is "due" for a match only while the window is open AND
- * it opened recently (so the hourly cron emails when it FRESHLY opens, never a
- * catch-up blast for windows that opened long ago). Idempotency is enforced
- * separately by the email log. */
+/** Freshness window for the daily reminder email, anchored to the day's first
+ * window opening — keeps the cron from catch-up-blasting an older day. */
 export const SCORE_WINDOW_EMAIL_FRESH_MS = 6 * 60 * 60 * 1000;
-export function scoreWindowEmailDue(m: { kickoffUtc: string }, nowMs: number): boolean {
-  return (
-    scorePickState(m, nowMs) === "open" &&
-    nowMs - windowOpensAtMs(m) <= SCORE_WINDOW_EMAIL_FRESH_MS
-  );
-}
 
 // ── Daily grouping: one email per user per day, all that day's open windows ──
 
