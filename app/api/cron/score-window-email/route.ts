@@ -14,14 +14,19 @@ import type { ScoreMatch } from "@/lib/types";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-// Bonus Score Pick reminder — GROUPED, one email per member per day. For every
-// PT day whose first window has freshly opened, send ONE email listing that
-// day's score picks the member hasn't done yet. Protected by CRON_SECRET.
+// Bonus Score Pick reminder — GROUPED, one email per member per day, listing
+// that day's still-OPEN score picks the member hasn't done yet.
+//
+// Triggered two ways, both safe together (idempotent):
+//  - Vercel Cron (vercel.json) — Vercel auto-signs the request with CRON_SECRET,
+//    so it needs no GitHub setup. This is the reliable backup.
+//  - The hourly GitHub Actions cron (when its CRON_SECRET matches) — sends sooner.
 //
 // Safety, by design:
-//  - One email per member per PT day (idempotent via a per-DAY email-log key).
-//  - Window-gated + fresh-only (anchored to the day's first window opening) —
-//    never a catch-up blast for an older day (e.g. USA vs Paraguay).
+//  - One email per member per PT day (idempotent via a per-DAY email-log key),
+//    so it doesn't matter if both triggers fire, or the cron runs many times.
+//  - Only ever lists OPEN picks — never a closed/kicked-off game, and never a
+//    long-past day (relevance window).
 //  - Skips members who have already predicted all of that day's matches; for
 //    the rest, the email lists only the ones they still owe.
 //  - Gated by SCORE_WINDOW_EMAILS_ENABLED — reports only until it's "true".

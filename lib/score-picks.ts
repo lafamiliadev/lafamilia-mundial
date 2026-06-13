@@ -85,9 +85,11 @@ export function nextOpenUnpredicted(
   return openScoreMatches(matches, nowMs).find((m) => !predictedIds.has(m.matchId)) ?? null;
 }
 
-/** Freshness window for the daily reminder email, anchored to the day's first
- * window opening — keeps the cron from catch-up-blasting an older day. */
-export const SCORE_WINDOW_EMAIL_FRESH_MS = 6 * 60 * 60 * 1000;
+/** Relevance window for the daily reminder, anchored to the day's first window
+ * opening. Wide enough that a once-a-day cron still catches every day's group,
+ * bounded so we never reach back to a long-past day. Closed matches are excluded
+ * separately — we only ever remind about picks that are still open. */
+export const SCORE_WINDOW_EMAIL_FRESH_MS = 26 * 60 * 60 * 1000;
 
 // ── Daily grouping: one email per user per day, all that day's open windows ──
 
@@ -104,10 +106,12 @@ export function windowOpenPtDate(m: { kickoffUtc: string }): string {
 
 export type ScoreDayGroup = { ptDate: string; matches: ScoreMatch[] };
 
-/** Day-groups whose grouped email is DUE now: the group's EARLIEST window has
- * opened within the freshness window — so it fires once, shortly after the day's
- * first window opens, and never as a catch-up blast for an older day. Matches
- * are returned in kickoff order. */
+/** Day-groups whose grouped email is DUE now. A group is due when it has at
+ * least one match that is currently OPEN (predictable right now — never a
+ * closed/kicked-off game) and the day's first window opened within the relevance
+ * window. Returns ONLY the open matches, in kickoff order. This is safe whether
+ * the cron fires hourly or once a day: the per-day email log guarantees one
+ * email per member per day regardless of how many times it runs. */
 export function dueScoreDayGroups(matches: ScoreMatch[], nowMs: number): ScoreDayGroup[] {
   const byDate = new Map<string, ScoreMatch[]>();
   for (const m of matches) {
@@ -118,10 +122,13 @@ export function dueScoreDayGroups(matches: ScoreMatch[], nowMs: number): ScoreDa
   }
   const groups: ScoreDayGroup[] = [];
   for (const [ptDate, ms] of byDate) {
-    const sorted = ms.slice().sort((a, b) => a.kickoffUtc.localeCompare(b.kickoffUtc));
-    const earliestOpen = Math.min(...sorted.map((m) => windowOpensAtMs(m)));
-    if (nowMs >= earliestOpen && nowMs - earliestOpen <= SCORE_WINDOW_EMAIL_FRESH_MS) {
-      groups.push({ ptDate, matches: sorted });
+    const open = ms
+      .filter((m) => scorePickState(m, matches, nowMs) === "open")
+      .sort((a, b) => a.kickoffUtc.localeCompare(b.kickoffUtc));
+    if (open.length === 0) continue; // nothing predictable in this group right now
+    const earliestOpen = Math.min(...ms.map((m) => windowOpensAtMs(m)));
+    if (nowMs - earliestOpen <= SCORE_WINDOW_EMAIL_FRESH_MS) {
+      groups.push({ ptDate, matches: open });
     }
   }
   return groups.sort((a, b) => a.ptDate.localeCompare(b.ptDate));

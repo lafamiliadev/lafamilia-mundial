@@ -12,6 +12,10 @@
     {
       "path": "/api/cron/score-picks-email",
       "schedule": "0 14 11 6 *"
+    },
+    {
+      "path": "/api/cron/score-window-email",
+      "schedule": "0 14 * * *"
     }
   ]
 }
