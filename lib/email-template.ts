@@ -318,38 +318,56 @@ export function renderScorePickAnnouncement(p: { appUrl: string }): string {
   });
 }
 
-// ── Per-match Bonus Score Pick window-open reminder ──────────────────
-/** Stable, per-match template id for the email log (idempotency). */
-export function scoreWindowTemplateId(matchId: string): string {
-  return `score-window-${matchId}`;
+// ── Daily Bonus Score Pick reminder (grouped — one per user per day) ──
+/** Stable per-DAY template id for the email log (idempotency). One email per
+ * user per PT day, no matter how many windows open that day. */
+export function scoreWindowDayTemplateId(ptDate: string): string {
+  return `score-window-day-${ptDate}`;
 }
-export function scoreWindowSubject(teamA: string, teamB: string): string {
-  return `Predict the score: ${teamA} vs ${teamB} ⚽`;
+export function scoreWindowDaySubject(matchCount: number): string {
+  return matchCount === 1 ? "Today's bonus pick is open ⚽️" : "Today's bonus picks are open ⚽️";
 }
-/** Sent once when a match's 24h prediction window opens. Says which match is
- * open, the points available, when it locks, and links straight to the pick. */
-export function renderScoreWindowOpen(p: {
+/** Grouped daily reminder: lists the day's still-open-for-you score picks (in
+ * kickoff order) with each one's close time in PT. Singular/plural copy adapts. */
+export function renderScoreWindowDay(p: {
   firstName: string;
-  teamA: string;
-  teamB: string;
-  /** Human kickoff time (PT), e.g. "June 12, 2026, 6:00 p.m. PT". */
-  locksLabel: string;
+  /** The matches to show — only ones this member hasn't predicted yet. */
+  matches: { teamA: string; teamB: string; closesLabel: string }[];
   scoreUrl: string;
 }): string {
+  const multi = p.matches.length > 1;
+  const matchRows = p.matches
+    .map(
+      (m) => `
+  <tr><td style="padding:8px 28px 0;font-family:${SANS};">
+    <div style="background:${PAGE};border-radius:14px;padding:14px 18px;">
+      <p style="margin:0;font-size:16px;font-weight:800;color:${INK};">${m.teamA} vs ${m.teamB}</p>
+      <p style="margin:4px 0 0;font-size:14px;color:${MUTED};">Closes: ${m.closesLabel}</p>
+    </div>
+  </td></tr>`,
+    )
+    .join("");
   const body = `
-  ${emailIntro({
-    emoji: "⚽",
-    heading: `${p.teamA} vs ${p.teamB}`,
-    paras: [
-      `It's open, ${p.firstName} — predict the final score before kickoff.`,
-      `Exact score is <strong style="color:${INK};">+3</strong>. Correct winner is <strong style="color:${INK};">+1</strong>.`,
-      `Locks at kickoff: <strong style="color:${INK};">${p.locksLabel}</strong>.`,
-    ],
-  })}
-  ${cta(p.scoreUrl, "Predict the score →")}
-  ${nextLine("Edit anytime before it locks.")}`;
+  <tr><td style="padding:32px 28px 6px;font-family:${SANS};">
+    <div style="font-size:34px;">⚽️</div>
+    <h1 style="margin:10px 0 0;font-size:24px;font-weight:800;color:${INK};">Familiaaaa ⚽️</h1>
+    <p style="margin:14px 0 0;font-size:16px;line-height:1.6;color:${MUTED};">
+      Today's bonus score pick${multi ? "s are" : " is"} open. Lock your prediction${multi ? "s" : ""} before kickoff:
+    </p>
+  </td></tr>
+  ${matchRows}
+  <tr><td style="padding:18px 28px 0;font-family:${SANS};">
+    <p style="margin:0;font-size:15px;line-height:1.7;color:${MUTED};">
+      Exact score = <strong style="color:${INK};">3 bonus points</strong><br>
+      Correct winner or draw = <strong style="color:${INK};">1 point</strong>
+    </p>
+  </td></tr>
+  ${cta(p.scoreUrl, multi ? "Make your bonus picks →" : "Make your bonus pick →")}
+  <tr><td style="padding:18px 28px 6px;font-family:${SANS};">
+    <p style="margin:0;font-size:15px;line-height:1.6;color:${MUTED};">Vamos,<br><strong style="color:${INK};">LaFamilia</strong></p>
+  </td></tr>`;
   return emailShell({
-    preheader: `${p.teamA} vs ${p.teamB} — predict the final score before kickoff.`,
+    preheader: "Lock your scores for today's LatAm + Spain bonus matches.",
     body,
   });
 }
@@ -380,5 +398,18 @@ export function buildSampleEmails(appUrl: string): SampleEmail[] {
     { key: "final-four", label: "8 · Final Four", subject: "The Final Four is set", html: renderFinalFour({ rank: 2, total: 38, picksUrl: picks }) },
     { key: "the-final", label: "9 · The final", subject: "One match left", html: renderTheFinal({ firstName: "Pilar", picksUrl: picks }) },
     { key: "wrap", label: "10 · Winner / wrap", subject: "It's over. You finished 2nd.", html: renderWrap({ firstName: "Pilar", champion: "Brazil", rank: 2, total: 38, isWinner: false, standingsUrl: board }) },
+    {
+      key: "score-window-day",
+      label: "11 · Today's bonus picks (grouped)",
+      subject: scoreWindowDaySubject(2),
+      html: renderScoreWindowDay({
+        firstName: "Pilar",
+        scoreUrl: `${appUrl}/picks/score`,
+        matches: [
+          { teamA: "Brazil", teamB: "Morocco", closesLabel: "Sat, Jun 13, 3:00 PM PT" },
+          { teamA: "Haiti", teamB: "Scotland", closesLabel: "Sat, Jun 13, 6:00 PM PT" },
+        ],
+      }),
+    },
   ];
 }

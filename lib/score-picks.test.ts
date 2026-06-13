@@ -1,11 +1,14 @@
 import { describe, expect, it } from "vitest";
 import {
+  dueScoreDayGroups,
   isScorePickOpen,
   nextOpenUnpredicted,
   nextUpcomingScoreMatch,
   openScoreMatches,
+  planScoreDayEmails,
   scorePickState,
   scoreWindowEmailDue,
+  windowOpenPtDate,
   windowOpensAtMs,
   SCORE_PICK_WINDOW_MS,
   SCORE_WINDOW_EMAIL_FRESH_MS,
@@ -109,5 +112,70 @@ describe("scoreWindowEmailDue — fresh-open only (no catch-up blast)", () => {
   it("is NOT due before the window opens or after kickoff", () => {
     expect(scoreWindowEmailDue(m, k - SCORE_PICK_WINDOW_MS - 1000)).toBe(false);
     expect(scoreWindowEmailDue(m, k + 1000)).toBe(false);
+  });
+});
+
+describe("daily grouping — one email per user per day", () => {
+  // USA_PAR window opens Jun 12 01:00Z = Jun 11 6pm PT → PT day Jun 11.
+  // BRA_MAR window opens Jun 12 22:00Z = Jun 12 3pm PT → PT day Jun 12.
+  // HAI_SCO window opens Jun 13 01:00Z = Jun 12 6pm PT → PT day Jun 12.
+  const usaPar = match("USA_PAR", "2026-06-13T01:00:00Z", "USA", "Paraguay");
+  const braMar = match("BRA_MAR", "2026-06-13T22:00:00Z", "Brazil", "Morocco");
+  const haiSco = match("HAI_SCO", "2026-06-14T01:00:00Z", "Haiti", "Scotland");
+  const all = [usaPar, braMar, haiSco];
+  const tmpl = (d: string) => `t-${d}`;
+
+  it("groups same-PT-day windows (Brazil + Haiti both open Jun 12 PT)", () => {
+    expect(windowOpenPtDate(braMar)).toBe("2026-06-12");
+    expect(windowOpenPtDate(haiSco)).toBe("2026-06-12");
+    expect(windowOpenPtDate(usaPar)).toBe("2026-06-11");
+  });
+
+  it("at Brazil's open, the Jun 12 group is due with BOTH matches; Jun 11 (USA) is NOT (no catch-up)", () => {
+    const now = new Date("2026-06-12T22:05:00Z").getTime();
+    const due = dueScoreDayGroups(all, now);
+    expect(due.map((g) => g.ptDate)).toEqual(["2026-06-12"]);
+    expect(due[0].matches.map((m) => m.matchId)).toEqual(["BRA_MAR", "HAI_SCO"]); // kickoff order
+  });
+
+  it("QA: a day with one match → one email; two matches → one grouped email (not two)", () => {
+    const now = new Date("2026-06-12T22:05:00Z").getTime();
+    const due = dueScoreDayGroups(all, now);
+    const plan = planScoreDayEmails(due, ["alex"], {}, {}, tmpl);
+    expect(plan).toHaveLength(1); // one day-group → one email
+    expect(plan[0].recipients[0].remaining.map((m) => m.matchId)).toEqual(["BRA_MAR", "HAI_SCO"]);
+  });
+
+  it("QA: predicted one match → email focuses on the remaining one", () => {
+    const now = new Date("2026-06-12T22:05:00Z").getTime();
+    const due = dueScoreDayGroups(all, now);
+    const plan = planScoreDayEmails(due, ["alex"], { BRA_MAR: new Set(["alex"]) }, {}, tmpl);
+    expect(plan[0].recipients[0].remaining.map((m) => m.matchId)).toEqual(["HAI_SCO"]);
+  });
+
+  it("QA: predicted ALL of the day's matches → no email", () => {
+    const now = new Date("2026-06-12T22:05:00Z").getTime();
+    const due = dueScoreDayGroups(all, now);
+    const plan = planScoreDayEmails(
+      due,
+      ["alex"],
+      { BRA_MAR: new Set(["alex"]), HAI_SCO: new Set(["alex"]) },
+      {},
+      tmpl,
+    );
+    expect(plan[0].recipients).toEqual([]);
+  });
+
+  it("QA: idempotent — already emailed today → skipped", () => {
+    const now = new Date("2026-06-12T22:05:00Z").getTime();
+    const due = dueScoreDayGroups(all, now);
+    const plan = planScoreDayEmails(due, ["alex"], {}, { "t-2026-06-12": new Set(["alex"]) }, tmpl);
+    expect(plan[0].recipients).toEqual([]);
+  });
+
+  it("QA: no catch-up — Jun 11 (USA) group is never due once >6h past its open", () => {
+    const now = new Date("2026-06-12T22:05:00Z").getTime(); // ~21h after USA window opened
+    const due = dueScoreDayGroups(all, now);
+    expect(due.some((g) => g.ptDate === "2026-06-11")).toBe(false);
   });
 });

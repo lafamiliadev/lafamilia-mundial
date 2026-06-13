@@ -74,3 +74,73 @@ export function scoreWindowEmailDue(m: { kickoffUtc: string }, nowMs: number): b
     nowMs - windowOpensAtMs(m) <= SCORE_WINDOW_EMAIL_FRESH_MS
   );
 }
+
+// ── Daily grouping: one email per user per day, all that day's open windows ──
+
+/** The PT calendar date (YYYY-MM-DD) on which this match's window opens. Matches
+ * that open on the same PT day are grouped into a single daily email. */
+export function windowOpenPtDate(m: { kickoffUtc: string }): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Los_Angeles",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date(windowOpensAtMs(m)));
+}
+
+export type ScoreDayGroup = { ptDate: string; matches: ScoreMatch[] };
+
+/** Day-groups whose grouped email is DUE now: the group's EARLIEST window has
+ * opened within the freshness window — so it fires once, shortly after the day's
+ * first window opens, and never as a catch-up blast for an older day. Matches
+ * are returned in kickoff order. */
+export function dueScoreDayGroups(matches: ScoreMatch[], nowMs: number): ScoreDayGroup[] {
+  const byDate = new Map<string, ScoreMatch[]>();
+  for (const m of matches) {
+    const d = windowOpenPtDate(m);
+    const arr = byDate.get(d) ?? [];
+    arr.push(m);
+    byDate.set(d, arr);
+  }
+  const groups: ScoreDayGroup[] = [];
+  for (const [ptDate, ms] of byDate) {
+    const sorted = ms.slice().sort((a, b) => a.kickoffUtc.localeCompare(b.kickoffUtc));
+    const earliestOpen = Math.min(...sorted.map((m) => windowOpensAtMs(m)));
+    if (nowMs >= earliestOpen && nowMs - earliestOpen <= SCORE_WINDOW_EMAIL_FRESH_MS) {
+      groups.push({ ptDate, matches: sorted });
+    }
+  }
+  return groups.sort((a, b) => a.ptDate.localeCompare(b.ptDate));
+}
+
+export type ScoreDayEmailRecipient = { participantId: string; remaining: ScoreMatch[] };
+export type ScoreDayEmailPlan = { ptDate: string; templateId: string; recipients: ScoreDayEmailRecipient[] };
+
+/**
+ * Pure recipient planner for the daily grouped email — the heart of the QA
+ * rules. For each due day-group, each participant gets at most ONE email
+ * (idempotent via the per-day template log), focused on the matches in that
+ * group they HAVEN'T predicted. Anyone who has predicted them all is skipped.
+ */
+export function planScoreDayEmails(
+  groups: ScoreDayGroup[],
+  participantIds: string[],
+  /** matchId → set of participant ids who already predicted it. */
+  predictorsByMatch: Record<string, Set<string>>,
+  /** templateId → set of participant ids already emailed for that day-group. */
+  alreadyEmailedByTemplate: Record<string, Set<string>>,
+  templateIdFor: (ptDate: string) => string,
+): ScoreDayEmailPlan[] {
+  return groups.map((g) => {
+    const templateId = templateIdFor(g.ptDate);
+    const already = alreadyEmailedByTemplate[templateId] ?? new Set<string>();
+    const recipients: ScoreDayEmailRecipient[] = [];
+    for (const pid of participantIds) {
+      if (already.has(pid)) continue; // idempotent — already got today's email
+      const remaining = g.matches.filter((m) => !(predictorsByMatch[m.matchId] ?? new Set()).has(pid));
+      if (remaining.length === 0) continue; // predicted everything today → skip
+      recipients.push({ participantId: pid, remaining });
+    }
+    return { ptDate: g.ptDate, templateId, recipients };
+  });
+}
