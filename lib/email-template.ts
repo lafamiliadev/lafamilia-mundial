@@ -328,33 +328,70 @@ export function scoreWindowDaySubject(matchCount: number): string {
   return matchCount === 1 ? "Today's bonus pick is open ⚽️" : "Today's bonus picks are open ⚽️";
 }
 /** Grouped daily reminder: lists the day's still-open-for-you score picks (in
- * kickoff order) with each one's close time in PT. Singular/plural copy adapts. */
+ * kickoff order) with each one's close time in PT. Leads with the member's
+ * current standing + points on the line, and always ends with the "bonus picks
+ * run all tournament" + WhatsApp footer. Singular/plural copy adapts. */
 export function renderScoreWindowDay(p: {
   firstName: string;
   /** The matches to show — only ones this member hasn't predicted yet. */
   matches: { teamA: string; teamB: string; closesLabel: string }[];
   scoreUrl: string;
+  /** Current Overall points + rank, shown only once scoring has started. */
+  points?: number | null;
+  rank?: number | null;
+  totalPlayers?: number | null;
 }): string {
   const multi = p.matches.length > 1;
+  const onLine = p.matches.length * 3; // up to +3 per match
+
+  // Game-oriented standing — "you have points to win", not just "a match exists".
+  const hasStanding = typeof p.rank === "number" && p.rank > 0;
+  const pts = p.points ?? 0;
+  const standingBlock = hasStanding
+    ? `<tr><td style="padding:16px 28px 0;font-family:${SANS};">
+    <div style="background:${PAGE};border-radius:14px;padding:14px 18px;">
+      <p style="margin:0;font-size:15px;line-height:1.6;color:${MUTED};">
+        You're on <strong style="color:${INK};">${pts} ${pts === 1 ? "point" : "points"}</strong>${p.totalPlayers ? `, sitting <strong style="color:${INK};">#${p.rank} of ${p.totalPlayers}</strong>` : `, rank <strong style="color:${INK};">#${p.rank}</strong>`}. There ${onLine === 1 ? "is" : "are"} <strong style="color:${INK};">up to ${onLine} ${onLine === 1 ? "point" : "points"}</strong> on the line below.
+      </p>
+    </div>
+  </td></tr>`
+    : "";
+
   const matchRows = p.matches
     .map(
       (m) => `
   <tr><td style="padding:8px 28px 0;font-family:${SANS};">
     <div style="background:${PAGE};border-radius:14px;padding:14px 18px;">
       <p style="margin:0;font-size:16px;font-weight:800;color:${INK};">${m.teamA} vs ${m.teamB}</p>
-      <p style="margin:4px 0 0;font-size:14px;color:${MUTED};">Closes: ${m.closesLabel}</p>
+      <p style="margin:4px 0 0;font-size:14px;color:${MUTED};">Closes: <strong style="color:${INK};">${m.closesLabel}</strong></p>
     </div>
   </td></tr>`,
     )
     .join("");
+
+  // Permanent footer: every reminder reminds them this keeps going + invites
+  // them to the WhatsApp community.
+  const footer = `
+  <tr><td style="padding:24px 28px 0;font-family:${SANS};">
+    <div style="border-top:1px solid #e7e1d4;padding-top:18px;">
+      <p style="margin:0;font-size:14px;line-height:1.6;color:${MUTED};">
+        ⚽ <strong style="color:${INK};">Bonus score picks run all tournament.</strong> Earn up to 3 extra points every time you predict the score of a LatAm or Spain match — not just this one.
+      </p>
+      <p style="margin:14px 0 0;font-size:14px;line-height:1.6;color:${MUTED};">
+        📱 Want reminders, leaderboard updates, and match banter? <a href="${JOIN_URL}" target="_blank" style="color:${INK};font-weight:700;text-decoration:underline;">Join the La Copa WhatsApp community →</a>
+      </p>
+    </div>
+  </td></tr>`;
+
   const body = `
   <tr><td style="padding:32px 28px 6px;font-family:${SANS};">
     <div style="font-size:34px;">⚽️</div>
     <h1 style="margin:10px 0 0;font-size:24px;font-weight:800;color:${INK};">Familiaaaa ⚽️</h1>
     <p style="margin:14px 0 0;font-size:16px;line-height:1.6;color:${MUTED};">
-      Today's bonus score pick${multi ? "s are" : " is"} open. Lock your prediction${multi ? "s" : ""} before kickoff:
+      Today's bonus score pick${multi ? "s are" : " is"} open — lock ${multi ? "them" : "it"} in before kickoff and grab the points:
     </p>
   </td></tr>
+  ${standingBlock}
   ${matchRows}
   <tr><td style="padding:18px 28px 0;font-family:${SANS};">
     <p style="margin:0;font-size:15px;line-height:1.7;color:${MUTED};">
@@ -363,11 +400,12 @@ export function renderScoreWindowDay(p: {
     </p>
   </td></tr>
   ${cta(p.scoreUrl, multi ? "Make your bonus picks →" : "Make your bonus pick →")}
+  ${footer}
   <tr><td style="padding:18px 28px 6px;font-family:${SANS};">
     <p style="margin:0;font-size:15px;line-height:1.6;color:${MUTED};">Vamos,<br><strong style="color:${INK};">LaFamilia</strong></p>
   </td></tr>`;
   return emailShell({
-    preheader: "Lock your scores for today's LatAm + Spain bonus matches.",
+    preheader: "You've got points to win — today's LatAm + Spain bonus picks are open.",
     body,
   });
 }
@@ -405,6 +443,9 @@ export function buildSampleEmails(appUrl: string): SampleEmail[] {
       html: renderScoreWindowDay({
         firstName: "Pilar",
         scoreUrl: `${appUrl}/picks/score`,
+        points: 4,
+        rank: 12,
+        totalPlayers: 115,
         matches: [
           { teamA: "Brazil", teamB: "Morocco", closesLabel: "Sat, Jun 13, 3:00 PM PT" },
           { teamA: "Haiti", teamB: "Scotland", closesLabel: "Sat, Jun 13, 6:00 PM PT" },

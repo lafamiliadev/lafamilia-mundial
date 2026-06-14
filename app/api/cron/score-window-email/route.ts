@@ -61,9 +61,10 @@ export async function GET(req: Request) {
 
   try {
     const repo = await db();
-    const [matches, participants] = await Promise.all([
+    const [matches, participants, scores] = await Promise.all([
       repo.getScoreMatches(),
       repo.listParticipants(),
+      repo.getScores(),
     ]);
     const nowMs = (await now()).getTime();
     const groups = dueScoreDayGroups(matches, nowMs);
@@ -132,6 +133,9 @@ export async function GET(req: Request) {
               closesLabel: closesLabelPt(m.kickoffUtc),
             })),
             scoreUrl: `${env.NEXT_PUBLIC_APP_URL}/picks/score`,
+            points: scores[r.participantId]?.total ?? 0,
+            rank: scores[r.participantId]?.rank ?? null,
+            totalPlayers: participants.length,
           }),
         }).catch(() => false);
         await repo.logScoreEmail(r.participantId, day.templateId, ok ? "sent" : "failed");
