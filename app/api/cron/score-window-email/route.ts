@@ -90,6 +90,8 @@ export async function GET(req: Request) {
       scoreWindowDayTemplateId,
     );
 
+    const byId = new Map(participants.map((p) => [p.id, p]));
+
     if (dry || !enabled || !env.RESEND_API_KEY) {
       return NextResponse.json({
         ok: true,
@@ -100,11 +102,20 @@ export async function GET(req: Request) {
           day: d.ptDate,
           matches: groups.find((g) => g.ptDate === d.ptDate)?.matches.map((m: ScoreMatch) => `${m.teamA} vs ${m.teamB}`),
           wouldEmail: d.recipients.length,
+          // Itemized audit (dry/disabled only): exactly WHO would be emailed and
+          // WHICH open picks they still owe — i.e. the reason they qualify.
+          recipients: d.recipients.map((r) => {
+            const p = byId.get(r.participantId);
+            return {
+              name: p?.name,
+              email: p?.email,
+              qualifiesFor: r.remaining.map((m) => `${m.teamA} vs ${m.teamB}`),
+            };
+          }),
         })),
       });
     }
 
-    const byId = new Map(participants.map((p) => [p.id, p]));
     const report: Record<string, string> = {};
     for (const day of plan) {
       let okCount = 0;
