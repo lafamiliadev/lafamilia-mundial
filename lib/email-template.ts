@@ -410,6 +410,87 @@ export function renderScoreWindowDay(p: {
   });
 }
 
+// ── Points earned (sent when an admin enters a match's final score) ──
+/** Per-match template id for the email log (idempotency). */
+export function scorePointsTemplateId(matchId: string): string {
+  return `score-points-${matchId}`;
+}
+export function scorePointsSubject(points: number, teamA: string, teamB: string): string {
+  return points >= 3
+    ? "🎯 Exact score — you earned +3 points!"
+    : `✅ +${points} ${points === 1 ? "point" : "points"} — ${teamA} vs ${teamB}`;
+}
+/** Sent to members who EARNED points on a just-scored game: the result, their
+ * pick, what they earned and why, their new total, what's next, + community. */
+export function renderScorePoints(p: {
+  firstName: string;
+  teamA: string;
+  teamB: string;
+  finalA: number;
+  finalB: number;
+  predA: number;
+  predB: number;
+  points: number;
+  /** The member's overall total after this game. */
+  total: number;
+  /** Upcoming bonus-point games with their deadlines. */
+  upcoming: { match: string; dateLabel: string }[];
+  scoreUrl: string;
+}): string {
+  const exact = p.points >= 3;
+  const why = exact
+    ? "you nailed the exact score"
+    : "you called the right result";
+  const upcomingRows =
+    p.upcoming.length > 0
+      ? `
+  <tr><td style="padding:20px 28px 0;font-family:${SANS};">
+    <p style="margin:0 0 8px;font-size:14px;font-weight:700;color:${INK};">More bonus points are coming:</p>
+    ${p.upcoming
+      .map(
+        (u) =>
+          `<p style="margin:0 0 4px;font-size:14px;color:${MUTED};">• <strong style="color:${INK};">${u.match}</strong> — ${u.dateLabel}</p>`,
+      )
+      .join("")}
+  </td></tr>`
+      : "";
+  const body = `
+  <tr><td style="padding:32px 28px 6px;font-family:${SANS};">
+    <div style="font-size:34px;">🎉</div>
+    <h1 style="margin:10px 0 0;font-size:26px;font-weight:800;color:${INK};">You earned +${p.points} ${p.points === 1 ? "point" : "points"}, ${p.firstName}!</h1>
+    <p style="margin:14px 0 0;font-size:16px;line-height:1.6;color:${MUTED};">
+      <strong style="color:${INK};">${p.teamA} ${p.finalA}–${p.finalB} ${p.teamB}</strong> is final. You predicted
+      <strong style="color:${INK};">${p.predA}–${p.predB}</strong> — ${why}.
+    </p>
+  </td></tr>
+  <tr><td style="padding:16px 28px 0;font-family:${SANS};">
+    <div style="background:${PAGE};border-radius:14px;padding:14px 18px;text-align:center;">
+      <p style="margin:0;font-size:13px;color:${MUTED};text-transform:uppercase;letter-spacing:1px;">Your total</p>
+      <p style="margin:4px 0 0;font-size:30px;font-weight:900;color:${INK};">${p.total} ${p.total === 1 ? "point" : "points"}</p>
+    </div>
+  </td></tr>
+  ${upcomingRows}
+  ${cta(p.scoreUrl, "View your scores →")}
+  <tr><td style="padding:24px 28px 0;font-family:${SANS};">
+    <div style="border-top:1px solid #e7e1d4;padding-top:18px;">
+      <p style="margin:0;font-size:15px;font-weight:800;color:${INK};">⚽ Join the La Copa conversation</p>
+      <p style="margin:8px 0 0;font-size:14px;line-height:1.6;color:${MUTED};">
+        The leaderboard is fun, but the real chisme is in the community — members share predictions, reactions, and reminders before every match. Come celebrate your points and see what everyone's saying.
+      </p>
+      <p style="margin:12px 0 0;font-size:14px;line-height:1.6;">
+        <a href="${JOIN_URL}" target="_blank" style="color:${INK};font-weight:700;text-decoration:underline;">Join La Copa de LaFamilia →</a>
+      </p>
+    </div>
+  </td></tr>
+  <tr><td style="padding:18px 28px 6px;font-family:${SANS};">
+    <p style="margin:0;font-size:15px;line-height:1.6;color:${MUTED};">Vamos,<br><strong style="color:${INK};">LaFamilia</strong></p>
+  </td></tr>`;
+  return emailShell({
+    preheader: `You earned +${p.points} on ${p.teamA} vs ${p.teamB}. Here's where you stand.`,
+    body,
+  });
+}
+
 // ── Sample set (for previews + test sends) ───────────────────────────
 export type SampleEmail = { key: string; label: string; subject: string; html: string };
 
@@ -450,6 +531,27 @@ export function buildSampleEmails(appUrl: string): SampleEmail[] {
           { teamA: "Brazil", teamB: "Morocco", closesLabel: "Sat, Jun 13, 3:00 PM PT" },
           { teamA: "Haiti", teamB: "Scotland", closesLabel: "Sat, Jun 13, 6:00 PM PT" },
         ],
+      }),
+    },
+    {
+      key: "score-points",
+      label: "12 · You earned points (after a game is scored)",
+      subject: scorePointsSubject(3, "Mexico", "South Africa"),
+      html: renderScorePoints({
+        firstName: "Pilar",
+        teamA: "Mexico",
+        teamB: "South Africa",
+        finalA: 2,
+        finalB: 0,
+        predA: 2,
+        predB: 0,
+        points: 3,
+        total: 9,
+        upcoming: [
+          { match: "Brazil vs Morocco", dateLabel: "June 18" },
+          { match: "Mexico vs Czechia", dateLabel: "June 24" },
+        ],
+        scoreUrl: `${board}?view=score`,
       }),
     },
   ];
