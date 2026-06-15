@@ -15,7 +15,7 @@
     },
     {
       "path": "/api/cron/score-window-email",
-      "schedule": "0 14 * * *"
+      "schedule": "0 2,14 * * *"
     }
   ]
 }
