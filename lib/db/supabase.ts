@@ -567,10 +567,13 @@ export const supabaseRepo: Repo = {
 
   async getScoreEmailRecipients(templateId) {
     const db = supabaseAdmin();
+    // Only people who were SUCCESSFULLY emailed count as done — so a failed send
+    // (e.g. rate-limited) is retried on the next run instead of skipped forever.
     const { data } = await db
       .from("score_email_log")
       .select("participant_id")
-      .eq("template_id", templateId);
+      .eq("template_id", templateId)
+      .eq("status", "sent");
     return new Set((data ?? []).map((r) => (r as { participant_id: string }).participant_id));
   },
 

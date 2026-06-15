@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { sendEmail } from "@/lib/email";
+import { sendEmailBatch } from "@/lib/email";
 import {
   renderScoreWindowDay,
   scoreWindowDaySubject,
@@ -13,6 +13,7 @@ import type { ScoreMatch } from "@/lib/types";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+export const maxDuration = 60; // batch sends + per-recipient logging headroom
 
 // Bonus Score Pick reminder — GROUPED, one email per member per day, listing
 // that day's still-OPEN score picks the member hasn't done yet.
@@ -117,12 +118,15 @@ export async function GET(req: Request) {
       });
     }
 
-    const report: Record<string, string> = {};
-    for (const day of plan) {
-      let okCount = 0;
-      for (const r of day.recipients) {
+    // Build every outgoing email up front, then send them through the BATCH
+    // endpoint so a 100+ recipient run doesn't trip Resend's rate limit.
+    const outgoing = plan.flatMap((day) =>
+      day.recipients.map((r) => {
         const p = byId.get(r.participantId)!;
-        const ok = await sendEmail({
+        return {
+          participantId: r.participantId,
+          templateId: day.templateId,
+          ptDate: day.ptDate,
           to: p.email,
           subject: scoreWindowDaySubject(r.remaining.length),
           html: renderScoreWindowDay({
@@ -137,14 +141,28 @@ export async function GET(req: Request) {
             rank: scores[r.participantId]?.rank ?? null,
             totalPlayers: participants.length,
           }),
-        }).catch(() => false);
-        await repo.logScoreEmail(r.participantId, day.templateId, ok ? "sent" : "failed");
-        if (ok) okCount++;
-      }
-      report[day.ptDate] = `${okCount}/${day.recipients.length}`;
+        };
+      }),
+    );
+
+    const sentResults = await sendEmailBatch(
+      outgoing.map((o) => ({ to: o.to, subject: o.subject, html: o.html })),
+    );
+
+    const report: Record<string, { sent: number; total: number }> = {};
+    for (let i = 0; i < outgoing.length; i++) {
+      const o = outgoing[i];
+      const ok = sentResults[i];
+      await repo.logScoreEmail(o.participantId, o.templateId, ok ? "sent" : "failed");
+      const r = (report[o.ptDate] ??= { sent: 0, total: 0 });
+      r.total++;
+      if (ok) r.sent++;
     }
 
-    return NextResponse.json({ ok: true, sent: true, nowIso: new Date(nowMs).toISOString(), report });
+    const reportFmt = Object.fromEntries(
+      Object.entries(report).map(([day, r]) => [day, `${r.sent}/${r.total} sent`]),
+    );
+    return NextResponse.json({ ok: true, sent: true, nowIso: new Date(nowMs).toISOString(), report: reportFmt });
   } catch (e) {
     return NextResponse.json({ ok: false, error: (e as Error).message }, { status: 500 });
   }

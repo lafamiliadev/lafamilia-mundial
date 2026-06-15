@@ -483,9 +483,10 @@ export const memoryRepo: Repo = {
 
   async getScoreEmailRecipients(templateId) {
     const data = await load();
+    // Only successful sends count as done — failed sends retry next run.
     return new Set(
       (data.scoreEmailLog ?? [])
-        .filter((e) => e.templateId === templateId)
+        .filter((e) => e.templateId === templateId && e.status === "sent")
         .map((e) => e.participantId),
     );
   },
