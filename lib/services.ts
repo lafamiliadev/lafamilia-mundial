@@ -4,7 +4,10 @@ import { computeAwards, isTeamMember, type AwardsResult } from "./awards";
 import { getProvider, type ProviderMatchStatus, type ProviderScore } from "./football";
 import { buildLedgerLines, type LedgerLine } from "./ledger";
 import { orientApiScore, scoreMatchKey } from "./score-match-link";
+import { now } from "./preview";
 import { rankParticipants, scorePredictions } from "./scoring";
+import { scorePickState } from "./score-picks";
+import { summarizeEveryone, type MatchEveryone } from "./score-view";
 import { resolveTeamCode, teamName } from "./teams";
 import type { GroupMap, LeaderboardRow, Participant, Results, ScoreMatch } from "./types";
 
@@ -671,5 +674,113 @@ export async function getRivalry(token: string): Promise<Rivalry | null> {
     rivalTotal,
     diff: myTotal - rivalTotal,
     scoringStarted,
+  };
+}
+
+// ── Scores tab: per-game score predictions (yours + everyone's after lock) ──
+
+export type ScorePickCard = {
+  matchId: string;
+  teamA: string;
+  teamB: string;
+  kickoffUtc: string;
+  displayTimePt: string;
+  /** "open" = predictable now, "upcoming" = not yet, "closed" = kicked off. */
+  state: "open" | "upcoming" | "closed";
+  final: boolean;
+  finalA: number | null;
+  finalB: number | null;
+  /** The viewer's locked pick — null if they didn't predict this one. */
+  myScoreA: number | null;
+  myScoreB: number | null;
+  myPoints: number | null;
+  /** Everyone's summary — only populated for closed matches on the "everyone"
+   * view (never before lock, to avoid copying). null otherwise. */
+  everyone: MatchEveryone | null;
+};
+
+export type ScorePicksView = {
+  loggedIn: boolean;
+  show: "mine" | "everyone";
+  /** The viewer's running score-prediction points (matches the leaderboard slice). */
+  scorePickTotal: number;
+  cards: ScorePickCard[];
+};
+
+/**
+ * Assembles the Scores tab. "mine" (default) shows the viewer's pick + result +
+ * points per game. "everyone" additionally reveals others' locked picks — but
+ * ONLY for matches that have kicked off (state === "closed"), so nobody can copy
+ * before lock. Reuses scorePickState (window) and summarizeEveryone (aggregation);
+ * no parallel scoring math. Defensive throughout — never throws on missing data.
+ */
+export async function getScorePicksView(
+  token?: string | null,
+  show: "mine" | "everyone" = "mine",
+): Promise<ScorePicksView> {
+  const repo = await db();
+  const [matches, scores, nowD] = await Promise.all([
+    repo.getScoreMatches(),
+    repo.getScores(),
+    now(),
+  ]);
+  const me = token ? await repo.getByToken(token) : null;
+  const myPreds = me ? await repo.listScorePredictions(me.id) : [];
+  const myByMatch = new Map(myPreds.map((p) => [p.matchId, p]));
+  const nowMs = nowD.getTime();
+
+  // Bulk-load everyone's picks only when that view is active.
+  const everyoneByMatch = new Map<string, Awaited<ReturnType<typeof repo.getAllScorePredictions>>>();
+  if (show === "everyone") {
+    const all = await repo.getAllScorePredictions();
+    for (const r of all) {
+      const arr = everyoneByMatch.get(r.matchId) ?? [];
+      arr.push(r);
+      everyoneByMatch.set(r.matchId, arr);
+    }
+  }
+
+  const cards: ScorePickCard[] = matches.map((m) => {
+    const state = scorePickState(m, matches, nowMs);
+    const final = m.finalScoreA != null && m.finalScoreB != null;
+    const mine = myByMatch.get(m.matchId);
+    const everyone =
+      show === "everyone" && state === "closed"
+        ? summarizeEveryone(
+            everyoneByMatch.get(m.matchId) ?? [],
+            final ? { a: m.finalScoreA as number, b: m.finalScoreB as number } : null,
+          )
+        : null;
+    return {
+      matchId: m.matchId,
+      teamA: m.teamA,
+      teamB: m.teamB,
+      kickoffUtc: m.kickoffUtc,
+      displayTimePt: m.displayTimePt,
+      state,
+      final,
+      finalA: m.finalScoreA,
+      finalB: m.finalScoreB,
+      myScoreA: mine?.scoreA ?? null,
+      myScoreB: mine?.scoreB ?? null,
+      myPoints: mine?.pointsAwarded ?? null,
+      everyone,
+    };
+  });
+
+  // Most relevant first: finished games (newest kickoff first), then everything
+  // still to come (soonest first).
+  cards.sort((a, b) => {
+    if (a.final !== b.final) return a.final ? -1 : 1;
+    return a.final
+      ? b.kickoffUtc.localeCompare(a.kickoffUtc)
+      : a.kickoffUtc.localeCompare(b.kickoffUtc);
+  });
+
+  return {
+    loggedIn: !!me,
+    show,
+    scorePickTotal: me ? (scores[me.id]?.scorePick ?? 0) : 0,
+    cards,
   };
 }

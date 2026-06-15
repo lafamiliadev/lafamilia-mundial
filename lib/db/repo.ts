@@ -35,6 +35,18 @@ export type ScoreRow = {
   startRank: number;
 };
 
+/** One participant's locked score prediction for a match, with the display
+ * fields the "Everyone's predictions" reveal needs. Only surfaced after lock. */
+export type MatchScorePrediction = {
+  participantId: string;
+  name: string;
+  slug: string;
+  rootingCountry: string | null;
+  scoreA: number;
+  scoreB: number;
+  pointsAwarded: number | null;
+};
+
 export type ContentItem = {
   id: string;
   type: string;
@@ -92,6 +104,13 @@ export interface Repo {
   /** Participant ids who have predicted a given match — to skip them in the
    * window-open email reminder. */
   getScorePredictionParticipantIds(matchId: string): Promise<string[]>;
+  /** Every locked prediction for a match (with predictor display fields) —
+   * powers the "Everyone's predictions" reveal. Callers MUST gate on the
+   * match being locked (now >= kickoff) before showing these. */
+  getMatchScorePredictions(matchId: string): Promise<MatchScorePrediction[]>;
+  /** Every prediction across ALL matches (with predictor display fields), each
+   * tagged with its matchId — one round-trip for the Scores "Everyone" view. */
+  getAllScorePredictions(): Promise<(MatchScorePrediction & { matchId: string })[]>;
   upsertScorePrediction(input: {
     participantId: string;
     matchId: string;

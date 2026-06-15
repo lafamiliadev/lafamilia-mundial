@@ -351,6 +351,43 @@ export const memoryRepo: Repo = {
       .map((p) => p.participantId);
   },
 
+  async getMatchScorePredictions(matchId) {
+    const data = await load();
+    const byId = new Map(data.participants.map((p) => [p.id, p]));
+    return (data.scorePredictions ?? [])
+      .filter((p) => p.matchId === matchId)
+      .map((p) => {
+        const person = byId.get(p.participantId);
+        return {
+          participantId: p.participantId,
+          name: person?.name ?? "Anónimo",
+          slug: person?.slug ?? "",
+          rootingCountry: person?.rootingCountry ?? null,
+          scoreA: p.scoreA,
+          scoreB: p.scoreB,
+          pointsAwarded: p.pointsAwarded,
+        };
+      });
+  },
+
+  async getAllScorePredictions() {
+    const data = await load();
+    const byId = new Map(data.participants.map((p) => [p.id, p]));
+    return (data.scorePredictions ?? []).map((p) => {
+      const person = byId.get(p.participantId);
+      return {
+        matchId: p.matchId,
+        participantId: p.participantId,
+        name: person?.name ?? "Anónimo",
+        slug: person?.slug ?? "",
+        rootingCountry: person?.rootingCountry ?? null,
+        scoreA: p.scoreA,
+        scoreB: p.scoreB,
+        pointsAwarded: p.pointsAwarded,
+      };
+    });
+  },
+
   async upsertScorePrediction({ participantId, matchId, scoreA, scoreB }) {
     const data = await load();
     const now = new Date().toISOString();

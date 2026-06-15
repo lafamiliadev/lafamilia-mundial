@@ -3,13 +3,14 @@ import { Countdown } from "@/components/Countdown";
 import { FamiliaInvitersBoard } from "@/components/FamiliaInvitersBoard";
 import { Lane, LeaderboardList } from "@/components/LeaderboardList";
 import { LedgerDrawer } from "@/components/LedgerDrawer";
+import { ScorePicksPanel } from "@/components/ScorePicksPanel";
 import { SiembraBanner } from "@/components/Siembra";
 import { LinkButton, PageShell, SectionTitle, TopNav } from "@/components/ui";
 import { db } from "@/lib/db";
 import { LIVE_PICKS_ENABLED } from "@/lib/flags";
 import { getSessionToken } from "@/lib/session";
 import { now, PREVIEW_ENABLED } from "@/lib/preview";
-import { getFamiliaInviters, getLeaderboardData, type LeaderboardView } from "@/lib/services";
+import { getFamiliaInviters, getLeaderboardData, getScorePicksView, type LeaderboardView } from "@/lib/services";
 import {
   dayUnlockAtMs,
   nextOpenUnpredicted,
@@ -99,9 +100,9 @@ function Podium({ rows }: { rows: LeaderboardRow[] }) {
 export default async function LeaderboardPage({
   searchParams,
 }: {
-  searchParams: Promise<{ me?: string; view?: string }>;
+  searchParams: Promise<{ me?: string; view?: string; show?: string }>;
 }) {
-  const { me: meParam, view: rawView } = await searchParams;
+  const { me: meParam, view: rawView, show: rawShow } = await searchParams;
   // Highlight the viewer: an explicit ?me link wins, otherwise fall back to the
   // returning-member cookie so a recognized user is spotlighted automatically.
   const token = meParam ?? (await getSessionToken()) ?? undefined;
@@ -134,6 +135,10 @@ export default async function LeaderboardPage({
   // the next window opens ("coming soon").
   const openScoreNow = openScoreMatches(allScoreMatches, nowMs)[0] ?? null;
   const upcomingScoreSoon = nextUpcomingScoreMatch(allScoreMatches, nowMs);
+  // Scores tab: per-game predictions (yours, or everyone's after kickoff). Only
+  // fetched on that tab so other views stay light.
+  const scoresShow: "mine" | "everyone" = rawShow === "everyone" ? "everyone" : "mine";
+  const scorePicks = view === "score" ? await getScorePicksView(token, scoresShow) : null;
 
   // Live Picks isn't playable yet (LIVE_PICKS_ENABLED) — and even once it is, the
   // board is empty until the first knockout round locks. Either way, show a calm
@@ -225,6 +230,18 @@ export default async function LeaderboardPage({
             </p>
           </div>
         ) : null}
+
+        {/* Scores tab: your locked picks, results, points — and everyone's after
+            kickoff. Sits above the score leaderboard below. */}
+        {view === "score" && scorePicks && (
+          <ScorePicksPanel
+            show={scorePicks.show}
+            token={token}
+            loggedIn={scorePicks.loggedIn}
+            scorePickTotal={scorePicks.scorePickTotal}
+            cards={scorePicks.cards}
+          />
+        )}
 
         {/* ── THE STANDINGS — the main event, front and center ── */}
         {liveComingSoon ? (

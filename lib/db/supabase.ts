@@ -455,6 +455,79 @@ export const supabaseRepo: Repo = {
     return (data ?? []).map((r) => (r as { participant_id: string }).participant_id);
   },
 
+  async getMatchScorePredictions(matchId) {
+    const db = supabaseAdmin();
+    const { data } = await db
+      .from("score_predictions")
+      .select("participant_id, score_a, score_b, points_awarded")
+      .eq("match_id", matchId);
+    const rows = (data ?? []) as {
+      participant_id: string;
+      score_a: number;
+      score_b: number;
+      points_awarded: number | null;
+    }[];
+    if (rows.length === 0) return [];
+    const { data: people } = await db
+      .from("participants")
+      .select("id, name, slug, rooting_country")
+      .in("id", rows.map((r) => r.participant_id));
+    const byId = new Map(
+      ((people ?? []) as { id: string; name: string; slug: string; rooting_country: string | null }[]).map(
+        (p) => [p.id, p],
+      ),
+    );
+    return rows.map((r) => {
+      const p = byId.get(r.participant_id);
+      return {
+        participantId: r.participant_id,
+        name: p?.name ?? "Anónimo",
+        slug: p?.slug ?? "",
+        rootingCountry: p?.rooting_country ?? null,
+        scoreA: r.score_a,
+        scoreB: r.score_b,
+        pointsAwarded: r.points_awarded,
+      };
+    });
+  },
+
+  async getAllScorePredictions() {
+    const db = supabaseAdmin();
+    const { data } = await db
+      .from("score_predictions")
+      .select("match_id, participant_id, score_a, score_b, points_awarded");
+    const rows = (data ?? []) as {
+      match_id: string;
+      participant_id: string;
+      score_a: number;
+      score_b: number;
+      points_awarded: number | null;
+    }[];
+    if (rows.length === 0) return [];
+    const { data: people } = await db
+      .from("participants")
+      .select("id, name, slug, rooting_country")
+      .in("id", [...new Set(rows.map((r) => r.participant_id))]);
+    const byId = new Map(
+      ((people ?? []) as { id: string; name: string; slug: string; rooting_country: string | null }[]).map(
+        (p) => [p.id, p],
+      ),
+    );
+    return rows.map((r) => {
+      const p = byId.get(r.participant_id);
+      return {
+        matchId: r.match_id,
+        participantId: r.participant_id,
+        name: p?.name ?? "Anónimo",
+        slug: p?.slug ?? "",
+        rootingCountry: p?.rooting_country ?? null,
+        scoreA: r.score_a,
+        scoreB: r.score_b,
+        pointsAwarded: r.points_awarded,
+      };
+    });
+  },
+
   async getScorePredictionTotals() {
     const db = supabaseAdmin();
     const { data } = await db
