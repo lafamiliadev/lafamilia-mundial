@@ -378,7 +378,7 @@ export function renderScoreWindowDay(p: {
         ⚽ <strong style="color:${INK};">Bonus score picks run all tournament.</strong> Earn up to 3 extra points every time you predict the score of a LatAm or Spain match — not just this one.
       </p>
       <p style="margin:14px 0 0;font-size:14px;line-height:1.6;color:${MUTED};">
-        📱 Want reminders, leaderboard updates, and match banter? <a href="${JOIN_URL}" target="_blank" style="color:${INK};font-weight:700;text-decoration:underline;">Join the La Copa WhatsApp community →</a>
+        📱 The La Copa WhatsApp group is where we debate, talk through every game, and cry and scream together. <a href="${JOIN_URL}" target="_blank" style="color:${INK};font-weight:700;text-decoration:underline;">Join the familia →</a>
       </p>
     </div>
   </td></tr>`;
@@ -475,7 +475,7 @@ export function renderScorePoints(p: {
     <div style="border-top:1px solid #e7e1d4;padding-top:18px;">
       <p style="margin:0;font-size:15px;font-weight:800;color:${INK};">⚽ Join the La Copa conversation</p>
       <p style="margin:8px 0 0;font-size:14px;line-height:1.6;color:${MUTED};">
-        The leaderboard is fun, but the real chisme is in the community — members share predictions, reactions, and reminders before every match. Come celebrate your points and see what everyone's saying.
+        The La Copa WhatsApp group is where the familia debates, talks through every game, and cries and screams together. Come celebrate your points with us.
       </p>
       <p style="margin:12px 0 0;font-size:14px;line-height:1.6;">
         <a href="${JOIN_URL}" target="_blank" style="color:${INK};font-weight:700;text-decoration:underline;">Join La Copa de LaFamilia →</a>
