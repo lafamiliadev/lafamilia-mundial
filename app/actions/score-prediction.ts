@@ -37,23 +37,15 @@ export async function submitScorePrediction(
     const me = await getSessionParticipant();
     if (!me) return { ok: false, error: "Sign in to save a score pick." };
 
-    const allMatches = await repo.getScoreMatches();
-    const match = allMatches.find((m) => m.matchId === matchId);
+    const match = await repo.getScoreMatch(matchId);
     if (!match) return { ok: false, error: "Match not found." };
 
-    // Backend window enforcement — server clock, not browser. A match unlocks
-    // when its day's first window opens (same-day games together) and closes at
-    // its own kickoff. Reject anything outside that, even if the UI is bypassed.
+    // Backend lock enforcement — server clock, not browser. Every game is open
+    // until its own kickoff; once it kicks off the pick is locked. Reject a save
+    // after kickoff even if the UI is bypassed.
     const nowMs = (await now()).getTime();
-    const state = scorePickState(match, allMatches, nowMs);
-    if (state === "closed") {
-      return { ok: false, error: "Score picks are locked for this match — it's kicked off." };
-    }
-    if (state === "upcoming") {
-      return {
-        ok: false,
-        error: "This match isn't open for predictions yet — today's picks unlock together.",
-      };
+    if (scorePickState(match, nowMs) === "closed") {
+      return { ok: false, error: "This game just kicked off — your pick is locked." };
     }
 
     const prediction = await repo.upsertScorePrediction({

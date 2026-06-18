@@ -1,82 +1,43 @@
-// Single source of truth for the Bonus Score Pick window.
+// Single source of truth for Bonus Score Picks.
 //
-// Rule: a Bonus Score Pick OPENS exactly 24 hours before kickoff and CLOSES at
-// kickoff. Pure + UTC-based (kickoffUtc is an ISO timestamp), so the window math
-// is identical on the server, the cron, and every page — and unit-testable.
+// Rule: EVERY bonus pick is open from the moment it exists until its own
+// kickoff. Each game LOCKS at kickoff — independently. There is no "window
+// opens" step anymore: people can predict any game whenever they want, and a
+// pick simply locks when that game starts. Pure + UTC-based (kickoffUtc is an
+// ISO timestamp), so the math is identical on the server, the cron, and every
+// page — and unit-testable.
 
 import type { ScoreMatch } from "./types";
 
-/** The prediction window length: opens 24h before kickoff. */
-export const SCORE_PICK_WINDOW_MS = 24 * 60 * 60 * 1000;
-
 export type ScorePickState =
-  | "open" // within [kickoff − 24h, kickoff) — predictable now
-  | "upcoming" // window hasn't opened yet
+  | "open" // predictable now — before kickoff
   | "closed"; // kicked off — locked
 
 function kickoffMs(m: { kickoffUtc: string }): number {
   return new Date(m.kickoffUtc).getTime();
 }
 
-/** When this match's 24h prediction window opens (ms epoch). */
-export function windowOpensAtMs(m: { kickoffUtc: string }): number {
-  return kickoffMs(m) - SCORE_PICK_WINDOW_MS;
-}
-
-/** When this match's DAY unlocks for predictions: the EARLIEST window-open among
- * all matches that open on the same PT day. Same-day games unlock together — the
- * moment the first one's 24h window opens — and each still closes at its own
- * kickoff. (Single-match days unlock at their own 24h window, as before.) */
-export function dayUnlockAtMs(
-  m: { kickoffUtc: string },
-  allMatches: { kickoffUtc: string }[],
-): number {
-  const day = windowOpenPtDate(m);
-  const opens = allMatches
-    .filter((x) => windowOpenPtDate(x) === day)
-    .map((x) => windowOpensAtMs(x));
-  return opens.length ? Math.min(...opens) : windowOpensAtMs(m);
-}
-
-/** Open (predict now) / upcoming (not yet) / closed (kicked off). A match is
- * OPEN once its DAY has unlocked, so two same-day games become predictable at
- * the same time — when the first one's window opens. Needs the full match list
- * to find same-day siblings. */
-export function scorePickState(
-  m: ScoreMatch,
-  allMatches: ScoreMatch[],
-  nowMs: number,
-): ScorePickState {
+/** Open until kickoff, then locked. Every game is open from the start. */
+export function scorePickState(m: { kickoffUtc: string }, nowMs: number): ScorePickState {
   const k = kickoffMs(m);
-  if (Number.isNaN(k)) return "closed";
-  if (nowMs >= k) return "closed";
-  if (nowMs >= dayUnlockAtMs(m, allMatches)) return "open";
-  return "upcoming";
+  if (Number.isNaN(k) || nowMs >= k) return "closed";
+  return "open";
 }
 
-export function isScorePickOpen(m: ScoreMatch, allMatches: ScoreMatch[], nowMs: number): boolean {
-  return scorePickState(m, allMatches, nowMs) === "open";
+export function isScorePickOpen(m: { kickoffUtc: string }, nowMs: number): boolean {
+  return scorePickState(m, nowMs) === "open";
 }
 
-/** Matches predictable right now (their day has unlocked), soonest kickoff first. */
+/** Every match still open (not yet kicked off), soonest kickoff first — so the
+ * predict screen always leads with what locks next. */
 export function openScoreMatches(matches: ScoreMatch[], nowMs: number): ScoreMatch[] {
   return matches
-    .filter((m) => scorePickState(m, matches, nowMs) === "open")
+    .filter((m) => scorePickState(m, nowMs) === "open")
     .sort((a, b) => a.kickoffUtc.localeCompare(b.kickoffUtc));
 }
 
-/** The soonest match whose day hasn't unlocked yet — for the "coming soon"
- * countdown (count to dayUnlockAtMs of this match). */
-export function nextUpcomingScoreMatch(matches: ScoreMatch[], nowMs: number): ScoreMatch | null {
-  return (
-    matches
-      .filter((m) => scorePickState(m, matches, nowMs) === "upcoming")
-      .sort((a, b) => a.kickoffUtc.localeCompare(b.kickoffUtc))[0] ?? null
-  );
-}
-
-/** The next OPEN match the viewer hasn't predicted yet — drives the "earn points
- * now" card. Returns null once they've handled every currently-open match. */
+/** The next open match the viewer hasn't predicted yet — drives the "predict
+ * now" nudge. Returns null once they've handled every open game. */
 export function nextOpenUnpredicted(
   matches: ScoreMatch[],
   nowMs: number,
@@ -85,83 +46,35 @@ export function nextOpenUnpredicted(
   return openScoreMatches(matches, nowMs).find((m) => !predictedIds.has(m.matchId)) ?? null;
 }
 
-/** Relevance window for the daily reminder, anchored to the day's first window
- * opening. Wide enough that a once-a-day cron still catches every day's group,
- * bounded so we never reach back to a long-past day. Closed matches are excluded
- * separately — we only ever remind about picks that are still open. */
-export const SCORE_WINDOW_EMAIL_FRESH_MS = 26 * 60 * 60 * 1000;
+// ── "Locking soon" reminder selection (replaces the old per-window email) ──
 
-// ── Daily grouping: one email per user per day, all that day's open windows ──
+/** Horizon for the daily "locking soon" nudge: games whose kickoff is within
+ * the next 30h. 30 (not 24) so a once-a-day cron never misses a game between
+ * runs. */
+export const LOCKING_SOON_MS = 30 * 60 * 60 * 1000;
 
-/** The PT calendar date (YYYY-MM-DD) on which this match's window opens. Matches
- * that open on the same PT day are grouped into a single daily email. */
-export function windowOpenPtDate(m: { kickoffUtc: string }): string {
+/** Open matches that LOCK within `withinMs` (kickoff between now and now+withinMs),
+ * soonest first. Drives the daily "these lock soon" reminder. */
+export function lockingSoonMatches(
+  matches: ScoreMatch[],
+  nowMs: number,
+  withinMs: number = LOCKING_SOON_MS,
+): ScoreMatch[] {
+  return matches
+    .filter((m) => {
+      const k = kickoffMs(m);
+      return !Number.isNaN(k) && nowMs < k && k - nowMs <= withinMs;
+    })
+    .sort((a, b) => a.kickoffUtc.localeCompare(b.kickoffUtc));
+}
+
+/** The PT calendar date (YYYY-MM-DD) for a moment — the per-day idempotency key
+ * for the nudge, so each member gets at most one "locking soon" email per day. */
+export function ptDateOf(nowMs: number): string {
   return new Intl.DateTimeFormat("en-CA", {
     timeZone: "America/Los_Angeles",
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
-  }).format(new Date(windowOpensAtMs(m)));
-}
-
-export type ScoreDayGroup = { ptDate: string; matches: ScoreMatch[] };
-
-/** Day-groups whose grouped email is DUE now. A group is due when it has at
- * least one match that is currently OPEN (predictable right now — never a
- * closed/kicked-off game) and the day's first window opened within the relevance
- * window. Returns ONLY the open matches, in kickoff order. This is safe whether
- * the cron fires hourly or once a day: the per-day email log guarantees one
- * email per member per day regardless of how many times it runs. */
-export function dueScoreDayGroups(matches: ScoreMatch[], nowMs: number): ScoreDayGroup[] {
-  const byDate = new Map<string, ScoreMatch[]>();
-  for (const m of matches) {
-    const d = windowOpenPtDate(m);
-    const arr = byDate.get(d) ?? [];
-    arr.push(m);
-    byDate.set(d, arr);
-  }
-  const groups: ScoreDayGroup[] = [];
-  for (const [ptDate, ms] of byDate) {
-    const open = ms
-      .filter((m) => scorePickState(m, matches, nowMs) === "open")
-      .sort((a, b) => a.kickoffUtc.localeCompare(b.kickoffUtc));
-    if (open.length === 0) continue; // nothing predictable in this group right now
-    const earliestOpen = Math.min(...ms.map((m) => windowOpensAtMs(m)));
-    if (nowMs - earliestOpen <= SCORE_WINDOW_EMAIL_FRESH_MS) {
-      groups.push({ ptDate, matches: open });
-    }
-  }
-  return groups.sort((a, b) => a.ptDate.localeCompare(b.ptDate));
-}
-
-export type ScoreDayEmailRecipient = { participantId: string; remaining: ScoreMatch[] };
-export type ScoreDayEmailPlan = { ptDate: string; templateId: string; recipients: ScoreDayEmailRecipient[] };
-
-/**
- * Pure recipient planner for the daily grouped email — the heart of the QA
- * rules. For each due day-group, each participant gets at most ONE email
- * (idempotent via the per-day template log), focused on the matches in that
- * group they HAVEN'T predicted. Anyone who has predicted them all is skipped.
- */
-export function planScoreDayEmails(
-  groups: ScoreDayGroup[],
-  participantIds: string[],
-  /** matchId → set of participant ids who already predicted it. */
-  predictorsByMatch: Record<string, Set<string>>,
-  /** templateId → set of participant ids already emailed for that day-group. */
-  alreadyEmailedByTemplate: Record<string, Set<string>>,
-  templateIdFor: (ptDate: string) => string,
-): ScoreDayEmailPlan[] {
-  return groups.map((g) => {
-    const templateId = templateIdFor(g.ptDate);
-    const already = alreadyEmailedByTemplate[templateId] ?? new Set<string>();
-    const recipients: ScoreDayEmailRecipient[] = [];
-    for (const pid of participantIds) {
-      if (already.has(pid)) continue; // idempotent — already got today's email
-      const remaining = g.matches.filter((m) => !(predictorsByMatch[m.matchId] ?? new Set()).has(pid));
-      if (remaining.length === 0) continue; // predicted everything today → skip
-      recipients.push({ participantId: pid, remaining });
-    }
-    return { ptDate: g.ptDate, templateId, recipients };
-  });
+  }).format(new Date(nowMs));
 }

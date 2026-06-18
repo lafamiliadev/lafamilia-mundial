@@ -12,9 +12,7 @@ import { getSessionToken } from "@/lib/session";
 import { now, PREVIEW_ENABLED } from "@/lib/preview";
 import { getFamiliaInviters, getLeaderboardData, getScorePicksView, type LeaderboardView } from "@/lib/services";
 import {
-  dayUnlockAtMs,
   nextOpenUnpredicted,
-  nextUpcomingScoreMatch,
   openScoreMatches,
 } from "@/lib/score-picks";
 import { LIVE_ROUNDS, nextScoringMilestone } from "@/lib/schedule";
@@ -131,10 +129,9 @@ export default async function LeaderboardPage({
   // Disappears once they've handled every open match (and never shows a match
   // whose window hasn't opened yet).
   const nextScoreMatch = nextOpenUnpredicted(allScoreMatches, nowMs, myScorePredictedIds);
-  // Scores-tab countdown: count to kickoff if something's open, otherwise to when
-  // the next window opens ("coming soon").
+  // Scores-tab countdown: the soonest open game, counting down to the kickoff it
+  // locks at. Every game is open until kickoff, so there's no "opens in" state.
   const openScoreNow = openScoreMatches(allScoreMatches, nowMs)[0] ?? null;
-  const upcomingScoreSoon = nextUpcomingScoreMatch(allScoreMatches, nowMs);
   // Scores tab: per-game predictions (yours, or everyone's after kickoff). Only
   // fetched on that tab so other views stay light.
   const scoresShow: "mine" | "everyone" = rawShow === "everyone" ? "everyone" : "mine";
@@ -190,30 +187,22 @@ export default async function LeaderboardPage({
           </Link>
         )}
 
-        {/* Countdown box. On the Scores tab it counts to the next LatAm + Spain
-            deadline: if a window is open, the kickoff it locks at; otherwise when
-            the next window opens. Elsewhere it's the next BIG bracket points drop. */}
-        {view === "score" && (openScoreNow || upcomingScoreSoon) ? (
+        {/* Countdown box. On the Scores tab it counts down to the next LatAm +
+            Spain game's kickoff (when it locks). Elsewhere it's the next BIG
+            bracket points drop. */}
+        {view === "score" && openScoreNow ? (
           <div className="mb-5 rounded-2xl bg-[var(--color-navy)] px-4 py-5 text-center text-white">
             <p className="text-xs font-bold uppercase tracking-wider text-[var(--color-gold-soft)]">
-              ⚡ {openScoreNow ? "Predicting closes in" : "Next match opens in"}
+              ⚡ Next pick locks in
             </p>
             <div className="mt-3 flex justify-center">
-              <Countdown
-                lockTime={
-                  openScoreNow
-                    ? openScoreNow.kickoffUtc
-                    : new Date(dayUnlockAtMs(upcomingScoreSoon!, allScoreMatches)).toISOString()
-                }
-              />
+              <Countdown lockTime={openScoreNow.kickoffUtc} />
             </div>
             <p className="mt-3 text-sm font-semibold">
-              {(openScoreNow ?? upcomingScoreSoon)!.teamA} vs {(openScoreNow ?? upcomingScoreSoon)!.teamB}
+              {openScoreNow.teamA} vs {openScoreNow.teamB}
             </p>
             <p className="mt-1 text-xs text-white/75">
-              {openScoreNow
-                ? "Predict the score before kickoff — up to +3 pts"
-                : "Predictions open 24 hours before kickoff"}
+              Predict the score before kickoff — up to +3 pts
             </p>
           </div>
         ) : nextDrop && view !== "live" ? (

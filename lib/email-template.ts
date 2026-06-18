@@ -318,20 +318,20 @@ export function renderScorePickAnnouncement(p: { appUrl: string }): string {
   });
 }
 
-// ── Daily Bonus Score Pick reminder (grouped — one per user per day) ──
-/** Stable per-DAY template id for the email log (idempotency). One email per
- * user per PT day, no matter how many windows open that day. */
-export function scoreWindowDayTemplateId(ptDate: string): string {
-  return `score-window-day-${ptDate}`;
+// ── Daily "locking soon" Bonus Score Pick nudge (one per user per day) ──
+/** Stable per-DAY template id for the email log (idempotency). One nudge per
+ * user per PT day, no matter how many games lock that day. */
+export function scoreLockTemplateId(ptDate: string): string {
+  return `score-lock-${ptDate}`;
 }
-export function scoreWindowDaySubject(matchCount: number): string {
-  return matchCount === 1 ? "Today's bonus pick is open ⚽️" : "Today's bonus picks are open ⚽️";
+export function scoreLockingSoonSubject(matchCount: number): string {
+  return matchCount === 1 ? "A bonus pick locks soon ⏳" : `${matchCount} bonus picks lock soon ⏳`;
 }
-/** Grouped daily reminder: lists the day's still-open-for-you score picks (in
- * kickoff order) with each one's close time in PT. Leads with the member's
- * current standing + points on the line, and always ends with the "bonus picks
- * run all tournament" + WhatsApp footer. Singular/plural copy adapts. */
-export function renderScoreWindowDay(p: {
+/** Daily nudge to anyone with un-predicted games locking in the next ~24h. Lists
+ * those games with their lock (kickoff) time, leads with the member's current
+ * standing + points on the line, and ends with the "runs all tournament" +
+ * WhatsApp footer. Singular/plural copy adapts. */
+export function renderScoreLockingSoon(p: {
   firstName: string;
   /** The matches to show — only ones this member hasn't predicted yet. */
   matches: { teamA: string; teamB: string; closesLabel: string }[];
@@ -363,7 +363,7 @@ export function renderScoreWindowDay(p: {
   <tr><td style="padding:8px 28px 0;font-family:${SANS};">
     <div style="background:${PAGE};border-radius:14px;padding:14px 18px;">
       <p style="margin:0;font-size:16px;font-weight:800;color:${INK};">${m.teamA} vs ${m.teamB}</p>
-      <p style="margin:4px 0 0;font-size:14px;color:${MUTED};">Closes: <strong style="color:${INK};">${m.closesLabel}</strong></p>
+      <p style="margin:4px 0 0;font-size:14px;color:${MUTED};">Locks: <strong style="color:${INK};">${m.closesLabel}</strong></p>
     </div>
   </td></tr>`,
     )
@@ -388,7 +388,7 @@ export function renderScoreWindowDay(p: {
     <div style="font-size:34px;">⚽️</div>
     <h1 style="margin:10px 0 0;font-size:24px;font-weight:800;color:${INK};">Familiaaaa ⚽️</h1>
     <p style="margin:14px 0 0;font-size:16px;line-height:1.6;color:${MUTED};">
-      Today's bonus score pick${multi ? "s are" : " is"} open — lock ${multi ? "them" : "it"} in before kickoff and grab the points:
+      Heads up — ${multi ? "these bonus picks lock" : "this bonus pick locks"} soon. Lock ${multi ? "them" : "it"} in before kickoff and grab the points:
     </p>
   </td></tr>
   ${standingBlock}
@@ -399,7 +399,7 @@ export function renderScoreWindowDay(p: {
       Correct winner or draw = <strong style="color:${INK};">1 point</strong>
     </p>
   </td></tr>
-  ${cta(p.scoreUrl, multi ? "Make your bonus picks →" : "Make your bonus pick →")}
+  ${cta(p.scoreUrl, multi ? "Lock my picks →" : "Lock my pick →")}
   ${footer}
   <tr><td style="padding:18px 28px 6px;font-family:${SANS};">
     <p style="margin:0;font-size:15px;line-height:1.6;color:${MUTED};">Vamos,<br><strong style="color:${INK};">LaFamilia</strong></p>
@@ -518,10 +518,10 @@ export function buildSampleEmails(appUrl: string): SampleEmail[] {
     { key: "the-final", label: "9 · The final", subject: "One match left", html: renderTheFinal({ firstName: "Pilar", picksUrl: picks }) },
     { key: "wrap", label: "10 · Winner / wrap", subject: "It's over. You finished 2nd.", html: renderWrap({ firstName: "Pilar", champion: "Brazil", rank: 2, total: 38, isWinner: false, standingsUrl: board }) },
     {
-      key: "score-window-day",
-      label: "11 · Today's bonus picks (grouped)",
-      subject: scoreWindowDaySubject(2),
-      html: renderScoreWindowDay({
+      key: "score-locking-soon",
+      label: "11 · Bonus picks locking soon",
+      subject: scoreLockingSoonSubject(2),
+      html: renderScoreLockingSoon({
         firstName: "Pilar",
         scoreUrl: `${appUrl}/picks/score`,
         points: 4,

@@ -72,7 +72,7 @@ export default async function PicksHubPage({
   const openScoreNow = openScoreMatches(allScoreMatches, nowMs);
   // The schedule: every match that hasn't kicked off yet (open + upcoming), so
   // members can see when the next bonus-point chances open.
-  const scoreSchedule = allScoreMatches.filter((m) => scorePickState(m, allScoreMatches, nowMs) !== "closed");
+  const scoreSchedule = allScoreMatches.filter((m) => scorePickState(m, nowMs) !== "closed");
 
   // Live Picks are testable locally via the preview clock before the flag flips.
   const livePlayable = LIVE_PICKS_ENABLED || PREVIEW_ENABLED;
@@ -245,7 +245,7 @@ export default async function PicksHubPage({
             </p>
             <div className="card divide-y divide-[var(--color-line)] overflow-hidden">
               {scoreSchedule.slice(0, 6).map((m) => {
-                const open = scorePickState(m, allScoreMatches, nowMs) === "open";
+                const open = scorePickState(m, nowMs) === "open";
                 return (
                   <div key={m.matchId} className="flex items-center gap-3 px-4 py-3.5">
                     <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--color-cream)] text-base">

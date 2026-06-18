@@ -1,21 +1,20 @@
-import { Countdown } from "@/components/Countdown";
 import { PageShell, TopNav } from "@/components/ui";
 import { db } from "@/lib/db";
 import { getSessionParticipant } from "@/lib/session";
 import { now } from "@/lib/preview";
-import { dayUnlockAtMs, nextUpcomingScoreMatch, openScoreMatches } from "@/lib/score-picks";
+import { openScoreMatches } from "@/lib/score-picks";
 import { ScoreForm } from "./ScoreForm";
 import type { ScoreMatch } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Predict the Score · La Copa de LaFamilia 2026" };
+export const metadata = { title: "Bonus score picks · La Copa de LaFamilia 2026" };
 
-function MatchCard({ match, isToday }: { match: ScoreMatch; isToday: boolean }) {
+function MatchCard({ match }: { match: ScoreMatch }) {
   return (
     <div className="card overflow-hidden">
       <div className="bg-[var(--color-pitch)] px-4 py-2 text-center">
         <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--color-gold-soft)]">
-          LatAm + Spain · {isToday ? "Today's match" : "Score prediction"}
+          LatAm + Spain · Locks at kickoff
         </span>
       </div>
       <div className="px-5 py-4 text-center">
@@ -23,7 +22,7 @@ function MatchCard({ match, isToday }: { match: ScoreMatch; isToday: boolean }) 
           {match.teamA} vs {match.teamB}
         </h2>
         <p className="mt-1 text-sm text-[var(--color-muted)]">
-          Kickoff: {match.displayTimePt} / {match.displayTimeEt.split(", ").slice(-1)[0]}
+          Locks {match.displayTimePt} / {match.displayTimeEt.split(", ").slice(-1)[0]}
         </p>
       </div>
     </div>
@@ -36,15 +35,13 @@ export default async function ScorePredictionPage() {
   const nowD = await now();
   const nowMs = nowD.getTime();
 
-  // Only matches whose 24h window is OPEN are predictable here. Nothing before
-  // the window opens, nothing after kickoff — the single source of truth.
+  // Every bonus game is open until its own kickoff. Show them all, soonest to
+  // lock first, so people can predict the whole card whenever they want.
   const allMatches = await repo.getScoreMatches();
   const matches = openScoreMatches(allMatches, nowMs);
 
-  // Nothing open right now → show the next one as "coming soon" with the time
-  // its window opens (24h before kickoff), so people know when to come back.
+  // Everything has kicked off (or none exist) → nothing left to predict.
   if (matches.length === 0) {
-    const next = nextUpcomingScoreMatch(allMatches, nowMs);
     return (
       <main className="flex flex-1 flex-col">
         <TopNav active="picks" />
@@ -53,22 +50,14 @@ export default async function ScorePredictionPage() {
             <div className="bg-[var(--color-navy)] px-5 py-7 text-white">
               <div className="text-5xl">⚽</div>
               <h1 className="mt-3 text-xl font-extrabold tracking-tight">
-                {next ? "No score to predict just yet" : "That's all the score picks for now"}
+                That's all the bonus picks for now
               </h1>
-              {next ? (
-                <>
-                  <p className="mt-2 text-sm text-white/85">
-                    Next up: <strong>{next.teamA} vs {next.teamB}</strong>. Predictions open 24
-                    hours before kickoff.
-                  </p>
-                  <div className="mt-4 flex justify-center">
-                    <Countdown lockTime={new Date(dayUnlockAtMs(next, allMatches)).toISOString()} />
-                  </div>
-                  <p className="mt-3 text-xs text-white/70">until predictions open · {next.displayTimePt}</p>
-                </>
-              ) : (
-                <p className="mt-2 text-sm text-white/85">Check back when the next eligible match is coming up.</p>
-              )}
+              <p className="mt-2 text-sm text-white/85">
+                Every game has kicked off. Check the leaderboard to see how your scores landed.
+              </p>
+              <a href="/leaderboard?view=score" className="mt-4 inline-block font-bold text-[var(--color-gold-soft)] underline underline-offset-4">
+                See your scores →
+              </a>
             </div>
           </div>
         </PageShell>
@@ -81,7 +70,9 @@ export default async function ScorePredictionPage() {
     ? await Promise.all(matches.map((m) => repo.getScorePrediction(me.id, m.matchId)))
     : matches.map(() => null);
 
-  const todayStr = nowD.toISOString().slice(0, 10);
+  const made = predictions.filter(Boolean).length;
+  const pct = matches.length ? Math.round((100 * made) / matches.length) : 0;
+  const remaining = matches.length - made;
 
   return (
     <main className="flex flex-1 flex-col">
@@ -92,10 +83,10 @@ export default async function ScorePredictionPage() {
             LatAm + Spain matches
           </p>
           <h1 className="mt-1 text-2xl font-extrabold tracking-tight text-[var(--color-ink)]">
-            Predict the final score
+            Bonus score picks
           </h1>
           <p className="mt-1 text-sm text-[var(--color-muted)]">
-            Lock your score before kickoff and earn points if you call it right.
+            Predict any game now — each one locks at kickoff. Edit anytime until then.
           </p>
         </div>
 
@@ -110,19 +101,30 @@ export default async function ScorePredictionPage() {
           </div>
         )}
 
-        <div className="space-y-8">
-          {matches.map((match, i) => {
-            const isToday = match.kickoffUtc.slice(0, 10) === todayStr;
-            const isLocked = nowD.getTime() >= new Date(match.kickoffUtc).getTime();
-            const existing = predictions[i];
+        {me && (
+          <div className="mb-6 rounded-2xl border border-[var(--color-line)] bg-white p-4">
+            <div className="flex items-baseline justify-between">
+              <span className="text-sm text-[var(--color-muted)]">Your bonus picks</span>
+              <span className="text-sm font-bold text-[var(--color-ink)]">{made} of {matches.length} made</span>
+            </div>
+            <div className="mt-2 h-2 overflow-hidden rounded-full bg-[var(--color-cream)]">
+              <div className="h-full rounded-full bg-[var(--color-pitch)]" style={{ width: `${pct}%` }} />
+            </div>
+            {remaining > 0 && (
+              <p className="mt-2 text-xs text-[var(--color-muted)]">
+                {remaining} still open — lock them in before each kickoff.
+              </p>
+            )}
+          </div>
+        )}
 
-            return (
-              <div key={match.matchId} className="space-y-4">
-                <MatchCard match={match} isToday={isToday} />
-                <ScoreForm match={match} existing={existing} isLocked={isLocked} />
-              </div>
-            );
-          })}
+        <div className="space-y-8">
+          {matches.map((match, i) => (
+            <div key={match.matchId} className="space-y-4">
+              <MatchCard match={match} />
+              <ScoreForm match={match} existing={predictions[i]} isLocked={false} />
+            </div>
+          ))}
         </div>
 
         <div className="mt-8 rounded-2xl bg-[var(--color-cream)] px-4 py-4 text-sm text-[var(--color-muted)]">

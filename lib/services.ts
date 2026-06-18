@@ -685,8 +685,8 @@ export type ScorePickCard = {
   teamB: string;
   kickoffUtc: string;
   displayTimePt: string;
-  /** "open" = predictable now, "upcoming" = not yet, "closed" = kicked off. */
-  state: "open" | "upcoming" | "closed";
+  /** "open" = predictable now (before kickoff), "closed" = kicked off / locked. */
+  state: "open" | "closed";
   final: boolean;
   finalA: number | null;
   finalB: number | null;
@@ -741,7 +741,7 @@ export async function getScorePicksView(
   }
 
   const cards: ScorePickCard[] = matches.map((m) => {
-    const state = scorePickState(m, matches, nowMs);
+    const state = scorePickState(m, nowMs);
     const final = m.finalScoreA != null && m.finalScoreB != null;
     const mine = myByMatch.get(m.matchId);
     const everyone =

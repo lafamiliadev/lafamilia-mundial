@@ -2,39 +2,33 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { sendEmailBatch } from "@/lib/email";
 import {
-  renderScoreWindowDay,
-  scoreWindowDaySubject,
-  scoreWindowDayTemplateId,
+  renderScoreLockingSoon,
+  scoreLockingSoonSubject,
+  scoreLockTemplateId,
 } from "@/lib/email-template";
 import { env } from "@/lib/env";
 import { now } from "@/lib/preview";
-import { dueScoreDayGroups, planScoreDayEmails } from "@/lib/score-picks";
-import type { ScoreMatch } from "@/lib/types";
+import { lockingSoonMatches, ptDateOf } from "@/lib/score-picks";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60; // batch sends + per-recipient logging headroom
 
-// Bonus Score Pick reminder — GROUPED, one email per member per day, listing
-// that day's still-OPEN score picks the member hasn't done yet.
+// Daily "locking soon" Bonus Score Pick nudge. Every bonus game is open all
+// tournament; this only nudges members about games LOCKING in the next ~30h that
+// they haven't predicted yet. So an organized predictor never hears from it.
 //
-// Triggered two ways, both safe together (idempotent):
-//  - Vercel Cron (vercel.json) — Vercel auto-signs the request with CRON_SECRET,
-//    so it needs no GitHub setup. This is the reliable backup.
-//  - The hourly GitHub Actions cron (when its CRON_SECRET matches) — sends sooner.
+// Triggered by Vercel Cron (vercel.json) — Vercel auto-signs with CRON_SECRET.
 //
 // Safety, by design:
-//  - One email per member per PT day (idempotent via a per-DAY email-log key),
-//    so it doesn't matter if both triggers fire, or the cron runs many times.
-//  - Only ever lists OPEN picks — never a closed/kicked-off game, and never a
-//    long-past day (relevance window).
-//  - Skips members who have already predicted all of that day's matches; for
-//    the rest, the email lists only the ones they still owe.
+//  - One email per member per PT day (idempotent via score-lock-<date> log key).
+//  - Only games locking soon that the member hasn't predicted — nothing else.
+//  - Batch send so a 100+ recipient run never trips Resend's rate limit.
 //  - Gated by SCORE_WINDOW_EMAILS_ENABLED — reports only until it's "true".
 //  - ?dry=1 reports who WOULD be emailed without sending or logging.
 
-/** "Sat, Jun 13, 3:00 PM PT" — the close (kickoff) time in PT. */
-function closesLabelPt(kickoffUtc: string): string {
+/** "Sat, Jun 13, 3:00 PM PT" — the lock (kickoff) time in PT. */
+function lockLabelPt(kickoffUtc: string): string {
   const s = new Intl.DateTimeFormat("en-US", {
     weekday: "short",
     month: "short",
@@ -68,31 +62,22 @@ export async function GET(req: Request) {
       repo.getScores(),
     ]);
     const nowMs = (await now()).getTime();
-    const groups = dueScoreDayGroups(matches, nowMs);
 
-    // Predictor sets (matchId → who already predicted) for every match in a due
-    // group, and who's already been emailed for each day-group.
+    // Games locking within the next ~30h (soonest first), and who already picked each.
+    const soon = lockingSoonMatches(matches, nowMs);
+    const templateId = scoreLockTemplateId(ptDateOf(nowMs));
     const predictorsByMatch: Record<string, Set<string>> = {};
-    const alreadyEmailedByTemplate: Record<string, Set<string>> = {};
-    for (const g of groups) {
-      alreadyEmailedByTemplate[scoreWindowDayTemplateId(g.ptDate)] =
-        await repo.getScoreEmailRecipients(scoreWindowDayTemplateId(g.ptDate));
-      for (const m of g.matches) {
-        if (!predictorsByMatch[m.matchId]) {
-          predictorsByMatch[m.matchId] = new Set(await repo.getScorePredictionParticipantIds(m.matchId));
-        }
-      }
+    for (const m of soon) {
+      predictorsByMatch[m.matchId] = new Set(await repo.getScorePredictionParticipantIds(m.matchId));
     }
+    const alreadyToday = soon.length ? await repo.getScoreEmailRecipients(templateId) : new Set<string>();
 
-    const plan = planScoreDayEmails(
-      groups,
-      participants.map((p) => p.id),
-      predictorsByMatch,
-      alreadyEmailedByTemplate,
-      scoreWindowDayTemplateId,
-    );
-
-    const byId = new Map(participants.map((p) => [p.id, p]));
+    // One recipient per member who (a) hasn't had today's nudge, (b) has an email,
+    // (c) still owes at least one of the soon-to-lock games.
+    const recipients = participants
+      .filter((p) => p.email && !alreadyToday.has(p.id))
+      .map((p) => ({ p, remaining: soon.filter((m) => !predictorsByMatch[m.matchId].has(p.id)) }))
+      .filter((r) => r.remaining.length > 0);
 
     if (dry || !enabled || !env.RESEND_API_KEY) {
       return NextResponse.json({
@@ -100,69 +85,48 @@ export async function GET(req: Request) {
         sent: false,
         reason: dry ? "dry-run" : !enabled ? "SCORE_WINDOW_EMAILS_ENABLED not 'true'" : "RESEND_API_KEY not set",
         nowIso: new Date(nowMs).toISOString(),
-        dueDays: plan.map((d) => ({
-          day: d.ptDate,
-          matches: groups.find((g) => g.ptDate === d.ptDate)?.matches.map((m: ScoreMatch) => `${m.teamA} vs ${m.teamB}`),
-          wouldEmail: d.recipients.length,
-          // Itemized audit (dry/disabled only): exactly WHO would be emailed and
-          // WHICH open picks they still owe — i.e. the reason they qualify.
-          recipients: d.recipients.map((r) => {
-            const p = byId.get(r.participantId);
-            return {
-              name: p?.name,
-              email: p?.email,
-              qualifiesFor: r.remaining.map((m) => `${m.teamA} vs ${m.teamB}`),
-            };
-          }),
+        lockingSoon: soon.map((m) => `${m.teamA} vs ${m.teamB} — locks ${lockLabelPt(m.kickoffUtc)}`),
+        wouldEmail: recipients.length,
+        recipients: recipients.map((r) => ({
+          name: r.p.name,
+          email: r.p.email,
+          stillOwes: r.remaining.map((m) => `${m.teamA} vs ${m.teamB}`),
         })),
       });
     }
 
-    // Build every outgoing email up front, then send them through the BATCH
-    // endpoint so a 100+ recipient run doesn't trip Resend's rate limit.
-    const outgoing = plan.flatMap((day) =>
-      day.recipients.map((r) => {
-        const p = byId.get(r.participantId)!;
-        return {
-          participantId: r.participantId,
-          templateId: day.templateId,
-          ptDate: day.ptDate,
-          to: p.email,
-          subject: scoreWindowDaySubject(r.remaining.length),
-          html: renderScoreWindowDay({
-            firstName: p.name.split(" ")[0] || p.name,
-            matches: r.remaining.map((m) => ({
-              teamA: m.teamA,
-              teamB: m.teamB,
-              closesLabel: closesLabelPt(m.kickoffUtc),
-            })),
-            scoreUrl: `${env.NEXT_PUBLIC_APP_URL}/picks/score`,
-            points: scores[r.participantId]?.total ?? 0,
-            rank: scores[r.participantId]?.rank ?? null,
-            totalPlayers: participants.length,
-          }),
-        };
+    const messages = recipients.map((r) => ({
+      participantId: r.p.id,
+      to: r.p.email,
+      subject: scoreLockingSoonSubject(r.remaining.length),
+      html: renderScoreLockingSoon({
+        firstName: r.p.name.split(" ")[0] || r.p.name,
+        matches: r.remaining.map((m) => ({
+          teamA: m.teamA,
+          teamB: m.teamB,
+          closesLabel: lockLabelPt(m.kickoffUtc),
+        })),
+        scoreUrl: `${env.NEXT_PUBLIC_APP_URL}/picks/score`,
+        points: scores[r.p.id]?.total ?? 0,
+        rank: scores[r.p.id]?.rank ?? null,
+        totalPlayers: participants.length,
       }),
-    );
+    }));
 
-    const sentResults = await sendEmailBatch(
-      outgoing.map((o) => ({ to: o.to, subject: o.subject, html: o.html })),
-    );
-
-    const report: Record<string, { sent: number; total: number }> = {};
-    for (let i = 0; i < outgoing.length; i++) {
-      const o = outgoing[i];
+    const sentResults = await sendEmailBatch(messages.map((m) => ({ to: m.to, subject: m.subject, html: m.html })));
+    let sent = 0;
+    for (let i = 0; i < messages.length; i++) {
       const ok = sentResults[i];
-      await repo.logScoreEmail(o.participantId, o.templateId, ok ? "sent" : "failed");
-      const r = (report[o.ptDate] ??= { sent: 0, total: 0 });
-      r.total++;
-      if (ok) r.sent++;
+      await repo.logScoreEmail(messages[i].participantId, templateId, ok ? "sent" : "failed");
+      if (ok) sent++;
     }
 
-    const reportFmt = Object.fromEntries(
-      Object.entries(report).map(([day, r]) => [day, `${r.sent}/${r.total} sent`]),
-    );
-    return NextResponse.json({ ok: true, sent: true, nowIso: new Date(nowMs).toISOString(), report: reportFmt });
+    return NextResponse.json({
+      ok: true,
+      sent: true,
+      nowIso: new Date(nowMs).toISOString(),
+      report: `${sent}/${messages.length} sent`,
+    });
   } catch (e) {
     return NextResponse.json({ ok: false, error: (e as Error).message }, { status: 500 });
   }
