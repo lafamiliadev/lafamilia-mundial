@@ -491,6 +491,77 @@ export function renderScorePoints(p: {
   });
 }
 
+// ── Shared bits for the launch + catch-up emails ─────────────────────
+function communityFooter(): string {
+  return `
+  <tr><td style="padding:24px 28px 0;font-family:${SANS};">
+    <div style="border-top:1px solid #e7e1d4;padding-top:18px;">
+      <p style="margin:0;font-size:14px;line-height:1.6;color:${MUTED};">
+        ⚽ <strong style="color:${INK};">Bonus score picks run all tournament.</strong> Predict any LatAm or Spain game whenever you want — each one locks at kickoff.
+      </p>
+      <p style="margin:14px 0 0;font-size:14px;line-height:1.6;color:${MUTED};">
+        📱 The La Copa WhatsApp group is where we debate, talk through every game, and cry and scream together. <a href="${JOIN_URL}" target="_blank" style="color:${INK};font-weight:700;text-decoration:underline;">Join the familia →</a>
+      </p>
+    </div>
+  </td></tr>`;
+}
+function vamosRow(): string {
+  return `<tr><td style="padding:18px 28px 6px;font-family:${SANS};"><p style="margin:0;font-size:15px;line-height:1.6;color:${MUTED};">Vamos,<br><strong style="color:${INK};">LaFamilia</strong></p></td></tr>`;
+}
+
+// ── #1 Launch: one-time "everything is open now" announcement ─────────
+export const BONUS_LAUNCH_SUBJECT = "All bonus picks are open ⚽️";
+export function renderBonusLaunch(p: { firstName: string; scoreUrl: string }): string {
+  const body = `
+  ${emailIntro({
+    emoji: "⚽️",
+    heading: `All bonus picks are open, ${p.firstName}`,
+    paras: [
+      "Big change, familia: <strong>every</strong> bonus score pick is open right now — no more waiting for each game's window.",
+      "Predict as many as you want, whenever you want. Each pick locks the moment that game kicks off, so lock them in early.",
+      `Exact score = <strong style="color:${INK};">3 points</strong> · correct winner or draw = <strong style="color:${INK};">1 point</strong>.`,
+    ],
+  })}
+  ${cta(p.scoreUrl, "Make my picks →")}
+  ${communityFooter()}
+  ${vamosRow()}`;
+  return emailShell({
+    preheader: "Predict every LatAm + Spain score now — lock before each kickoff.",
+    body,
+  });
+}
+
+// ── #3 Catch-up: to members far behind (under 40% complete) ───────────
+export function bonusCatchupSubject(made: number, total: number): string {
+  return `You've made ${made} of ${total} bonus picks — catch up ⚽️`;
+}
+export function renderBonusCatchup(p: {
+  firstName: string;
+  made: number;
+  total: number;
+  scoreUrl: string;
+}): string {
+  const remaining = Math.max(0, p.total - p.made);
+  const body = `
+  ${emailIntro({
+    emoji: "⚽️",
+    heading: `Catch up, ${p.firstName}`,
+    paras: [
+      `You've locked <strong style="color:${INK};">${p.made} of ${p.total}</strong> bonus score picks so far — there's still a lot of points out there with your name on them.`,
+      "Good news: <strong>every</strong> LatAm + Spain game is open right now. Predict as many as you want in one sitting — each pick only locks when that game kicks off.",
+      `You've got <strong style="color:${INK};">${remaining} game${remaining === 1 ? "" : "s"} still open</strong> — that's up to <strong style="color:${INK};">${remaining * 3} points</strong> on the table.`,
+      `Exact score = <strong style="color:${INK};">3 pts</strong> · correct winner or draw = <strong style="color:${INK};">1 pt</strong>.`,
+    ],
+  })}
+  ${cta(p.scoreUrl, "Make my picks →")}
+  ${communityFooter()}
+  ${vamosRow()}`;
+  return emailShell({
+    preheader: "Every game is open. Predict now, lock before kickoff.",
+    body,
+  });
+}
+
 // ── Sample set (for previews + test sends) ───────────────────────────
 export type SampleEmail = { key: string; label: string; subject: string; html: string };
 
