@@ -1,6 +1,7 @@
 "use client";
 
 import { useTransition, useState } from "react";
+import { useRouter } from "next/navigation";
 import { submitScorePrediction } from "@/app/actions/score-prediction";
 import { Button } from "@/components/ui";
 import type { ScoreMatch, ScorePrediction } from "@/lib/types";
@@ -44,6 +45,7 @@ export function ScoreForm({
   existing: ScorePrediction | null;
   isLocked: boolean;
 }) {
+  const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [scoreA, setScoreA] = useState(existing ? String(existing.scoreA) : "");
   const [scoreB, setScoreB] = useState(existing ? String(existing.scoreB) : "");
@@ -63,8 +65,11 @@ export function ScoreForm({
     );
   }
 
-  const hasEdited = existing
-    ? scoreA !== String(existing.scoreA) || scoreB !== String(existing.scoreB)
+  // Compare against the LATEST saved value (not the page-load value), so a
+  // fresh save reads as "saved" — otherwise a brand-new pick stays "edited"
+  // and never shows the confirmation.
+  const hasEdited = saved
+    ? scoreA !== String(saved.scoreA) || scoreB !== String(saved.scoreB)
     : scoreA !== "" || scoreB !== "";
 
   function validate(): string | null {
@@ -88,6 +93,7 @@ export function ScoreForm({
       });
       if (result.ok) {
         setSaved(result.prediction);
+        router.refresh(); // re-render the page so the "X of Y made" meter updates
       } else {
         setError(result.error);
       }

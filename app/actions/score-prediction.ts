@@ -1,6 +1,7 @@
 "use server";
 
 import { z } from "zod";
+import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { getSessionParticipant } from "@/lib/session";
 import { now } from "@/lib/preview";
@@ -54,6 +55,11 @@ export async function submitScorePrediction(
       scoreA,
       scoreB,
     });
+
+    // Keep the predict screen's progress meter and the leaderboard Scores tab in
+    // sync with the new pick.
+    revalidatePath("/picks/score");
+    revalidatePath("/leaderboard");
 
     return { ok: true, prediction };
   } catch {
