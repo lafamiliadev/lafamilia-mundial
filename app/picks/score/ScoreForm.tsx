@@ -40,10 +40,12 @@ export function ScoreForm({
   match,
   existing,
   isLocked,
+  token,
 }: {
   match: ScoreMatch;
   existing: ScorePrediction | null;
   isLocked: boolean;
+  token?: string;
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -90,6 +92,7 @@ export function ScoreForm({
         matchId: match.matchId,
         scoreA: parseInt(scoreA, 10),
         scoreB: parseInt(scoreB, 10),
+        token,
       });
       if (result.ok) {
         setSaved(result.prediction);

@@ -44,7 +44,7 @@ function MatchHeader({ card }: { card: ScorePickCard }) {
   );
 }
 
-function MyCard({ card }: { card: ScorePickCard }) {
+function MyCard({ card, token }: { card: ScorePickCard; token?: string }) {
   const predicted = card.myScoreA != null && card.myScoreB != null;
   return (
     <div className="card p-4">
@@ -72,7 +72,7 @@ function MyCard({ card }: { card: ScorePickCard }) {
         ) : card.state === "closed" ? (
           <p className="text-[var(--color-muted)]">You missed this one 😭 No points for this match.</p>
         ) : card.state === "open" ? (
-          <Link href="/picks/score" className="font-bold text-[var(--color-pitch)] underline underline-offset-4">
+          <Link href={`/picks/score${token ? `?me=${token}` : ""}`} className="font-bold text-[var(--color-pitch)] underline underline-offset-4">
             Predict the score now → up to +3 pts
           </Link>
         ) : (
@@ -254,7 +254,7 @@ export function ScorePicksPanel({
             show === "everyone" ? (
               <EveryoneCard key={c.matchId} card={c} open={c.matchId === defaultOpenId} />
             ) : (
-              <MyCard key={c.matchId} card={c} />
+              <MyCard key={c.matchId} card={c} token={token} />
             ),
           )}
         </div>

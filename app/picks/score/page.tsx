@@ -1,6 +1,6 @@
 import { PageShell, TopNav } from "@/components/ui";
 import { db } from "@/lib/db";
-import { getSessionParticipant } from "@/lib/session";
+import { getSessionToken } from "@/lib/session";
 import { now } from "@/lib/preview";
 import { openScoreMatches } from "@/lib/score-picks";
 import { ScoreForm } from "./ScoreForm";
@@ -29,9 +29,17 @@ function MatchCard({ match }: { match: ScoreMatch }) {
   );
 }
 
-export default async function ScorePredictionPage() {
+export default async function ScorePredictionPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ me?: string }>;
+}) {
+  const { me: meParam } = await searchParams;
   const repo = await db();
-  const me = await getSessionParticipant();
+  // Identify by ?me=<token> (e.g. arriving from a leaderboard share link) first,
+  // then the session cookie — so predicting works whether or not a cookie is set.
+  const token = meParam ?? (await getSessionToken());
+  const me = token ? await repo.getByToken(token) : null;
   const nowD = await now();
   const nowMs = nowD.getTime();
 
@@ -122,7 +130,7 @@ export default async function ScorePredictionPage() {
           {matches.map((match, i) => (
             <div key={match.matchId} className="space-y-4">
               <MatchCard match={match} />
-              <ScoreForm match={match} existing={predictions[i]} isLocked={false} />
+              <ScoreForm match={match} existing={predictions[i]} isLocked={false} token={meParam} />
             </div>
           ))}
         </div>

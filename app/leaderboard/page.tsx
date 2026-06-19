@@ -172,7 +172,7 @@ export default async function LeaderboardPage({
             This is the live, do-it-today path during the group stage. */}
         {nextScoreMatch && view !== "live" && (
           <Link
-            href="/picks/score"
+            href={`/picks/score${token ? `?me=${token}` : ""}`}
             className="mb-3 block rounded-2xl bg-[var(--color-pitch)] px-4 py-4 text-white"
           >
             <p className="text-xs font-bold uppercase tracking-wider text-[var(--color-gold-soft)]">

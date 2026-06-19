@@ -12,6 +12,9 @@ const submitSchema = z.object({
   matchId: z.string().min(1).max(80),
   scoreA: z.number().int().min(0).max(30),
   scoreB: z.number().int().min(0).max(30),
+  /** Resume token, when the predict screen was reached via a ?me=<token> link
+   * (no session cookie). Falls back to the cookie session when absent. */
+  token: z.string().min(1).max(200).optional(),
 });
 
 export type ScorePredictionResult =
@@ -31,11 +34,11 @@ export async function submitScorePrediction(
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid input" };
   }
 
-  const { matchId, scoreA, scoreB } = parsed.data;
+  const { matchId, scoreA, scoreB, token } = parsed.data;
 
   try {
     const repo = await db();
-    const me = await getSessionParticipant();
+    const me = token ? await repo.getByToken(token) : await getSessionParticipant();
     if (!me) return { ok: false, error: "Sign in to save a score pick." };
 
     const match = await repo.getScoreMatch(matchId);
