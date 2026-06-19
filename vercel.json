@@ -19,7 +19,7 @@
     },
     {
       "path": "/api/cron/bonus-launch-send",
-      "schedule": "50 1 * * *"
+      "schedule": "30 16 * * *"
     }
   ]
 }
