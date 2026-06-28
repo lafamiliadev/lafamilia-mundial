@@ -65,9 +65,9 @@ export default async function PicksHubPage({
   // Once the game locks, new people can't make a bracket, so "challenge a friend"
   // is a dead end — point locked-in members at the live game instead.
   const locked = nowMs >= new Date(settings.lockTime).getTime();
-  // Bonus Score Picks: a match is predictable only in its 24h window (opens 24h
-  // before kickoff, closes at kickoff). The "Open now" card shows the open
-  // matches; the schedule below shows what's coming, with the right state.
+  // Bonus Score Picks: a match is predictable from now until its own kickoff,
+  // then locked. The "Open now" card leads with the soonest; the schedule below
+  // lists every still-open game — each one tappable straight to its prediction.
   const allScoreMatches = await repo.getScoreMatches();
   const openScoreNow = openScoreMatches(allScoreMatches, nowMs);
   // The schedule: every match that hasn't kicked off yet (open + upcoming), so
@@ -244,36 +244,35 @@ export default async function PicksHubPage({
               Predict the score — coming up
             </p>
             <div className="card divide-y divide-[var(--color-line)] overflow-hidden">
-              {scoreSchedule.slice(0, 6).map((m) => {
-                const open = scorePickState(m, nowMs) === "open";
-                return (
-                  <div key={m.matchId} className="flex items-center gap-3 px-4 py-3.5">
-                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--color-cream)] text-base">
-                      ⚽
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-bold">
-                        {m.teamA} vs {m.teamB}
-                      </p>
-                      <p className="text-xs text-[var(--color-muted)]">
-                        LatAm + Spain · +3 exact, +1 winner
-                      </p>
-                    </div>
-                    <span
-                      className={
-                        open
-                          ? "shrink-0 rounded-full bg-[var(--color-pitch)] px-2.5 py-1 text-xs font-bold text-white"
-                          : "shrink-0 text-xs font-semibold text-[var(--color-muted)]"
-                      }
-                    >
-                      {open ? "Open now" : fmtDate(m.kickoffUtc)}
-                    </span>
+              {scoreSchedule.slice(0, 6).map((m) => (
+                // Every game in this list is open (predictable until its own
+                // kickoff), so the whole row is a tap-through to that match's
+                // prediction form. No state is shown that isn't actionable.
+                <Link
+                  key={m.matchId}
+                  href={`/picks/score?me=${me.resumeToken}#m-${m.matchId}`}
+                  className="flex items-center gap-3 px-4 py-3.5 transition hover:bg-black/[0.02]"
+                >
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--color-cream)] text-base">
+                    ⚽
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-bold">
+                      {m.teamA} vs {m.teamB}
+                    </p>
+                    <p className="text-xs text-[var(--color-muted)]">
+                      LatAm + Spain · +3 exact, +1 winner
+                    </p>
                   </div>
-                );
-              })}
+                  <span className="shrink-0 rounded-full bg-[var(--color-pitch)] px-2.5 py-1 text-xs font-bold text-white">
+                    Open now
+                  </span>
+                  <span className="shrink-0 text-lg text-[var(--color-muted)]">›</span>
+                </Link>
+              ))}
             </div>
             <p className="mt-3 text-center text-xs text-[var(--color-muted)]">
-              Each opens 24h before kickoff and locks at kickoff — predict before then to earn.
+              Predict any game before it kicks off — each locks at its own kickoff. Tap one to lock in your score.
             </p>
           </>
         )}
