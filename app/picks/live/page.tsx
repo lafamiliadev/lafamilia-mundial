@@ -3,9 +3,8 @@ import { LinkButton, PageShell, TopNav } from "@/components/ui";
 import { LivePicksWizard } from "@/components/LivePicksWizard";
 import { db } from "@/lib/db";
 import { LIVE_PICKS_ENABLED } from "@/lib/flags";
-import { liveRound, matchesForRound } from "@/lib/live";
+import { currentLiveRoundView, liveMatchOpen, liveRound } from "@/lib/live";
 import { now, PREVIEW_ENABLED } from "@/lib/preview";
-import { pickStatus } from "@/lib/schedule";
 import { getSessionParticipant } from "@/lib/session";
 import { LIVE_ROUND_POINTS } from "@/lib/types";
 
@@ -99,17 +98,17 @@ export default async function LivePicksPage({
   }
 
   const settings = await repo.getSettings();
-  const current = await now();
-  const status = pickStatus(current, settings.lockTime);
-
-  // Live Picks only exist during the knockout rounds.
-  if (status.state === "bonus-open") {
+  const nowMs = (await now()).getTime();
+  // Per-game model: show the current knockout round, each game open until its
+  // own kickoff. null = no knockout matchups drawn yet.
+  const view = currentLiveRoundView(settings.liveMatches, nowMs);
+  if (!view) {
     return (
       <Shell>
         <Notice
           emoji="⏳"
           title="Live Picks open at the knockouts"
-          body="They start with the Round of 32. For now, lock in your Bonus Picks — they count toward the Overall race."
+          body="They start with the Round of 32 — you'll pick who advances in each matchup, right up until each game kicks off. For now, lock in your Bonus Picks; they count toward the Overall race."
           cta={
             <LinkButton href="/picks" variant="primary" className="mt-5 w-full">
               Go to my picks →
@@ -119,64 +118,29 @@ export default async function LivePicksPage({
       </Shell>
     );
   }
-  if (status.state === "done") {
-    return (
-      <Shell>
-        <Notice
-          emoji="🏁"
-          title="The knockouts are over"
-          body="All Live Picks rounds are done. See where you landed on the leaderboard."
-          cta={
-            <LinkButton href="/leaderboard" variant="primary" className="mt-5 w-full">
-              See the leaderboard →
-            </LinkButton>
-          }
-        />
-      </Shell>
-    );
-  }
-  if (status.state === "round-soon") {
-    const r = status.round;
-    return (
-      <Shell>
-        <Notice
-          emoji="🗓️"
-          title={`${r.label} picks open soon`}
-          body={`Picks for ${r.plain} open ${whenLabel(r.opensIso)}. We'll remind you when they're live.`}
-          cta={
-            <LinkButton href="/leaderboard" variant="outline" className="mt-5 w-full">
-              See the race →
-            </LinkButton>
-          }
-        />
-      </Shell>
-    );
-  }
 
-  // round-open
-  const r = status.round;
-  const matches = matchesForRound(settings.liveMatches, r.round);
-  if (matches.length === 0) {
-    return (
-      <Shell>
-        <Notice
-          emoji="🔜"
-          title={`${r.label} matchups coming`}
-          body="The picks open as soon as the matchups are confirmed. Check back shortly — this is usually right after the previous round finishes."
-          cta={
-            <LinkButton href="/picks" variant="outline" className="mt-5 w-full">
-              Back to my picks →
-            </LinkButton>
-          }
-        />
-      </Shell>
-    );
-  }
+  const lr = liveRound(view.round);
+  const roundLabel = lr?.label ?? view.round.toUpperCase();
+  const plain = lr?.plain ?? "the matchups";
+  const pointsEach = settings.weights[LIVE_ROUND_POINTS[view.round]];
 
-  const allPicks = await repo.getLivePicks(me.id);
-  const roundPicks = allPicks.filter((p) => p.round === r.round);
-  const lr = liveRound(r.round);
-  const pointsEach = settings.weights[LIVE_ROUND_POINTS[r.round]];
+  const roundPicks = (await repo.getLivePicks(me.id)).filter((p) => p.round === view.round);
+  const savedByMatch = new Map(roundPicks.map((p) => [p.matchId, p] as const));
+
+  // One row per game, with its own lock state + the member's saved pick. The
+  // server computes `locked` so the UI never relies on the browser clock.
+  const games = view.matches.map((m) => {
+    const saved = savedByMatch.get(m.matchId);
+    return {
+      matchId: m.matchId,
+      homeCode: m.homeCode,
+      awayCode: m.awayCode,
+      locked: !liveMatchOpen(m, nowMs),
+      kickoffLabel: m.kickoffIso ? whenLabel(m.kickoffIso) : null,
+      savedTeam: saved?.team ?? null,
+      savedHc: saved?.highConviction ?? false,
+    };
+  });
 
   return (
     <main className="flex flex-1 flex-col">
@@ -192,13 +156,11 @@ export default async function LivePicksPage({
           <div className="mt-4">
             <LivePicksWizard
               token={me.resumeToken}
-              round={r.round}
-              roundLabel={r.label}
-              plain={r.plain}
-              locksLabel={whenLabel((lr ?? r).locksIso)}
+              round={view.round}
+              roundLabel={roundLabel}
+              plain={plain}
               pointsEach={pointsEach}
-              matches={matches}
-              initialPicks={roundPicks}
+              games={games}
             />
           </div>
         </div>
