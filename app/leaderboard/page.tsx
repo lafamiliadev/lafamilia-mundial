@@ -322,18 +322,6 @@ export default async function LeaderboardPage({
           </div>
         </div>
 
-        {/* Scores tab: your locked picks, results, points — and everyone's after
-            kickoff. Sits above the score leaderboard below. */}
-        {view === "score" && scorePicks && (
-          <ScorePicksPanel
-            show={scorePicks.show}
-            token={token}
-            loggedIn={scorePicks.loggedIn}
-            scorePickTotal={scorePicks.scorePickTotal}
-            cards={scorePicks.cards}
-          />
-        )}
-
         {/* ── THE STANDINGS — the main event, front and center ── */}
         {liveComingSoon ? (
           <div className="card overflow-hidden">
@@ -428,6 +416,20 @@ export default async function LeaderboardPage({
               </>
             )}
           </>
+        )}
+
+        {/* Scores tab: your locked picks / everyone's predictions — below the
+            standings so the podium stays at the top, consistent with other tabs. */}
+        {view === "score" && scorePicks && (
+          <div className="mt-4">
+            <ScorePicksPanel
+              show={scorePicks.show}
+              token={token}
+              loggedIn={scorePicks.loggedIn}
+              scorePickTotal={scorePicks.scorePickTotal}
+              cards={scorePicks.cards}
+            />
+          </div>
         )}
 
         {!me && total > 0 && (
