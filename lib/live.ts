@@ -3,7 +3,14 @@
 // they stay trivially unit-testable.
 
 import { LIVE_ROUNDS, type LiveRound } from "./schedule";
-import { LIVE_ROUND_POINTS, type KnockoutRound, type LiveMatch, type LivePick, type ScoringWeights } from "./types";
+import {
+  KNOCKOUT_ROUNDS,
+  LIVE_ROUND_POINTS,
+  type KnockoutRound,
+  type LiveMatch,
+  type LivePick,
+  type ScoringWeights,
+} from "./types";
 
 /** How many matches each knockout round has — drives the admin entry grid. */
 export const ROUND_MATCH_COUNT: Record<KnockoutRound, number> = {
@@ -47,6 +54,62 @@ export function roundState(
   if (nowMs < new Date(round.opensIso).getTime()) return "upcoming";
   if (nowMs < new Date(round.locksIso).getTime()) return "open";
   return "locked";
+}
+
+/**
+ * Per-GAME lock, mirroring the score-prediction flow: a knockout match is open
+ * until its own kickoff, then locked. A missing/invalid kickoff is treated as
+ * locked so the server never accepts a pick it can't verify against a clock.
+ */
+export function liveMatchOpen(m: { kickoffIso: string | null }, nowMs: number): boolean {
+  if (!m.kickoffIso) return false;
+  const k = new Date(m.kickoffIso).getTime();
+  return !Number.isNaN(k) && nowMs < k;
+}
+
+export type LiveRoundView = {
+  round: KnockoutRound;
+  matches: LiveMatch[];
+  /** True when at least one game in the round is still pickable (not started). */
+  hasOpenGames: boolean;
+};
+
+/**
+ * The knockout round to show on the pick screen. With per-game locks the
+ * relevant round is the earliest one that still has an open (not-yet-started)
+ * game; if none are open, the most advanced round with matchups, so members can
+ * still review their locked picks and results. Returns null when no knockout
+ * matchups have been drawn yet.
+ */
+export function currentLiveRoundView(matches: LiveMatch[], nowMs: number): LiveRoundView | null {
+  const drawn = KNOCKOUT_ROUNDS.map((round) => ({
+    round,
+    matches: matchesForRound(matches, round),
+  })).filter((r) => r.matches.length > 0);
+  if (drawn.length === 0) return null;
+  const withOpen = drawn.find((r) => r.matches.some((m) => liveMatchOpen(m, nowMs)));
+  if (withOpen) return { round: withOpen.round, matches: withOpen.matches, hasOpenGames: true };
+  const last = drawn[drawn.length - 1];
+  return { round: last.round, matches: last.matches, hasOpenGames: false };
+}
+
+/**
+ * Merge freshly submitted round picks over a member's existing ones, ONE GAME
+ * AT A TIME: games they didn't submit keep their saved pick (so locked and
+ * untouched games are never disturbed), submitted games are replaced. Enforces
+ * the single ⚡ Double Down across the whole round. Pure — the per-game lock is
+ * enforced in the action before this runs, so only unlocked games reach here.
+ */
+export function mergeRoundPicks(
+  existingRound: LivePick[],
+  submitted: LivePick[],
+): { ok: true; picks: LivePick[] } | { ok: false; error: string } {
+  const submittedIds = new Set(submitted.map((p) => p.matchId));
+  const merged = [...existingRound.filter((p) => !submittedIds.has(p.matchId)), ...submitted];
+  if (merged.filter((p) => p.highConviction).length > 1) {
+    return { ok: false, error: "Only one ⚡ Double Down per round." };
+  }
+  return { ok: true, picks: merged };
 }
 
 export type RawLivePick = { matchId: string; team: string; highConviction?: boolean };

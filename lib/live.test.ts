@@ -1,14 +1,17 @@
 import { describe, expect, it } from "vitest";
 import {
   ROUND_MATCH_COUNT,
+  currentLiveRoundView,
+  liveMatchOpen,
   matchId,
   matchImpact,
   matchesForRound,
+  mergeRoundPicks,
   roundState,
   sanitizeLivePicks,
 } from "./live";
 import { LIVE_ROUNDS } from "./schedule";
-import { DEFAULT_WEIGHTS, type LiveMatch, type LivePick } from "./types";
+import { DEFAULT_WEIGHTS, type KnockoutRound, type LiveMatch, type LivePick } from "./types";
 
 const r32 = LIVE_ROUNDS.find((r) => r.round === "r32")!;
 
@@ -136,5 +139,82 @@ describe("matchImpact", () => {
     expect(imp.totalPickers).toBe(0);
     expect(imp.home.points).toBe(0);
     expect(imp.away.points).toBe(0);
+  });
+});
+
+const NOW = new Date("2026-06-28T17:00:00Z").getTime();
+function mk(id: string, round: KnockoutRound, kickoff: string | null): LiveMatch {
+  return { matchId: id, round, homeCode: "ARG", awayCode: "MEX", kickoffIso: kickoff };
+}
+
+describe("liveMatchOpen (per-game lock)", () => {
+  it("is open before kickoff and locked at/after it", () => {
+    expect(liveMatchOpen({ kickoffIso: "2026-06-28T19:00:00Z" }, NOW)).toBe(true);
+    expect(liveMatchOpen({ kickoffIso: "2026-06-28T16:00:00Z" }, NOW)).toBe(false);
+    // exactly at kickoff → locked
+    expect(liveMatchOpen({ kickoffIso: "2026-06-28T17:00:00Z" }, NOW)).toBe(false);
+  });
+  it("treats a missing/invalid kickoff as locked", () => {
+    expect(liveMatchOpen({ kickoffIso: null }, NOW)).toBe(false);
+    expect(liveMatchOpen({ kickoffIso: "not-a-date" }, NOW)).toBe(false);
+  });
+});
+
+describe("currentLiveRoundView", () => {
+  it("returns null when no matchups are drawn", () => {
+    expect(currentLiveRoundView([], NOW)).toBeNull();
+  });
+  it("shows the earliest round that still has an open game", () => {
+    const v = currentLiveRoundView(
+      [mk("r32-1", "r32", "2026-06-28T16:00:00Z"), mk("r32-2", "r32", "2026-06-29T19:00:00Z")],
+      NOW,
+    );
+    expect(v?.round).toBe("r32");
+    expect(v?.hasOpenGames).toBe(true);
+  });
+  it("falls back to the latest drawn round (read-only) when none are open", () => {
+    const v = currentLiveRoundView([mk("r32-1", "r32", "2026-06-28T16:00:00Z")], NOW);
+    expect(v?.round).toBe("r32");
+    expect(v?.hasOpenGames).toBe(false);
+  });
+  it("advances to a later round once its games are open and the earlier round has none", () => {
+    const v = currentLiveRoundView(
+      [mk("r32-1", "r32", "2026-06-28T16:00:00Z"), mk("r16-1", "r16", "2026-07-04T19:00:00Z")],
+      NOW,
+    );
+    expect(v?.round).toBe("r16");
+    expect(v?.hasOpenGames).toBe(true);
+  });
+});
+
+describe("mergeRoundPicks (partial save)", () => {
+  const existing: LivePick[] = [
+    { matchId: "r32-1", round: "r32", team: "ARG", highConviction: true },
+    { matchId: "r32-2", round: "r32", team: "BRA", highConviction: false },
+  ];
+  it("replaces submitted games and preserves the rest", () => {
+    const res = mergeRoundPicks(existing, [
+      { matchId: "r32-2", round: "r32", team: "USA", highConviction: false },
+    ]);
+    expect(res.ok).toBe(true);
+    if (res.ok) {
+      const byId = Object.fromEntries(res.picks.map((p) => [p.matchId, p.team]));
+      expect(byId["r32-1"]).toBe("ARG"); // preserved (not submitted)
+      expect(byId["r32-2"]).toBe("USA"); // replaced
+      expect(res.picks).toHaveLength(2);
+    }
+  });
+  it("rejects a second ⚡ Double Down across the merged round", () => {
+    const res = mergeRoundPicks(existing, [
+      { matchId: "r32-2", round: "r32", team: "USA", highConviction: true },
+    ]);
+    expect(res.ok).toBe(false); // r32-1 already holds the ⚡
+  });
+  it("allows moving the ⚡ when the old game is re-submitted without it", () => {
+    const res = mergeRoundPicks(existing, [
+      { matchId: "r32-1", round: "r32", team: "ARG", highConviction: false },
+      { matchId: "r32-2", round: "r32", team: "BRA", highConviction: true },
+    ]);
+    expect(res.ok).toBe(true);
   });
 });
