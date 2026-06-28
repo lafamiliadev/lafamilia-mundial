@@ -13,6 +13,7 @@ import {
 import { LinkButton } from "@/components/ui";
 import { db } from "@/lib/db";
 import { LIVE_PICKS_ENABLED } from "@/lib/flags";
+import { currentLiveRoundView, liveMatchOpen, liveRound } from "@/lib/live";
 import { openScoreMatches } from "@/lib/score-picks";
 import { getLeaderboardData, getReferralStats, getRivalry, getTopChampionPick } from "@/lib/services";
 import type { Rivalry } from "@/lib/services";
@@ -27,9 +28,9 @@ export const dynamic = "force-dynamic";
 const SIEMBRA_URL = "https://givebutter.com/siembra-con-lafamilia-foundation";
 
 const STEPS = [
-  { Icon: GroupsIcon, text: "Pick the 12 group winners in just a few taps." },
-  { Icon: TrophyIcon, text: "Pick your Final Four and champion." },
-  { Icon: TrendingUpIcon, text: "Climb the leaderboard and earn prizes." },
+  { Icon: GroupsIcon, text: "Predict the 12 group winners, your Final Four and the champion." },
+  { Icon: TrophyIcon, text: "Add Bonus Picks — Golden Ball, Boot, Glove and a Dark Horse." },
+  { Icon: TrendingUpIcon, text: "Keep earning all tournament: predict scores and pick who advances in the knockouts." },
   { Icon: SproutIcon, text: "Support Siembra and help LaFamilia keep growing.", optional: true },
 ];
 
@@ -52,7 +53,6 @@ export default async function Home() {
       getRivalry(me.resumeToken),
     ]);
     const nowD = await now();
-    const nowIso = nowD.toISOString();
     const status = pickStatus(nowD, settings.lockTime);
     const bonusFilled = Object.values(me.predictions.bonus ?? EMPTY_BONUS).filter(Boolean).length;
     // Only Bonus Score Picks whose 24h window is OPEN and the member hasn't
@@ -66,6 +66,9 @@ export default async function Home() {
       (m) => !myScorePredictedIds.has(m.matchId),
     );
 
+    // What can I do RIGHT NOW? Priority: pre-kickoff → Bonus Picks; during the
+    // tournament → the next knockout (Live Picks) game still open. Bonus Score
+    // Predictions get their own card below, so they're not duplicated here.
     let open: OpenAction | null = null;
     if (status.state === "bonus-open") {
       const remaining = 4 - bonusFilled;
@@ -78,6 +81,8 @@ export default async function Home() {
               pts: 0,
               action: "Edit my Bonus Picks",
               href: "/picks/bonus",
+              lockIso: settings.lockTime,
+              lockLabel: "Locks at kickoff",
             }
           : {
               title: bonusFilled === 0 ? "Make your Bonus Picks" : `${remaining} Bonus ${remaining === 1 ? "Pick" : "Picks"} left`,
@@ -85,15 +90,42 @@ export default async function Home() {
               pts: bonusPointsRemaining(me.predictions.bonus, settings.weights),
               action: bonusFilled === 0 ? "Make my Bonus Picks" : "Finish my Bonus Picks",
               href: "/picks/bonus",
+              lockIso: settings.lockTime,
+              lockLabel: "Locks at kickoff",
             };
-    } else if (LIVE_PICKS_ENABLED && status.state === "round-open") {
-      open = {
-        title: `${status.round.label} — pick who advances`,
-        detail: `Pick who moves on in ${status.round.plain}`,
-        pts: status.round.pointsInPlay,
-        action: "Pick who advances",
-        href: "/picks",
-      };
+    } else if (LIVE_PICKS_ENABLED) {
+      // Knockouts: each game is pickable until its own kickoff. Surface the
+      // current round if the member still has open games to pick.
+      const liveRoundView = currentLiveRoundView(settings.liveMatches, nowD.getTime());
+      if (liveRoundView?.hasOpenGames) {
+        const openGames = liveRoundView.matches.filter((m) => liveMatchOpen(m, nowD.getTime()));
+        const myLivePickIds = new Set(
+          (await repo.getLivePicks(me.id))
+            .filter((p) => p.round === liveRoundView.round)
+            .map((p) => p.matchId),
+        );
+        const remaining = openGames.filter((g) => !myLivePickIds.has(g.matchId)).length;
+        if (remaining > 0) {
+          const lr = liveRound(liveRoundView.round);
+          const soonestKickoff =
+            openGames
+              .map((g) => g.kickoffIso)
+              .filter((k): k is string => Boolean(k))
+              .sort()[0] ?? null;
+          const allFresh = remaining === openGames.length;
+          open = {
+            title: allFresh
+              ? `${lr?.label ?? "Knockouts"} — pick who advances`
+              : `Finish your ${lr?.label ?? "Knockout"} picks`,
+            detail: `${remaining} ${remaining === 1 ? "game" : "games"} open · pick who moves on`,
+            pts: 0,
+            action: allFresh ? "Make my Live Picks" : "Finish my Live Picks",
+            href: "/picks/live",
+            lockIso: soonestKickoff,
+            lockLabel: "Next game locks in",
+          };
+        }
+      }
     }
 
     return (
@@ -290,14 +322,14 @@ function WhatHappensNext({
 
   const steps = started
     ? [
-        { t: "The tournament is underway", d: "Matches are being played right now." },
-        { t: "We score your picks for you", d: "When a team you picked wins, you get points. You don't have to do a thing." },
-        { t: "Check your score anytime", d: "We update your points as games finish. See where you rank on the leaderboard." },
+        { t: "Keep earning while the games play", d: "Predict the score of LatAm + Spain matches (+3 for the exact score, +1 for the winner) and pick who advances in each knockout game — before they kick off." },
+        { t: "We score everything automatically", d: "Your bracket, Bonus Picks, score predictions and knockout picks all add up. No spreadsheets, nothing to track." },
+        { t: "Climb the leaderboard", d: "Points update as games finish. See where you rank in the Familia — and what's still open to earn." },
       ]
     : [
         { t: `The World Cup starts ${fmt(kickoffIso)}`, d: "That's when the games begin." },
-        { t: "We score your picks for you", d: "When a team you picked wins, you get points. You don't have to do a thing." },
-        { t: "Come back to check your score", d: `Your first points come in around ${fmt(firstPointsIso)}. See where you rank on the leaderboard.` },
+        { t: "We score your bracket automatically", d: "When a team you picked wins, you get points — nothing to track." },
+        { t: "New ways to earn open up", d: `Once it starts you can predict scores and pick who advances each round. Your first points come in around ${fmt(firstPointsIso)}.` },
       ];
 
   return (
@@ -332,8 +364,18 @@ function WhatHappensNext({
   );
 }
 
-/** A clearly-named action the member can take right now (e.g. Bonus Picks). */
-type OpenAction = { title: string; detail: string; pts: number; action: string; href: string };
+/** A clearly-named action the member can take right now (e.g. Bonus Picks or the
+ * next knockout game). `lockIso` is what the hero countdown points at (the
+ * bracket lock, or the next game's kickoff); null hides the countdown. */
+type OpenAction = {
+  title: string;
+  detail: string;
+  pts: number;
+  action: string;
+  href: string;
+  lockIso: string | null;
+  lockLabel: string;
+};
 
 /** Returning-member hero: greet, show rank + the next open action. */
 function ReturningHero({
@@ -387,12 +429,16 @@ function ReturningHero({
                 {open.pts > 0 ? ` · ${open.pts} pts` : ""}
               </p>
               <p className="mt-1 text-sm text-white/85">{open.detail}</p>
-              <p className="mt-4 text-[11px] font-semibold uppercase tracking-wider text-white/60">
-                Locks at kickoff
-              </p>
-              <div className="mt-2 flex justify-center">
-                <Countdown lockTime={lockTime} />
-              </div>
+              {open.lockIso && (
+                <>
+                  <p className="mt-4 text-[11px] font-semibold uppercase tracking-wider text-white/60">
+                    {open.lockLabel}
+                  </p>
+                  <div className="mt-2 flex justify-center">
+                    <Countdown lockTime={open.lockIso} />
+                  </div>
+                </>
+              )}
               <LinkButton href={open.href} variant="gold" className="mt-6 w-full text-lg shadow-md">
                 {open.action} →
               </LinkButton>
@@ -400,12 +446,12 @@ function ReturningHero({
           ) : (
             <>
               <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-[var(--color-gold-soft)]">
-                You&apos;re all set 🎉
+                You&apos;re all caught up 🎉
               </p>
               <p className="mt-2 text-sm leading-relaxed text-white/85">
                 {started
-                  ? "Your picks are saved. As the games are played, we'll score your predictions for you automatically. Come back any time to check the leaderboard."
-                  : "Your picks are saved, and the games haven't started yet. Once they kick off, we'll score your predictions for you automatically. Come back any time to check the leaderboard."}
+                  ? "Nothing to pick right now. We score everything automatically as games finish — and new score predictions and knockout picks open as the tournament rolls on. Check the leaderboard any time."
+                  : "Your picks are saved, and the games haven't started yet. Once they kick off, we score everything for you automatically. Come back any time to check the leaderboard."}
               </p>
               <LinkButton href="/picks" variant="gold" className="mt-5 w-full text-lg shadow-md">
                 See my picks →

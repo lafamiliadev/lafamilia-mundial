@@ -17,7 +17,7 @@ import {
   nextOpenUnpredicted,
   openScoreMatches,
 } from "@/lib/score-picks";
-import { LIVE_ROUNDS, nextScoringMilestone } from "@/lib/schedule";
+import { nextScoringMilestone } from "@/lib/schedule";
 import { teamFlag } from "@/lib/teams";
 import { DEFAULT_WEIGHTS, type LeaderboardRow, type ScoringWeights } from "@/lib/types";
 
@@ -225,38 +225,36 @@ export default async function LeaderboardPage({
   const scoresShow: "mine" | "everyone" = rawShow === "everyone" ? "everyone" : "mine";
   const scorePicks = view === "score" ? await getScorePicksView(token, scoresShow) : null;
 
-  // Live Picks isn't playable yet (LIVE_PICKS_ENABLED) — and even once it is, the
-  // board is empty until the first knockout round locks. Either way, show a calm
-  // "coming later" state instead of an empty/broken board.
+  // Knockouts are "open" — and the standings render — once a round's matchups
+  // are drawn (the per-game model). Previously this keyed off a fixed round lock
+  // time, which wrongly showed "picks are coming" while games were actually
+  // pickable. Before any round is drawn we still show the calm "coming" state.
   const livePlayable = LIVE_PICKS_ENABLED || PREVIEW_ENABLED;
-  const liveOpened = nowMs >= new Date(LIVE_ROUNDS[0].locksIso).getTime();
+  const liveRoundView =
+    view === "live" ? currentLiveRoundView(settings.liveMatches, nowMs) : null;
+  const liveOpened = liveRoundView != null;
   const liveComingSoon = view === "live" && (!livePlayable || !liveOpened);
 
   // Live Picks action banner (Knockouts view only). Read-only: drives users to
-  // the per-game pick screen. Keys off ACTUAL pick availability (open games in
-  // the current round), not the standings' liveComingSoon gate. Hidden when no
-  // round is drawn, when nothing is still open, or once every open game is
-  // already picked.
+  // the per-game pick screen. Hidden when no round is drawn, when nothing is
+  // still open, or once every open game is already picked.
   let livePicksBanner: { roundLabel: string; openCount: number; pickedOpen: number } | null = null;
-  if (view === "live" && livePlayable) {
-    const liveRoundView = currentLiveRoundView(settings.liveMatches, nowMs);
-    if (liveRoundView?.hasOpenGames) {
-      const openGames = liveRoundView.matches.filter((m) => liveMatchOpen(m, nowMs));
-      const myRoundPickIds = meParticipant
-        ? new Set(
-            (await repo.getLivePicks(meParticipant.id))
-              .filter((p) => p.round === liveRoundView.round)
-              .map((p) => p.matchId),
-          )
-        : new Set<string>();
-      const pickedOpen = openGames.filter((g) => myRoundPickIds.has(g.matchId)).length;
-      if (pickedOpen < openGames.length) {
-        livePicksBanner = {
-          roundLabel: liveRound(liveRoundView.round)?.label ?? "Knockouts",
-          openCount: openGames.length,
-          pickedOpen,
-        };
-      }
+  if (view === "live" && livePlayable && liveRoundView?.hasOpenGames) {
+    const openGames = liveRoundView.matches.filter((m) => liveMatchOpen(m, nowMs));
+    const myRoundPickIds = meParticipant
+      ? new Set(
+          (await repo.getLivePicks(meParticipant.id))
+            .filter((p) => p.round === liveRoundView.round)
+            .map((p) => p.matchId),
+        )
+      : new Set<string>();
+    const pickedOpen = openGames.filter((g) => myRoundPickIds.has(g.matchId)).length;
+    if (pickedOpen < openGames.length) {
+      livePicksBanner = {
+        roundLabel: liveRound(liveRoundView.round)?.label ?? "Knockouts",
+        openCount: openGames.length,
+        pickedOpen,
+      };
     }
   }
 
