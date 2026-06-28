@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import Link from "next/link";
 import { Countdown } from "@/components/Countdown";
 import { FamiliaInvitersBoard } from "@/components/FamiliaInvitersBoard";
@@ -17,7 +18,7 @@ import {
 } from "@/lib/score-picks";
 import { LIVE_ROUNDS, nextScoringMilestone } from "@/lib/schedule";
 import { teamFlag } from "@/lib/teams";
-import { DEFAULT_WEIGHTS, type LeaderboardRow } from "@/lib/types";
+import { DEFAULT_WEIGHTS, type LeaderboardRow, type ScoringWeights } from "@/lib/types";
 
 const VIEWS: { key: LeaderboardView; label: string }[] = [
   { key: "overall", label: "Overall" },
@@ -92,6 +93,92 @@ function Podium({ rows }: { rows: LeaderboardRow[] }) {
         );
       })}
     </div>
+  );
+}
+
+function PtRow({ label, value }: { label: ReactNode; value: ReactNode }) {
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <span>{label}</span>
+      <span className="font-semibold">{value}</span>
+    </div>
+  );
+}
+
+/** The full, tap-to-expand scoring explainer. White-on-dark styling so it reads
+ * on both the green "Before kickoff" card and the navy live-race card. */
+function HowPointsWork({ w }: { w: ScoringWeights }) {
+  const bracketMax = w.groupWinner * 12 + w.semifinalist * 4 + w.champion;
+  const bonusMax = w.goldenBall + w.goldenBoot + w.goldenGlove + w.darkHorseSf;
+  return (
+    <details className="text-left">
+      <summary className="flex cursor-pointer list-none items-center justify-center gap-1 text-xs font-semibold text-[var(--color-gold-soft)] underline-offset-4 hover:underline [&::-webkit-details-marker]:hidden">
+        ⓘ How points work
+      </summary>
+      <div className="mx-auto mt-3 max-w-xs space-y-3 rounded-xl bg-white/15 p-3 text-sm">
+        <p className="text-xs text-white/75">Four games — your Overall score adds them all up.</p>
+
+        <div>
+          <div className="mb-1 flex items-center justify-between font-bold">
+            <span>🏆 The Bracket</span>
+            <span className="text-[var(--color-gold-soft)]">up to {bracketMax}</span>
+          </div>
+          <div className="space-y-1 text-white/90">
+            <PtRow label="🥇 Group winners" value={`${w.groupWinner} each · up to ${w.groupWinner * 12}`} />
+            <PtRow label="🎯 Final Four" value={`${w.semifinalist} each · up to ${w.semifinalist * 4}`} />
+            <PtRow label="👑 Champion" value={w.champion} />
+          </div>
+        </div>
+
+        <div className="border-t border-white/15 pt-3">
+          <div className="mb-1 flex items-center justify-between font-bold">
+            <span>⭐ Bonus Picks</span>
+            <span className="text-[var(--color-gold-soft)]">up to {bonusMax}</span>
+          </div>
+          <div className="space-y-1 text-white/90">
+            <PtRow label="Golden Ball" value={w.goldenBall} />
+            <PtRow label="Golden Boot" value={w.goldenBoot} />
+            <PtRow label="Golden Glove" value={w.goldenGlove} />
+            <PtRow
+              label={<>Dark Horse <span className="text-white/55">(R16 / QF / SF)</span></>}
+              value={`${w.darkHorseR16} / ${w.darkHorseQf} / ${w.darkHorseSf}`}
+            />
+          </div>
+          <p className="mt-1 text-xs text-white/60">Dark Horse pays the furthest round reached — not added up.</p>
+        </div>
+
+        <div className="border-t border-white/15 pt-3">
+          <div className="mb-1 font-bold">
+            🎯 Score Predictions <span className="font-normal text-white/55">· LatAm + Spain</span>
+          </div>
+          <div className="space-y-1 text-white/90">
+            <PtRow label="Exact score" value="+3" />
+            <PtRow label="Right result only" value="+1" />
+          </div>
+        </div>
+
+        <div className="border-t border-white/15 pt-3">
+          <div className="mb-1 font-bold">
+            ⚡ Knockout Picks <span className="font-normal text-white/55">· per round</span>
+          </div>
+          <div className="space-y-1 text-white/90">
+            <PtRow
+              label="Per correct winner"
+              value={`${w.liveR32} / ${w.liveR16} / ${w.liveQf} / ${w.liveSf} / ${w.liveFinal}`}
+            />
+          </div>
+          <p className="mt-1 text-xs text-white/75">
+            <span className="font-semibold text-[var(--color-gold-soft)]">⚡ High Conviction</span>
+            {" — tag your most confident pick each round; if it's right it scores "}
+            <span className="font-semibold">double</span>. Wrong = no penalty.
+          </p>
+        </div>
+
+        <p className="border-t border-white/15 pt-3 text-xs text-white/75">
+          Ties are broken by your goals-in-the-final guess. Familia Honors are titles — they don&apos;t add points.
+        </p>
+      </div>
+    </details>
   );
 }
 
@@ -187,38 +274,53 @@ export default async function LeaderboardPage({
           </Link>
         )}
 
-        {/* Countdown box. On the Scores tab it counts down to the next LatAm +
-            Spain game's kickoff (when it locks). Elsewhere it's the next BIG
-            bracket points drop. */}
-        {view === "score" && openScoreNow ? (
-          <div className="mb-5 rounded-2xl bg-[var(--color-navy)] px-4 py-5 text-center text-white">
-            <p className="text-xs font-bold uppercase tracking-wider text-[var(--color-gold-soft)]">
-              ⚡ Next pick locks in
-            </p>
-            <div className="mt-3 flex justify-center">
-              <Countdown lockTime={openScoreNow.kickoffUtc} />
-            </div>
-            <p className="mt-3 text-sm font-semibold">
-              {openScoreNow.teamA} vs {openScoreNow.teamB}
-            </p>
-            <p className="mt-1 text-xs text-white/75">
-              Predict the score before kickoff — up to +3 pts
-            </p>
+        {/* Counter + scoring transparency box — ALWAYS visible, on every tab and
+            in every state, so the full point system is open to everyone. The
+            countdown on top adapts per tab (next score pick / next big bracket
+            drop); the "How points work" breakdown sits right under it. */}
+        <div className="mb-5 rounded-2xl bg-[var(--color-navy)] px-4 py-5 text-center text-white">
+          {view === "score" && openScoreNow ? (
+            <>
+              <p className="text-xs font-bold uppercase tracking-wider text-[var(--color-gold-soft)]">
+                ⚡ Next pick locks in
+              </p>
+              <div className="mt-3 flex justify-center">
+                <Countdown lockTime={openScoreNow.kickoffUtc} />
+              </div>
+              <p className="mt-3 text-sm font-semibold">
+                {openScoreNow.teamA} vs {openScoreNow.teamB}
+              </p>
+              <p className="mt-1 text-xs text-white/75">
+                Predict the score before kickoff — up to +3 pts
+              </p>
+            </>
+          ) : nextDrop && view !== "live" ? (
+            <>
+              <p className="text-xs font-bold uppercase tracking-wider text-[var(--color-gold-soft)]">
+                ⚡ {scoringStarted ? "Next big points in" : "First bracket points in"}
+              </p>
+              <div className="mt-3 flex justify-center">
+                <Countdown lockTime={nextDrop.dateIso} />
+              </div>
+              <p className="mt-3 text-sm font-semibold">{nextDrop.whenLabel}</p>
+              <p className="mt-1 text-xs text-white/75">
+                Up to {nextDrop.pointsInPlay} points from {nextDrop.fromPicks}
+              </p>
+            </>
+          ) : null}
+
+          {/* How points work — under the counter, on every tab. Divider only when
+              there's a countdown above it (none on the Knockouts tab). */}
+          <div
+            className={
+              (view === "score" && openScoreNow) || (nextDrop && view !== "live")
+                ? "mt-4 border-t border-white/15 pt-4"
+                : ""
+            }
+          >
+            <HowPointsWork w={w} />
           </div>
-        ) : nextDrop && view !== "live" ? (
-          <div className="mb-5 rounded-2xl bg-[var(--color-navy)] px-4 py-5 text-center text-white">
-            <p className="text-xs font-bold uppercase tracking-wider text-[var(--color-gold-soft)]">
-              ⚡ {scoringStarted ? "Next big points in" : "First bracket points in"}
-            </p>
-            <div className="mt-3 flex justify-center">
-              <Countdown lockTime={nextDrop.dateIso} />
-            </div>
-            <p className="mt-3 text-sm font-semibold">{nextDrop.whenLabel}</p>
-            <p className="mt-1 text-xs text-white/75">
-              Up to {nextDrop.pointsInPlay} points from {nextDrop.fromPicks}
-            </p>
-          </div>
-        ) : null}
+        </div>
 
         {/* Scores tab: your locked picks, results, points — and everyone's after
             kickoff. Sits above the score leaderboard below. */}
@@ -264,39 +366,6 @@ export default async function LeaderboardPage({
                 {nextDrop ? ` ${nextDrop.whenLabel.toLowerCase()}` : " when the tournament begins"} and
                 the first predictions are scored.
               </p>
-
-              {/* Quiet, tap-to-expand scoring explainer */}
-              <details className="mt-3 text-left">
-                <summary className="flex cursor-pointer list-none items-center justify-center gap-1 text-xs font-semibold text-[var(--color-gold-soft)] underline-offset-4 hover:underline [&::-webkit-details-marker]:hidden">
-                  ⓘ How points work
-                </summary>
-                <div className="mx-auto mt-2 max-w-xs rounded-xl bg-white/15 p-3 text-sm">
-                  <ul className="space-y-1.5">
-                    <li className="flex items-center justify-between gap-3">
-                      <span>🥇 Group winners</span>
-                      <span className="font-semibold">{w.groupWinner} each · up to {w.groupWinner * 12}</span>
-                    </li>
-                    <li className="flex items-center justify-between gap-3">
-                      <span>🎯 Final Four</span>
-                      <span className="font-semibold">{w.semifinalist} each · up to {w.semifinalist * 4}</span>
-                    </li>
-                    <li className="flex items-center justify-between gap-3">
-                      <span>🏆 Champion</span>
-                      <span className="font-semibold">{w.champion}</span>
-                    </li>
-                    <li className="flex items-center justify-between gap-3">
-                      <span>⚽ Predict a score</span>
-                      <span className="font-semibold">+3 each</span>
-                    </li>
-                  </ul>
-                  <p className="mt-2 text-xs text-white/75">
-                    Ties are broken by your goals-in-the-final guess.
-                  </p>
-                  <p className="mt-1 text-xs font-semibold">
-                    Keep earning all tournament — not just from your champion.
-                  </p>
-                </div>
-              </details>
             </div>
             <div className="divide-y divide-[var(--color-line)]">
               <LeaderboardList rows={all} variant="start" initial={10} />

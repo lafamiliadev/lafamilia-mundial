@@ -39,23 +39,15 @@ describe("scorePredictions — group winners", () => {
     expect(r.bracket).toBe(W.groupWinner); // only group A
   });
 
-  it("adds a clean-sweep bonus when all 12 are decided and correct", () => {
+  it("no bonus for all 12 correct — just the per-group points", () => {
     const codes = ["BRA", "ARG", "FRA", "ESP", "ENG", "POR", "NED", "GER", "MEX", "USA", "JPN", "MAR"];
     const predictions: Predictions = { ...blankPrediction, groupWinners: groups(codes) };
     const results: Results = { ...EMPTY_RESULTS, groupWinners: groups(codes) };
     const r = scorePredictions(predictions, results, DEFAULT_SETTINGS);
-    // The clean-sweep bonus is part of the bracket competition (not a Bonus Pick).
-    expect(r.bracket).toBe(W.groupWinner * 12 + W.groupSweepBonus);
+    // Sweeping all 12 pays the per-group points only — no extra clean-sweep bonus.
+    expect(r.bracket).toBe(W.groupWinner * 12);
     expect(r.bonus).toBe(0);
-    expect(r.total).toBe(W.groupWinner * 12 + W.groupSweepBonus);
-  });
-
-  it("no sweep bonus until all 12 groups are decided", () => {
-    const codes = ["BRA", "ARG"];
-    const predictions: Predictions = { ...blankPrediction, groupWinners: groups(codes) };
-    const results: Results = { ...EMPTY_RESULTS, groupWinners: groups(codes) }; // only 2 decided
-    const r = scorePredictions(predictions, results, DEFAULT_SETTINGS);
-    expect(r.bracket).toBe(W.groupWinner * 2);
+    expect(r.total).toBe(W.groupWinner * 12);
   });
 });
 
