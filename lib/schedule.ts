@@ -64,7 +64,9 @@ export type LiveRound = {
 };
 
 export const LIVE_ROUNDS: LiveRound[] = [
-  { round: "r32", label: "Round of 32", plain: "the last 32 teams", opensIso: "2026-06-28T09:00:00-04:00", locksIso: "2026-06-28T12:00:00-04:00", pointsInPlay: 16 },
+  // Locks at the first R32 kickoff — South Africa v Canada, 3:00pm ET / 12:00pm PT
+  // (19:00 UTC) at SoFi Stadium — so people can pick right up until the round starts.
+  { round: "r32", label: "Round of 32", plain: "the last 32 teams", opensIso: "2026-06-28T09:00:00-04:00", locksIso: "2026-06-28T15:00:00-04:00", pointsInPlay: 16 },
   { round: "r16", label: "Round of 16", plain: "the last 16 teams", opensIso: "2026-07-04T09:00:00-04:00", locksIso: "2026-07-04T12:00:00-04:00", pointsInPlay: 16 },
   { round: "qf", label: "Quarterfinals", plain: "the last 8 teams", opensIso: "2026-07-09T09:00:00-04:00", locksIso: "2026-07-09T12:00:00-04:00", pointsInPlay: 16 },
   { round: "sf", label: "Semifinals", plain: "the last 4 teams", opensIso: "2026-07-14T09:00:00-04:00", locksIso: "2026-07-14T12:00:00-04:00", pointsInPlay: 16 },
