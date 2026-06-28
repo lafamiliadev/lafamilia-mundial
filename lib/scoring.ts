@@ -64,17 +64,11 @@ export function scorePredictions(
   // ─── Original bracket ───
   const actualGroups = results.groupWinners ?? {};
   const picks = predictions.groupWinners ?? {};
-  let groupHits = 0;
   for (const [letter, actualCode] of Object.entries(actualGroups)) {
     if (!actualCode) continue;
     if (picks[letter] && picks[letter] === actualCode) {
-      groupHits++;
       lines.push({ label: `Group ${letter}: ${teamLabel(actualCode)}`, points: w.groupWinner, group: "bracket" });
     }
-  }
-  const groupsDecided = Object.values(actualGroups).filter(Boolean).length;
-  if (groupsDecided >= 12 && groupHits >= 12) {
-    lines.push({ label: "All 12 group winners! 🧹", points: w.groupSweepBonus, group: "bracket" });
   }
   const semis = actualSemifinalists(results);
   // Dedupe defensively: the wizard enforces 4 distinct picks, but the engine

@@ -21,7 +21,6 @@ export type ScoringWeights = {
   groupWinner: number; // per group winner (12 groups)
   semifinalist: number; // per Final Four team
   champion: number;
-  groupSweepBonus: number; // all 12 group winners
   // ── Bonus Picks ──
   goldenBall: number;
   goldenBoot: number;
@@ -41,7 +40,6 @@ export const DEFAULT_WEIGHTS: ScoringWeights = {
   groupWinner: 3, // max 36 across 12 groups
   semifinalist: 10, // max 40 across 4 picks
   champion: 20,
-  groupSweepBonus: 10,
   goldenBall: 12,
   goldenBoot: 12,
   goldenGlove: 8,
