@@ -9,6 +9,7 @@ import { SiembraBanner } from "@/components/Siembra";
 import { LinkButton, PageShell, SectionTitle, TopNav } from "@/components/ui";
 import { db } from "@/lib/db";
 import { LIVE_PICKS_ENABLED } from "@/lib/flags";
+import { currentLiveRoundView, liveMatchOpen, liveRound } from "@/lib/live";
 import { getSessionToken } from "@/lib/session";
 import { now, PREVIEW_ENABLED } from "@/lib/preview";
 import { getFamiliaInviters, getLeaderboardData, getScorePicksView, type LeaderboardView } from "@/lib/services";
@@ -231,6 +232,34 @@ export default async function LeaderboardPage({
   const liveOpened = nowMs >= new Date(LIVE_ROUNDS[0].locksIso).getTime();
   const liveComingSoon = view === "live" && (!livePlayable || !liveOpened);
 
+  // Live Picks action banner (Knockouts view only). Read-only: drives users to
+  // the per-game pick screen. Keys off ACTUAL pick availability (open games in
+  // the current round), not the standings' liveComingSoon gate. Hidden when no
+  // round is drawn, when nothing is still open, or once every open game is
+  // already picked.
+  let livePicksBanner: { roundLabel: string; openCount: number; pickedOpen: number } | null = null;
+  if (view === "live" && livePlayable) {
+    const liveRoundView = currentLiveRoundView(settings.liveMatches, nowMs);
+    if (liveRoundView?.hasOpenGames) {
+      const openGames = liveRoundView.matches.filter((m) => liveMatchOpen(m, nowMs));
+      const myRoundPickIds = meParticipant
+        ? new Set(
+            (await repo.getLivePicks(meParticipant.id))
+              .filter((p) => p.round === liveRoundView.round)
+              .map((p) => p.matchId),
+          )
+        : new Set<string>();
+      const pickedOpen = openGames.filter((g) => myRoundPickIds.has(g.matchId)).length;
+      if (pickedOpen < openGames.length) {
+        livePicksBanner = {
+          roundLabel: liveRound(liveRoundView.round)?.label ?? "Knockouts",
+          openCount: openGames.length,
+          pickedOpen,
+        };
+      }
+    }
+  }
+
   const viewBlurb: Record<LeaderboardView, string> = {
     overall: "Your full score — every way you've earned points.",
     bracket: "Your original bracket only.",
@@ -271,6 +300,33 @@ export default async function LeaderboardPage({
             <p className="mt-0.5 text-sm text-white/85">
               +3 for the exact score · +1 for the winner →
             </p>
+          </Link>
+        )}
+
+        {/* Knockouts view: a clear prompt to make/finish Live Picks, straight to
+            the per-game pick screen. Personalized + shown only when games are
+            still open (see livePicksBanner). */}
+        {livePicksBanner && (
+          <Link
+            href={`/picks/live${token ? `?me=${token}` : ""}`}
+            className="mb-3 block rounded-2xl bg-[var(--color-pitch)] px-4 py-4 text-white"
+          >
+            <p className="text-xs font-bold uppercase tracking-wider text-[var(--color-gold-soft)]">
+              ⚡ {livePicksBanner.pickedOpen > 0 ? "Finish your Live Picks" : "Live Picks are open"}
+            </p>
+            <p className="mt-1 text-lg font-black leading-tight">
+              {livePicksBanner.pickedOpen > 0
+                ? `${livePicksBanner.pickedOpen} of ${livePicksBanner.openCount} open games picked`
+                : `Pick who advances — ${livePicksBanner.roundLabel}`}
+            </p>
+            <p className="mt-0.5 text-sm text-white/85">
+              {livePicksBanner.pickedOpen > 0
+                ? "Pick the rest before they lock at kickoff"
+                : `${livePicksBanner.openCount} ${livePicksBanner.openCount === 1 ? "game" : "games"} open · each locks at kickoff`}
+            </p>
+            <span className="mt-2 inline-block rounded-full bg-white/15 px-3 py-1 text-xs font-bold">
+              {livePicksBanner.pickedOpen > 0 ? "Complete your picks →" : "Make your Live Picks →"}
+            </span>
           </Link>
         )}
 
