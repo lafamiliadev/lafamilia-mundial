@@ -58,7 +58,7 @@ export default async function ScorePredictionPage({
             <div className="bg-[var(--color-navy)] px-5 py-7 text-white">
               <div className="text-5xl">⚽</div>
               <h1 className="mt-3 text-xl font-extrabold tracking-tight">
-                That's all the bonus picks for now
+                That&apos;s all the bonus picks for now
               </h1>
               <p className="mt-2 text-sm text-white/85">
                 Every game has kicked off. Check the leaderboard to see how your scores landed.
@@ -128,7 +128,9 @@ export default async function ScorePredictionPage({
 
         <div className="space-y-8">
           {matches.map((match, i) => (
-            <div key={match.matchId} className="space-y-4">
+            // id anchors let "Predict the score — coming up" rows deep-link
+            // straight to a specific match; scroll-mt clears the top nav.
+            <div key={match.matchId} id={`m-${match.matchId}`} className="scroll-mt-24 space-y-4">
               <MatchCard match={match} />
               <ScoreForm match={match} existing={predictions[i]} isLocked={false} token={meParam} />
             </div>
