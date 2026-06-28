@@ -4,6 +4,7 @@ import { computeAwards, isTeamMember, type AwardsResult } from "./awards";
 import { getProvider, type ProviderMatchStatus, type ProviderScore } from "./football";
 import { buildLedgerLines, type LedgerLine } from "./ledger";
 import { orientApiScore, scoreMatchKey } from "./score-match-link";
+import { selectNewScoreMatches } from "./score-match-sync";
 import { now } from "./preview";
 import { rankParticipants, scorePredictions } from "./scoring";
 import { scorePickState } from "./score-picks";
@@ -79,6 +80,24 @@ export async function syncLiveMatches(): Promise<{ count: number; provider: stri
   return { count: matches.length, provider: provider.name };
 }
 
+/**
+ * Auto-create score-pick matches for upcoming LatAm + Spain fixtures (group AND
+ * knockouts) from the provider, so people keep earning score-prediction points
+ * past the group stage with no manual admin step. Each new match is pre-linked
+ * to its provider fixture, so the existing auto-scoring flow scores it. Pure
+ * selection lives in score-match-sync.ts; this is the thin I/O wrapper.
+ * Idempotent — only inserts fixtures not already tracked.
+ */
+export async function syncScorePickMatches(): Promise<{ created: number }> {
+  const repo = await db();
+  const provider = getProvider();
+  const fixtures = await provider.fetchScores().catch(() => [] as ProviderScore[]);
+  if (fixtures.length === 0) return { created: 0 };
+  const fresh = selectNewScoreMatches(fixtures, await repo.getScoreMatches());
+  const created = fresh.length > 0 ? await repo.createScoreMatches(fresh) : 0;
+  return { created };
+}
+
 export type RecomputeReport = {
   participants: number;
   pulledFromProvider: boolean;
@@ -86,6 +105,8 @@ export type RecomputeReport = {
   provider: string;
   /** Knockout matchups synced from the provider this run (0 when none/manual). */
   liveMatches: number;
+  /** New LatAm + Spain score-pick matches auto-created from the provider. */
+  scorePickMatches: number;
 };
 
 /**
@@ -103,11 +124,16 @@ export async function recomputeScores(
   const stored = await repo.getResults();
   let merged = stored;
   let liveMatchesSynced = 0;
+  let scorePickMatchesCreated = 0;
   if (opts.pullFromProvider) {
-    // Keep the knockout matchups fresh too (auto-populates the pick cards), then
-    // pull results. A matchup-sync hiccup must never block scoring.
+    // Keep the knockout matchups fresh too (auto-populates the pick cards), and
+    // auto-create any new LatAm + Spain score-pick games (knockouts included),
+    // then pull results. Neither sync hiccup may ever block scoring.
     liveMatchesSynced = await syncLiveMatches()
       .then((r) => r.count)
+      .catch(() => 0);
+    scorePickMatchesCreated = await syncScorePickMatches()
+      .then((r) => r.created)
       .catch(() => 0);
     const fresh = await provider.fetchResults();
     merged = mergeResults(fresh, stored);
@@ -173,6 +199,7 @@ export async function recomputeScores(
     champion: merged.champion,
     provider: provider.name,
     liveMatches: liveMatchesSynced,
+    scorePickMatches: scorePickMatchesCreated,
   };
 }
 

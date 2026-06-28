@@ -317,6 +317,15 @@ export const memoryRepo: Repo = {
       .sort((a, b) => a.kickoffUtc.localeCompare(b.kickoffUtc));
   },
 
+  async createScoreMatches(matches) {
+    const data = await load();
+    const existing = new Set((data.scoreMatches ?? []).map((m) => m.matchId));
+    const fresh = matches.filter((m) => !existing.has(m.matchId)).map(smDefaults);
+    data.scoreMatches = [...(data.scoreMatches ?? []), ...fresh];
+    await persist(data);
+    return fresh.length;
+  },
+
   async getUpcomingScoreMatches(nowIso, withinHours = 24) {
     const cutoff = new Date(new Date(nowIso).getTime() + withinHours * 60 * 60 * 1000).toISOString();
     const data = await load();

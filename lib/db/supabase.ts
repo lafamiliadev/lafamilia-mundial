@@ -561,6 +561,28 @@ export const supabaseRepo: Repo = {
       .eq("match_id", matchId);
   },
 
+  async createScoreMatches(matches) {
+    if (matches.length === 0) return 0;
+    const db = supabaseAdmin();
+    const rows = matches.map((m) => ({
+      match_id: m.matchId,
+      team_a: m.teamA,
+      team_b: m.teamB,
+      eligible_team: m.eligibleTeam,
+      kickoff_utc: m.kickoffUtc,
+      display_time_et: m.displayTimeEt,
+      display_time_pt: m.displayTimePt,
+      provider_fixture_id: m.providerFixtureId,
+    }));
+    // Ignore rows whose match_id already exists so a re-run never clobbers a
+    // scored match.
+    const { error } = await db
+      .from("score_matches")
+      .upsert(rows, { onConflict: "match_id", ignoreDuplicates: true });
+    if (error) throw error;
+    return rows.length;
+  },
+
   async scoreMatch(matchId, finalScoreA, finalScoreB, scoredBy) {
     const db = supabaseAdmin();
     // Store the final score + provenance.
