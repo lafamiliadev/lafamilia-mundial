@@ -4,7 +4,7 @@ import { PicksSummary } from "@/components/PicksSummary";
 import { LinkButton, PageShell, SectionTitle, TopNav } from "@/components/ui";
 import { db } from "@/lib/db";
 import { LIVE_PICKS_ENABLED } from "@/lib/flags";
-import { matchesForRound } from "@/lib/live";
+import { currentLiveRoundView, liveMatchOpen, liveRound, matchesForRound } from "@/lib/live";
 import { getSessionParticipant } from "@/lib/session";
 import { now, PREVIEW_ENABLED } from "@/lib/preview";
 import { openScoreMatches, scorePickState } from "@/lib/score-picks";
@@ -76,12 +76,20 @@ export default async function PicksHubPage({
 
   // Live Picks are testable locally via the preview clock before the flag flips.
   const livePlayable = LIVE_PICKS_ENABLED || PREVIEW_ENABLED;
-  const openRound = status.state === "round-open" ? status.round : null;
-  const roundMatches = openRound ? matchesForRound(settings.liveMatches, openRound.round) : [];
-  const myRoundPicks =
-    livePlayable && roundMatches.length
-      ? (await repo.getLivePicks(me.id)).filter((p) => p.round === openRound!.round).length
-      : 0;
+  // Live Picks: per-game model — the current knockout round stays accessible as
+  // long as it has games still open to pick (not a narrow round-level window),
+  // so the call-to-action remains available the whole round.
+  const liveRoundView = livePlayable ? currentLiveRoundView(settings.liveMatches, nowMs) : null;
+  const liveOpenGames = liveRoundView ? liveRoundView.matches.filter((m) => liveMatchOpen(m, nowMs)) : [];
+  const myLivePickIds = liveRoundView
+    ? new Set(
+        (await repo.getLivePicks(me.id))
+          .filter((p) => p.round === liveRoundView.round)
+          .map((p) => p.matchId),
+      )
+    : new Set<string>();
+  const livePickedOpen = liveOpenGames.filter((g) => myLivePickIds.has(g.matchId)).length;
+  const liveLabel = liveRoundView ? liveRound(liveRoundView.round)?.label ?? "Knockouts" : "";
 
   return (
     <main className="flex flex-1 flex-col">
@@ -170,9 +178,9 @@ export default async function PicksHubPage({
               {bonusFilled === 0 ? "Add your Bonus Picks →" : bonusFilled < 4 ? "Finish your Bonus Picks →" : "Edit your Bonus Picks →"}
             </div>
           </Link>
-        ) : livePlayable && openRound && roundMatches.length > 0 ? (
+        ) : liveRoundView && liveOpenGames.length > 0 ? (
           <Link
-            href="/picks/live"
+            href={`/picks/live?token=${me.resumeToken}`}
             className="card mb-3 block overflow-hidden border-2 border-[var(--color-navy)] shadow-sm transition hover:shadow-md"
           >
             <div className="flex items-center gap-4 p-4">
@@ -180,35 +188,26 @@ export default async function PicksHubPage({
                 ⚡
               </span>
               <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2">
-                  <p className="font-bold">{openRound.label} — pick who advances</p>
-                  <span className="shrink-0 rounded-full bg-[var(--color-navy)]/10 px-2 py-0.5 text-xs font-extrabold text-[var(--color-navy)]">
-                    +{openRound.pointsInPlay} pts
-                  </span>
-                </div>
+                <p className="font-bold">{liveLabel} — pick who advances</p>
                 <p className="mt-0.5 text-sm text-[var(--color-muted)]">
-                  Pick the winners of {openRound.plain}
+                  {liveOpenGames.length} {liveOpenGames.length === 1 ? "game" : "games"} open · each locks at kickoff
                 </p>
               </div>
               <span className="shrink-0 text-right">
                 <span className="block text-xs font-bold text-[var(--color-pitch)]">
-                  {myRoundPicks}/{roundMatches.length} picked
+                  {livePickedOpen}/{liveOpenGames.length} picked
                 </span>
                 <span className="text-lg text-[var(--color-navy)]">›</span>
               </span>
             </div>
             <div className="bg-[var(--color-navy)] px-4 py-2.5 text-center text-sm font-bold text-white">
-              {myRoundPicks === 0
+              {livePickedOpen === 0
                 ? "Pick who advances →"
-                : myRoundPicks < roundMatches.length
+                : livePickedOpen < liveOpenGames.length
                   ? "Finish my picks →"
                   : "Edit my picks →"}
             </div>
           </Link>
-        ) : livePlayable && openRound ? (
-          <div className="card mb-3 p-4 text-sm text-[var(--color-muted)]">
-            {openRound.label} picks open as soon as the matchups are set — check back shortly.
-          </div>
         ) : (
           <div className="card mb-3 p-4 text-sm text-[var(--color-muted)]">
             Your bracket is locked and scoring as the games play out. Follow the race on the leaderboard.
@@ -286,8 +285,12 @@ export default async function PicksHubPage({
             </p>
             <div className="card divide-y divide-[var(--color-line)] overflow-hidden">
               {LIVE_ROUNDS.map((r) => {
-                const open = status.state === "round-open" && status.round.round === r.round;
-                const done = nowMs >= new Date(r.locksIso).getTime();
+                // Per-game status: a round is "Open" while any of its games are
+                // still pickable, "Closed" once they've all kicked off, and shows
+                // its open date until its matchups are drawn.
+                const rm = matchesForRound(settings.liveMatches, r.round);
+                const hasOpen = rm.some((m) => liveMatchOpen(m, nowMs));
+                const closed = rm.length > 0 && !hasOpen;
                 return (
                   <div key={r.round} className="flex items-center gap-3 px-4 py-3.5">
                     <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--color-cream)] text-sm font-black">
@@ -299,14 +302,12 @@ export default async function PicksHubPage({
                     </div>
                     <span
                       className={
-                        done
-                          ? "shrink-0 text-xs font-semibold text-[var(--color-muted)]"
-                          : open
-                            ? "shrink-0 rounded-full bg-[var(--color-pitch)] px-2.5 py-1 text-xs font-bold text-white"
-                            : "shrink-0 text-xs font-semibold text-[var(--color-muted)]"
+                        hasOpen
+                          ? "shrink-0 rounded-full bg-[var(--color-pitch)] px-2.5 py-1 text-xs font-bold text-white"
+                          : "shrink-0 text-xs font-semibold text-[var(--color-muted)]"
                       }
                     >
-                      {done ? "Closed" : open ? "Open" : `Opens ${fmtDate(r.opensIso)}`}
+                      {hasOpen ? "Open" : closed ? "Closed" : `Opens ${fmtDate(r.opensIso)}`}
                     </span>
                   </div>
                 );
