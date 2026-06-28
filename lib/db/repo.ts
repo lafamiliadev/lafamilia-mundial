@@ -95,6 +95,9 @@ export interface Repo {
 
   // ── Score Predictions (bonus pick of the day) ──
   getScoreMatches(): Promise<ScoreMatch[]>;
+  /** Insert new score-pick matches, skipping any whose match_id already exists
+   * (never overwrites a scored match). Returns how many were inserted. */
+  createScoreMatches(matches: ScoreMatch[]): Promise<number>;
   /** Matches whose kickoff_utc is within the next `withinHours` hours and has not passed. */
   getUpcomingScoreMatches(nowIso: string, withinHours?: number): Promise<ScoreMatch[]>;
   getScoreMatch(matchId: string): Promise<ScoreMatch | null>;
