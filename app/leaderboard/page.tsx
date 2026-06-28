@@ -156,6 +156,9 @@ function HowPointsWork({ w }: { w: ScoringWeights }) {
             <PtRow label="Exact score" value="+3" />
             <PtRow label="Right result only" value="+1" />
           </div>
+          <p className="mt-1 text-xs text-white/60">
+            Based on the 90-minute result (standard) — extra time and penalties don&apos;t count.
+          </p>
         </div>
 
         <div className="border-t border-white/15 pt-3">

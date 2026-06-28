@@ -14,8 +14,13 @@ export type RawFixture = {
     home?: { name?: string; winner?: boolean | null };
     away?: { name?: string; winner?: boolean | null };
   };
-  /** Full-time goals. Present once the match kicks off; final when status is FT. */
+  /** Total goals — includes extra time, excludes penalty shootouts. Present once
+   * the match kicks off; final when finished. */
   goals?: { home?: number | null; away?: number | null };
+  /** Per-phase scores. `fulltime` is the score at the end of 90 minutes
+   * (regulation) — what score predictions are graded on, so knockout extra time
+   * and penalties don't count. */
+  score?: { fulltime?: { home?: number | null; away?: number | null } };
 };
 
 /** API status codes that mean the match is over and the result is final. */
@@ -48,6 +53,14 @@ export function parseFixtureScores(fixtures: RawFixture[]): ProviderScore[] {
     const id = fx.fixture?.id;
     if (id == null) continue;
     const status = fixtureStatus(fx.fixture?.status?.short);
+    // Grade on the 90-minute (regulation) result: prefer score.fulltime so a
+    // knockout's extra time and penalties never count. Group games never pass
+    // 90', so fulltime equals goals there. Fall back to goals only if the
+    // provider didn't populate fulltime. (`?? null` keeps a real 0 — e.g. a 0–0
+    // regulation decided on penalties scores 0–0, not the shootout.)
+    const ft = fx.score?.fulltime;
+    const homeGoals = status === "final" ? ft?.home ?? fx.goals?.home ?? null : null;
+    const awayGoals = status === "final" ? ft?.away ?? fx.goals?.away ?? null : null;
     out.push({
       fixtureId: String(id),
       status,
@@ -56,8 +69,8 @@ export function parseFixtureScores(fixtures: RawFixture[]): ProviderScore[] {
       awayCode: resolveTeamCode(fx.teams?.away?.name),
       // Only surface goals for a finished match — a 0–0 mid-game must never read
       // as a final result. (Provider may report live goals; we ignore them.)
-      homeGoals: status === "final" ? fx.goals?.home ?? null : null,
-      awayGoals: status === "final" ? fx.goals?.away ?? null : null,
+      homeGoals,
+      awayGoals,
     });
   }
   return out;

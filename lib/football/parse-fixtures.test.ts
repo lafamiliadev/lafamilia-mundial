@@ -117,14 +117,19 @@ function gfx(
   id: number,
   home: string,
   away: string,
-  opts: { status?: string; gh?: number | null; ga?: number | null; date?: string } = {},
+  opts: { status?: string; gh?: number | null; ga?: number | null; fth?: number | null; fta?: number | null; date?: string } = {},
 ): RawFixture {
-  return {
+  const f: RawFixture = {
     fixture: { id, date: opts.date ?? "2026-06-11T19:00:00+00:00", status: { short: opts.status ?? "NS" } },
     league: { round: "Group Stage - 1" },
     teams: { home: { name: home }, away: { name: away } },
     goals: { home: opts.gh ?? null, away: opts.ga ?? null },
   };
+  // Only attach a 90-minute (regulation) score when the test provides one.
+  if (opts.fth !== undefined || opts.fta !== undefined) {
+    f.score = { fulltime: { home: opts.fth ?? null, away: opts.fta ?? null } };
+  }
+  return f;
 }
 
 describe("fixtureStatus — code → lifecycle", () => {
@@ -195,5 +200,27 @@ describe("parseFixtureScores — bonus score inputs", () => {
   it("skips fixtures with no id", () => {
     const bad: RawFixture = { teams: { home: { name: "Mexico" }, away: { name: "South Africa" } } };
     expect(parseFixtureScores([bad])).toHaveLength(0);
+  });
+
+  // ── 90-minute (regulation) grading for knockouts ──
+
+  it("grades on the 90-minute result — extra-time goals do NOT count (AET)", () => {
+    // 1–1 after 90, decided 2–1 in extra time. goals = 2–1 (incl ET), fulltime = 1–1.
+    const [s] = parseFixtureScores([
+      gfx(108, "Argentina", "France", { status: "AET", gh: 2, ga: 1, fth: 1, fta: 1 }),
+    ]);
+    expect([s.homeGoals, s.awayGoals]).toEqual([1, 1]);
+  });
+
+  it("a 0–0 regulation decided on penalties scores 0–0, not the shootout (PEN)", () => {
+    const [s] = parseFixtureScores([
+      gfx(109, "Spain", "Portugal", { status: "PEN", gh: 0, ga: 0, fth: 0, fta: 0 }),
+    ]);
+    expect([s.homeGoals, s.awayGoals]).toEqual([0, 0]);
+  });
+
+  it("falls back to goals when the provider omits score.fulltime (group games unaffected)", () => {
+    const [s] = parseFixtureScores([gfx(110, "Mexico", "South Africa", { status: "FT", gh: 2, ga: 0 })]);
+    expect([s.homeGoals, s.awayGoals]).toEqual([2, 0]);
   });
 });
