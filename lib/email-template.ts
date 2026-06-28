@@ -627,3 +627,143 @@ export function buildSampleEmails(appUrl: string): SampleEmail[] {
     },
   ];
 }
+
+// ── Tournament-underway broadcast (one-off, personalized) ────────────
+// "Your bracket is locked, but you can still climb." Sent once, manually, to
+// every participant, with copy that adapts to where each player stands. Pure +
+// testable; the admin route computes these params from live data.
+
+export const TOURNAMENT_UNDERWAY_TEMPLATE_ID = "tournament-underway-2026-06-28";
+
+export type UnderwayParams = {
+  firstName: string;
+  rank: number | null;
+  total: number | null;
+  championName: string | null;
+  /** Both only ever true when the data is 100% sure; mutually exclusive. */
+  championOut: boolean;
+  championAlive: boolean;
+  hasPoints: boolean;
+  /** The next open match they have NOT predicted (drives the primary CTA), else null. */
+  nextOpenMatchLabel: string | null;
+  nextOpenKickoffLabel: string | null;
+  /** True when there were open matches and they've predicted them all. */
+  caughtUpOnScores: boolean;
+  scoreUrl: string;
+  liveUrl: string;
+  referralCount: number;
+  playUrl: string;
+  chatUrl: string;
+};
+
+/** Dynamic, state-aware subject. Precedence: champion out → zero points →
+ *  champion alive → has points → neutral fallback. */
+export function tournamentUnderwaySubject(p: UnderwayParams): string {
+  const f = p.firstName || "Familia";
+  if (p.championOut) return `🔵 ${f}, your champion is out. You're still in this.`;
+  if (!p.hasPoints) return `🟠 ${f}, it's still early. Your next points are waiting.`;
+  if (p.championAlive) return `🟢 ${f}, your champion is still alive. Keep climbing ⚽`;
+  if (p.hasPoints) return `🟡 ${f}, you're already on the board. Here's your next chance.`;
+  return `${f}, you're still in it. Here's your next chance ⚽`;
+}
+
+function underwayWhereYouStand(p: UnderwayParams): string {
+  const rankStr = p.rank ? `#${p.rank} of 115` : "in the race with the Familia";
+  const ptsStr = p.total != null ? ` with ${p.total} ${p.total === 1 ? "point" : "points"}` : "";
+  if (p.championOut && p.championName) {
+    return `${p.championName} is out — but you're far from done. You're ${rankStr}${ptsStr}, and there are plenty more to grab.`;
+  }
+  if (!p.hasPoints) {
+    return p.rank
+      ? `You're on the board at ${rankStr}. No points yet — but it's early, and every match from here is a fresh chance.`
+      : `You're in the game with the Familia. No points yet — but it's early, and every match is a fresh chance.`;
+  }
+  if (p.championAlive && p.championName) {
+    return `${p.championName} is still in it, and you're ${rankStr}${ptsStr}. Keep climbing.`;
+  }
+  return `You're ${rankStr}${ptsStr} — and there's more up for grabs.`;
+}
+
+function underwayPrimaryCta(p: UnderwayParams): { text: string; label: string; url: string } {
+  if (p.nextOpenMatchLabel) {
+    const when = p.nextOpenKickoffLabel ? ` before kickoff (${p.nextOpenKickoffLabel})` : " before it kicks off";
+    return {
+      text: `Your next move: <strong>${p.nextOpenMatchLabel}</strong> is open. Predict the score${when}.`,
+      label: "Predict the score →",
+      url: p.scoreUrl,
+    };
+  }
+  if (p.caughtUpOnScores) {
+    return {
+      text: "Nice — you're caught up on score predictions. Next up: pick who advances in the knockouts.",
+      label: "Pick who advances →",
+      url: p.liveUrl,
+    };
+  }
+  return {
+    text: "Next up: pick who advances in the knockouts — pick the team that moves on.",
+    label: "Pick who advances →",
+    url: p.liveUrl,
+  };
+}
+
+function underwayReferralLine(p: UnderwayParams): string {
+  return p.referralCount > 0
+    ? `You brought ${p.referralCount} to La Copa — that lives in Familia Honors now 🏅 (separate from the main score).`
+    : "Heads up: Bringing the Familia (referrals) is closed now — it's a Familia Honor, separate from the main score.";
+}
+
+function underwayChatLine(chatUrl: string): string {
+  return /^https?:\/\//.test(chatUrl)
+    ? `▸ <a href="${chatUrl}" target="_blank" style="color:${GREEN};font-weight:700;text-decoration:none;">Join the La Copa chat</a>`
+    : `▸ Join the La Copa chat: <strong>${chatUrl}</strong>`;
+}
+
+export function renderTournamentUnderway(p: UnderwayParams): string {
+  const ctaInfo = underwayPrimaryCta(p);
+  const body = `
+${emailIntro({
+    emoji: "⚽",
+    heading: `Hola, ${p.firstName || "Familia"} 👋`,
+    paras: [
+      "The World Cup is on, and your La Copa bracket is locked in. But you're not done — the leaderboard's moving, with new points up for grabs.",
+    ],
+  })}
+  <tr><td style="padding:6px 28px 0;font-family:${SANS};">
+    <p style="margin:0;font-size:16px;line-height:1.6;color:${INK};font-weight:600;">${underwayWhereYouStand(p)}</p>
+  </td></tr>
+
+  <tr><td style="padding:24px 28px 0;font-family:${SANS};">
+    <p style="margin:0 0 4px;font-size:15px;font-weight:800;color:${INK};">You can still earn points two ways:</p>
+    <div style="background:${PAGE};border-radius:14px;padding:16px 18px;margin-top:12px;">
+      <p style="margin:0;font-size:16px;font-weight:700;color:${INK};">⚽ Predict the score</p>
+      <p style="margin:5px 0 0;font-size:14px;line-height:1.55;color:${MUTED};">For select LatAm + Spain matches.<br>Exact score = +3. Correct winner or draw = +1.<br>Locks at kickoff.</p>
+    </div>
+    <div style="background:${PAGE};border-radius:14px;padding:16px 18px;margin-top:10px;">
+      <p style="margin:0;font-size:16px;font-weight:700;color:${INK};">🏆 Pick who advances</p>
+      <p style="margin:5px 0 0;font-size:14px;line-height:1.55;color:${MUTED};">For knockout games.<br>Pick the team that moves on.</p>
+    </div>
+    <p style="margin:12px 0 0;font-size:14px;color:${MUTED};">It all counts toward the same leaderboard.</p>
+  </td></tr>
+
+  <tr><td style="padding:22px 28px 0;font-family:${SANS};">
+    <p style="margin:0;font-size:16px;line-height:1.6;color:${INK};">${ctaInfo.text}</p>
+  </td></tr>
+  ${cta(ctaInfo.url, ctaInfo.label)}
+
+  <tr><td style="padding:18px 28px 0;font-family:${SANS};">
+    <p style="margin:0;font-size:13px;line-height:1.5;color:${MUTED};">${underwayReferralLine(p)}</p>
+  </td></tr>
+
+  <tr><td style="padding:20px 28px 4px;font-family:${SANS};">
+    <p style="margin:0;font-size:15px;color:${INK};font-weight:700;">When one of us wins, the Familia wins. 🌎</p>
+    <p style="margin:12px 0 0;font-size:14px;line-height:1.9;color:${MUTED};">
+      ▸ <a href="${p.playUrl}" target="_blank" style="color:${GREEN};font-weight:700;text-decoration:none;">Play La Copa</a><br>
+      ${underwayChatLine(p.chatUrl)}
+    </p>
+  </td></tr>`;
+  return emailShell({
+    preheader: "Your bracket is locked, but you can still climb. Here's your next move.",
+    body,
+  });
+}
