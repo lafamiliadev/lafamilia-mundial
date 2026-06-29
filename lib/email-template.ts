@@ -27,7 +27,15 @@ export function emailButton(
 
 /** The shared chrome: green LaFamilia header, white card, quiet footer. Header
  * is the app's stadium green so the email feels like opening La Copa. */
-export function emailShell({ preheader, body }: { preheader: string; body: string }): string {
+export function emailShell({
+  preheader,
+  body,
+  footerNote = "La Copa de LaFamilia 2026 · A community game, not betting.",
+}: {
+  preheader: string;
+  body: string;
+  footerNote?: string;
+}): string {
   return `<!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="x-apple-disable-message-reformatting"><title>La Copa de LaFamilia 2026</title></head>
 <body style="margin:0;padding:0;background:${PAGE};">
@@ -41,7 +49,7 @@ export function emailShell({ preheader, body }: { preheader: string; body: strin
   </td></tr>
   ${body}
   <tr><td style="padding:24px 28px 30px;font-family:${SANS};text-align:center;">
-    <div style="font-size:12px;color:${MUTED};">La Copa de LaFamilia 2026 · A community game, not betting.</div>
+    <div style="font-size:12px;color:${MUTED};">${footerNote}</div>
   </td></tr>
 </table>
 </td></tr>
@@ -709,8 +717,8 @@ function underwayPrimaryCta(p: UnderwayParams): { text: string; label: string; u
 
 function underwayReferralLine(p: UnderwayParams): string {
   return p.referralCount > 0
-    ? `You brought ${p.referralCount} to La Copa — that lives in Familia Honors now 🏅 (separate from the main score).`
-    : "Heads up: Bringing the Familia (referrals) is closed now — it's a Familia Honor, separate from the main score.";
+    ? `You brought ${p.referralCount} to La Copa 🏅 — gracias! That doesn't count toward your score, but it's a bragging right all its own.`
+    : "Heads up: inviting friends doesn't count toward your score — it's just for the bragging rights 🏅.";
 }
 
 function underwayChatLine(chatUrl: string): string {
@@ -765,5 +773,6 @@ ${emailIntro({
   return emailShell({
     preheader: "Your bracket is locked, but you can still climb. Here's your next move.",
     body,
+    footerNote: "La Copa de LaFamilia 2026",
   });
 }

@@ -25,7 +25,7 @@ import {
   openScoreMatches,
 } from "@/lib/score-picks";
 import { nextScoringMilestone } from "@/lib/schedule";
-import { teamFlag } from "@/lib/teams";
+import { teamFlag, teamName } from "@/lib/teams";
 import { DEFAULT_WEIGHTS, type LeaderboardRow, type ScoringWeights } from "@/lib/types";
 
 const VIEWS: { key: LeaderboardView; label: string }[] = [
@@ -235,6 +235,9 @@ export default async function LeaderboardPage({
   const scoresShow: "mine" | "everyone" = rawShow === "everyone" ? "everyone" : "mine";
   const scorePicks = view === "score" ? await getScorePicksView(token, scoresShow) : null;
   const knockoutPicks = view === "live" ? await getKnockoutPicksView(token, scoresShow) : null;
+  // The soonest knockout match still to be played — powers the Knockouts-tab
+  // countdown, mirroring the next-pick / next-drop countdowns on the other tabs.
+  const nextLive = knockoutPicks?.cards.find((c) => !c.locked && c.kickoffIso) ?? null;
 
   // Knockouts are "open" — and the standings render — once a round's matchups
   // are drawn (the per-game model). Previously this keyed off a fixed round lock
@@ -344,7 +347,24 @@ export default async function LeaderboardPage({
             countdown on top adapts per tab (next score pick / next big bracket
             drop); the "How points work" breakdown sits right under it. */}
         <div className="mb-5 rounded-2xl bg-[var(--color-navy)] px-4 py-5 text-center text-white">
-          {view === "score" && openScoreNow ? (
+          {view === "live" && nextLive?.kickoffIso ? (
+            <>
+              <p className="text-xs font-bold uppercase tracking-wider text-[var(--color-gold-soft)]">
+                ⚡ Next match kicks off in
+              </p>
+              <div className="mt-3 flex justify-center">
+                <Countdown lockTime={nextLive.kickoffIso} doneLabel="⏱️ Kicking off — this match is locking…" />
+              </div>
+              <p className="mt-3 text-sm font-semibold">
+                {teamFlag(nextLive.homeCode)} {teamName(nextLive.homeCode)} vs {teamFlag(nextLive.awayCode)}{" "}
+                {teamName(nextLive.awayCode)}
+              </p>
+              <p className="mt-1 text-xs text-white/75">
+                Pick who advances before kickoff — {knockoutPicks?.pointsEach}{" "}
+                {knockoutPicks?.pointsEach === 1 ? "pt" : "pts"}
+              </p>
+            </>
+          ) : view === "score" && openScoreNow ? (
             <>
               <p className="text-xs font-bold uppercase tracking-wider text-[var(--color-gold-soft)]">
                 ⚡ Next pick locks in
@@ -378,7 +398,9 @@ export default async function LeaderboardPage({
               there's a countdown above it (none on the Knockouts tab). */}
           <div
             className={
-              (view === "score" && openScoreNow) || (nextDrop && view !== "live")
+              (view === "live" && nextLive?.kickoffIso) ||
+              (view === "score" && openScoreNow) ||
+              (nextDrop && view !== "live")
                 ? "mt-4 border-t border-white/15 pt-4"
                 : ""
             }
