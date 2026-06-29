@@ -60,11 +60,19 @@ describe("renderTournamentUnderway — variants", () => {
     );
     expect(renderTournamentUnderway({ ...base, hasPoints: false, total: 0 })).toContain("No points yet");
   });
-  it("referral recognition only for referrers", () => {
-    expect(renderTournamentUnderway({ ...base, referralCount: 3 })).toContain("You brought 3 to La Copa");
-    expect(renderTournamentUnderway({ ...base, referralCount: 0 })).toContain(
-      "Bringing the Familia (referrals) is closed",
-    );
+  it("referral recognition only for referrers, in plain language (no jargon)", () => {
+    const referrer = renderTournamentUnderway({ ...base, referralCount: 3 });
+    expect(referrer).toContain("You brought 3 to La Copa");
+    expect(referrer).toContain("bragging right");
+    expect(referrer).not.toContain("Familia Honors");
+    const none = renderTournamentUnderway({ ...base, referralCount: 0 });
+    expect(none).toContain("inviting friends doesn't count toward your score");
+    expect(none).not.toContain("Familia Honors");
+  });
+
+  it("footer drops the 'not betting' note for this email", () => {
+    expect(renderTournamentUnderway(base)).not.toContain("A community game, not betting");
+    expect(renderTournamentUnderway(base)).toContain("La Copa de LaFamilia 2026");
   });
   it("footer links the WhatsApp group with the warm line and drops Play La Copa", () => {
     const html = renderTournamentUnderway({ ...base, chatUrl: "https://nas.io/lafamilia-foundation" });
