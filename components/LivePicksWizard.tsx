@@ -3,6 +3,7 @@
 import { useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { cn } from "./ui";
+import { Countdown } from "./Countdown";
 import { saveLivePicks } from "@/app/actions/live";
 import { teamFlag, teamName } from "@/lib/teams";
 import type { KnockoutRound } from "@/lib/types";
@@ -45,6 +46,7 @@ export function LivePicksWizard({
   plain,
   pointsEach,
   games,
+  nextUp,
 }: {
   token: string;
   round: KnockoutRound;
@@ -52,6 +54,8 @@ export function LivePicksWizard({
   plain: string;
   pointsEach: number;
   games: LiveGame[];
+  /** The soonest still-open match — powers the header countdown. null if none. */
+  nextUp: { kickoffIso: string | null; homeCode: string; awayCode: string } | null;
 }) {
   const router = useRouter();
 
@@ -163,6 +167,15 @@ export function LivePicksWizard({
           Pick who advances in each of {plain}. {pointsEach}{" "}
           {pointsEach === 1 ? "point" : "points"} per correct pick — each game locks at its own kickoff.
         </p>
+        {nextUp?.kickoffIso && (
+          <div className="mt-3 flex flex-col items-center gap-2">
+            <p className="text-xs font-semibold uppercase tracking-wider text-white/70">
+              Next kickoff — {teamFlag(nextUp.homeCode)} {teamName(nextUp.homeCode)}{" "}
+              <span className="text-white/50">vs</span> {teamFlag(nextUp.awayCode)} {teamName(nextUp.awayCode)}
+            </p>
+            <Countdown lockTime={nextUp.kickoffIso} doneLabel="⏱️ Kicking off — this match is locking…" />
+          </div>
+        )}
         {openGames.length > 0 ? (
           <p className="mt-2 inline-block rounded-full bg-white/15 px-3 py-1 text-xs font-semibold">
             ✓ Every tap saves automatically — change your picks anytime until kickoff

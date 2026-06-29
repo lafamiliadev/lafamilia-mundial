@@ -6,21 +6,11 @@ import { LIVE_PICKS_ENABLED } from "@/lib/flags";
 import { currentLiveRoundView, liveMatchOpen, liveRound } from "@/lib/live";
 import { now, PREVIEW_ENABLED } from "@/lib/preview";
 import { getSessionParticipant } from "@/lib/session";
+import { kickoffLabelDual } from "@/lib/format-time";
 import { LIVE_ROUND_POINTS } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Live Picks · La Copa de LaFamilia 2026" };
-
-function whenLabel(iso: string): string {
-  return new Date(iso).toLocaleString("en-US", {
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-    timeZone: "America/New_York",
-  });
-}
 
 function Shell({ children }: { children: React.ReactNode }) {
   return (
@@ -127,20 +117,32 @@ export default async function LivePicksPage({
   const roundPicks = (await repo.getLivePicks(me.id)).filter((p) => p.round === view.round);
   const savedByMatch = new Map(roundPicks.map((p) => [p.matchId, p] as const));
 
+  // Order the games chronologically by kickoff — match ids are provider fixture
+  // ids, so their natural order is meaningless to a player.
+  const orderedMatches = [...view.matches].sort((a, b) =>
+    (a.kickoffIso ?? "").localeCompare(b.kickoffIso ?? ""),
+  );
+
   // One row per game, with its own lock state + the member's saved pick. The
   // server computes `locked` so the UI never relies on the browser clock.
-  const games = view.matches.map((m) => {
+  const games = orderedMatches.map((m) => {
     const saved = savedByMatch.get(m.matchId);
     return {
       matchId: m.matchId,
       homeCode: m.homeCode,
       awayCode: m.awayCode,
       locked: !liveMatchOpen(m, nowMs),
-      kickoffLabel: m.kickoffIso ? whenLabel(m.kickoffIso) : null,
+      kickoffLabel: m.kickoffIso ? kickoffLabelDual(m.kickoffIso) : null,
       savedTeam: saved?.team ?? null,
       savedHc: saved?.highConviction ?? false,
     };
   });
+
+  // The soonest game still open for picks — drives the countdown in the header.
+  const nextOpen = orderedMatches.find((m) => liveMatchOpen(m, nowMs)) ?? null;
+  const nextUp = nextOpen
+    ? { kickoffIso: nextOpen.kickoffIso, homeCode: nextOpen.homeCode, awayCode: nextOpen.awayCode }
+    : null;
 
   return (
     <main className="flex flex-1 flex-col">
@@ -161,6 +163,7 @@ export default async function LivePicksPage({
               plain={plain}
               pointsEach={pointsEach}
               games={games}
+              nextUp={nextUp}
             />
           </div>
         </div>

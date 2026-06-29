@@ -328,7 +328,7 @@ export default async function PicksHubPage({
 
         {/* Always-available plain-language explainer for non-experts. */}
         <div className="mt-6">
-          <HowPointsWork />
+          <HowPointsWork w={settings.weights} />
         </div>
 
         {/* Before kickoff, grow the competition. Once locked, new players can't
