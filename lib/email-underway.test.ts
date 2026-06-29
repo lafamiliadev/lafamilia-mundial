@@ -66,6 +66,14 @@ describe("renderTournamentUnderway — variants", () => {
       "Bringing the Familia (referrals) is closed",
     );
   });
+  it("footer links the WhatsApp group with the warm line and drops Play La Copa", () => {
+    const html = renderTournamentUnderway({ ...base, chatUrl: "https://nas.io/lafamilia-foundation" });
+    expect(html).toContain("Join the La Copa WhatsApp group");
+    expect(html).toContain("Come cry over your picks, celebrate the wins, and talk fútbol with the Familia.");
+    expect(html).toContain("https://nas.io/lafamilia-foundation");
+    expect(html).not.toContain("Play La Copa");
+  });
+
   it("never claims a champion status when unsure (neutral copy)", () => {
     const html = renderTournamentUnderway({ ...base, championAlive: false, championOut: false });
     expect(html).toContain("up for grabs");
