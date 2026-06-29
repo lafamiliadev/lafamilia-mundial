@@ -715,12 +715,6 @@ function underwayPrimaryCta(p: UnderwayParams): { text: string; label: string; u
   };
 }
 
-function underwayReferralLine(p: UnderwayParams): string {
-  return p.referralCount > 0
-    ? `You brought ${p.referralCount} to La Copa 🏅 — gracias! That doesn't count toward your score, but it's a bragging right all its own.`
-    : "Heads up: inviting friends doesn't count toward your score — it's just for the bragging rights 🏅.";
-}
-
 function underwayChatLine(chatUrl: string): string {
   const link = /^https?:\/\//.test(chatUrl)
     ? `<a href="${chatUrl}" target="_blank" style="color:${GREEN};font-weight:700;text-decoration:none;">Join the La Copa WhatsApp group</a>`
@@ -759,10 +753,6 @@ ${emailIntro({
     <p style="margin:0;font-size:16px;line-height:1.6;color:${INK};">${ctaInfo.text}</p>
   </td></tr>
   ${cta(ctaInfo.url, ctaInfo.label)}
-
-  <tr><td style="padding:18px 28px 0;font-family:${SANS};">
-    <p style="margin:0;font-size:13px;line-height:1.5;color:${MUTED};">${underwayReferralLine(p)}</p>
-  </td></tr>
 
   <tr><td style="padding:20px 28px 4px;font-family:${SANS};">
     <p style="margin:0;font-size:15px;color:${INK};font-weight:700;">When one of us wins, the Familia wins. 🌎</p>
