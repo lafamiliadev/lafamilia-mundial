@@ -714,9 +714,10 @@ function underwayReferralLine(p: UnderwayParams): string {
 }
 
 function underwayChatLine(chatUrl: string): string {
-  return /^https?:\/\//.test(chatUrl)
-    ? `▸ <a href="${chatUrl}" target="_blank" style="color:${GREEN};font-weight:700;text-decoration:none;">Join the La Copa chat</a>`
-    : `▸ Join the La Copa chat: <strong>${chatUrl}</strong>`;
+  const link = /^https?:\/\//.test(chatUrl)
+    ? `<a href="${chatUrl}" target="_blank" style="color:${GREEN};font-weight:700;text-decoration:none;">Join the La Copa WhatsApp group</a>`
+    : `Join the La Copa WhatsApp group: <strong>${chatUrl}</strong>`;
+  return `▸ ${link}<br><span style="font-size:13px;color:${MUTED};">Come cry over your picks, celebrate the wins, and talk fútbol with the Familia.</span>`;
 }
 
 export function renderTournamentUnderway(p: UnderwayParams): string {
@@ -758,7 +759,6 @@ ${emailIntro({
   <tr><td style="padding:20px 28px 4px;font-family:${SANS};">
     <p style="margin:0;font-size:15px;color:${INK};font-weight:700;">When one of us wins, the Familia wins. 🌎</p>
     <p style="margin:12px 0 0;font-size:14px;line-height:1.9;color:${MUTED};">
-      ▸ <a href="${p.playUrl}" target="_blank" style="color:${GREEN};font-weight:700;text-decoration:none;">Play La Copa</a><br>
       ${underwayChatLine(p.chatUrl)}
     </p>
   </td></tr>`;

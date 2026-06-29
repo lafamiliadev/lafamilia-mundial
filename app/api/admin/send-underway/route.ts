@@ -25,7 +25,7 @@ export const dynamic = "force-dynamic";
 // Auth: Authorization: Bearer <ADMIN_PASSWORD>
 
 const BASE = "https://wc26.lafamiliafoundation.com";
-const CHAT_URL = "[ADD CHAT LINK HERE]";
+const CHAT_URL = "https://nas.io/lafamilia-foundation";
 
 export async function POST(req: Request) {
   const provided = req.headers.get("authorization")?.replace("Bearer ", "") ?? "";
