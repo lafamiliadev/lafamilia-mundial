@@ -60,14 +60,10 @@ describe("renderTournamentUnderway — variants", () => {
     );
     expect(renderTournamentUnderway({ ...base, hasPoints: false, total: 0 })).toContain("No points yet");
   });
-  it("referral recognition only for referrers, in plain language (no jargon)", () => {
-    const referrer = renderTournamentUnderway({ ...base, referralCount: 3 });
-    expect(referrer).toContain("You brought 3 to La Copa");
-    expect(referrer).toContain("bragging right");
-    expect(referrer).not.toContain("Familia Honors");
-    const none = renderTournamentUnderway({ ...base, referralCount: 0 });
-    expect(none).toContain("inviting friends doesn't count toward your score");
-    expect(none).not.toContain("Familia Honors");
+  it("renders no referral line (removed for now) and no Familia Honors jargon", () => {
+    expect(renderTournamentUnderway({ ...base, referralCount: 17 })).not.toContain("You brought");
+    expect(renderTournamentUnderway({ ...base, referralCount: 0 })).not.toContain("bragging right");
+    expect(renderTournamentUnderway({ ...base, referralCount: 17 })).not.toContain("Familia Honors");
   });
 
   it("footer drops the 'not betting' note for this email", () => {
