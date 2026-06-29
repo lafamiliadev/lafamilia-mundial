@@ -5,6 +5,7 @@ import { FamiliaInvitersBoard } from "@/components/FamiliaInvitersBoard";
 import { Lane, LeaderboardList } from "@/components/LeaderboardList";
 import { LedgerDrawer } from "@/components/LedgerDrawer";
 import { ScorePicksPanel } from "@/components/ScorePicksPanel";
+import { KnockoutPicksPanel } from "@/components/KnockoutPicksPanel";
 import { SiembraBanner } from "@/components/Siembra";
 import { LinkButton, PageShell, SectionTitle, TopNav } from "@/components/ui";
 import { db } from "@/lib/db";
@@ -12,7 +13,13 @@ import { LIVE_PICKS_ENABLED } from "@/lib/flags";
 import { currentLiveRoundView, liveMatchOpen, liveRound } from "@/lib/live";
 import { getSessionToken } from "@/lib/session";
 import { now, PREVIEW_ENABLED } from "@/lib/preview";
-import { getFamiliaInviters, getLeaderboardData, getScorePicksView, type LeaderboardView } from "@/lib/services";
+import {
+  getFamiliaInviters,
+  getKnockoutPicksView,
+  getLeaderboardData,
+  getScorePicksView,
+  type LeaderboardView,
+} from "@/lib/services";
 import {
   nextOpenUnpredicted,
   openScoreMatches,
@@ -227,6 +234,7 @@ export default async function LeaderboardPage({
   // fetched on that tab so other views stay light.
   const scoresShow: "mine" | "everyone" = rawShow === "everyone" ? "everyone" : "mine";
   const scorePicks = view === "score" ? await getScorePicksView(token, scoresShow) : null;
+  const knockoutPicks = view === "live" ? await getKnockoutPicksView(token, scoresShow) : null;
 
   // Knockouts are "open" — and the standings render — once a round's matchups
   // are drawn (the per-game model). Previously this keyed off a fixed round lock
@@ -485,6 +493,20 @@ export default async function LeaderboardPage({
               loggedIn={scorePicks.loggedIn}
               scorePickTotal={scorePicks.scorePickTotal}
               cards={scorePicks.cards}
+            />
+          </div>
+        )}
+
+        {view === "live" && knockoutPicks && knockoutPicks.cards.length > 0 && (
+          <div className="mt-4">
+            <KnockoutPicksPanel
+              show={knockoutPicks.show}
+              token={token}
+              loggedIn={knockoutPicks.loggedIn}
+              roundLabel={knockoutPicks.roundLabel}
+              pointsEach={knockoutPicks.pointsEach}
+              livePickTotal={knockoutPicks.livePickTotal}
+              cards={knockoutPicks.cards}
             />
           </div>
         )}

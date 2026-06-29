@@ -9,7 +9,10 @@ import { now } from "./preview";
 import { rankParticipants, scorePredictions } from "./scoring";
 import { scorePickState } from "./score-picks";
 import { summarizeEveryone, type MatchEveryone } from "./score-view";
+import { currentLiveRoundView, liveMatchOpen, liveRound } from "./live";
+import { summarizeLiveEveryone, type LivePickInput, type MatchLiveEveryone } from "./live-view";
 import { resolveTeamCode, teamName } from "./teams";
+import { LIVE_ROUND_POINTS, type KnockoutRound } from "./types";
 import type { GroupMap, LeaderboardRow, Participant, Results, ScoreMatch } from "./types";
 
 // Merge admin-entered results over provider results. Admin override wins per
@@ -810,4 +813,117 @@ export async function getScorePicksView(
     scorePickTotal: me ? (scores[me.id]?.scorePick ?? 0) : 0,
     cards,
   };
+}
+
+// ── Knockouts tab: who-advances picks (yours + everyone's after each kickoff) ──
+
+export type KnockoutPickCard = {
+  matchId: string;
+  homeCode: string;
+  awayCode: string;
+  kickoffIso: string | null;
+  /** The game has kicked off and can no longer be edited. */
+  locked: boolean;
+  /** The recorded winner, once the match is scored. null otherwise. */
+  winner: string | null;
+  /** The viewer's pick for this match, if any. */
+  myTeam: string | null;
+  myHc: boolean;
+  /** Everyone's summary — only populated for LOCKED matches on the "everyone"
+   * view (never before kickoff, to avoid copying). null otherwise. */
+  everyone: MatchLiveEveryone | null;
+};
+
+export type KnockoutPicksView = {
+  loggedIn: boolean;
+  show: "mine" | "everyone";
+  round: KnockoutRound | null;
+  roundLabel: string;
+  pointsEach: number;
+  /** The viewer's running knockout-pick points (matches the leaderboard slice). */
+  livePickTotal: number;
+  cards: KnockoutPickCard[];
+};
+
+/**
+ * Assembles the Knockouts tab reveal — the twin of getScorePicksView. "mine"
+ * (default) shows the viewer's pick + result per match. "everyone" additionally
+ * reveals others' picks — but ONLY for matches that have kicked off (locked), so
+ * nobody can copy before lock. Shows the current live round; cards are ordered by
+ * kickoff. Reuses currentLiveRoundView + summarizeLiveEveryone; defensive throughout.
+ */
+export async function getKnockoutPicksView(
+  token?: string | null,
+  show: "mine" | "everyone" = "mine",
+): Promise<KnockoutPicksView> {
+  const repo = await db();
+  const [settings, results, scores, nowD] = await Promise.all([
+    repo.getSettings(),
+    repo.getResults(),
+    repo.getScores(),
+    now(),
+  ]);
+  const nowMs = nowD.getTime();
+  const me = token ? await repo.getByToken(token) : null;
+  const livePickTotal = me ? (scores[me.id]?.live ?? 0) : 0;
+
+  const view = currentLiveRoundView(settings.liveMatches, nowMs);
+  if (!view) {
+    return { loggedIn: !!me, show, round: null, roundLabel: "", pointsEach: 0, livePickTotal, cards: [] };
+  }
+  const round = view.round;
+  const lr = liveRound(round);
+  const roundLabel = lr?.label ?? round.toUpperCase();
+  const pointsEach = settings.weights[LIVE_ROUND_POINTS[round]];
+
+  const myByMatch = new Map(
+    me ? (await repo.getLivePicks(me.id)).filter((p) => p.round === round).map((p) => [p.matchId, p]) : [],
+  );
+
+  // Bulk-load everyone's picks + display fields only when that view is active.
+  const everyoneByMatch = new Map<string, LivePickInput[]>();
+  if (show === "everyone") {
+    const [all, participants] = await Promise.all([repo.listLivePicks(), repo.listParticipants()]);
+    const pById = new Map(participants.map((pt) => [pt.id, pt]));
+    for (const [pid, picks] of Object.entries(all)) {
+      const pt = pById.get(pid);
+      for (const pick of picks) {
+        if (pick.round !== round) continue;
+        const arr = everyoneByMatch.get(pick.matchId) ?? [];
+        arr.push({
+          name: pt?.name ?? "",
+          slug: pt?.slug ?? "",
+          rootingCountry: pt?.rootingCountry ?? null,
+          team: pick.team,
+          highConviction: pick.highConviction,
+        });
+        everyoneByMatch.set(pick.matchId, arr);
+      }
+    }
+  }
+
+  const cards: KnockoutPickCard[] = view.matches.map((m) => {
+    const locked = !liveMatchOpen(m, nowMs);
+    const winner = results.matchWinners[m.matchId] ?? null;
+    const mine = myByMatch.get(m.matchId);
+    const everyone =
+      show === "everyone" && locked
+        ? summarizeLiveEveryone(everyoneByMatch.get(m.matchId) ?? [], m.homeCode, m.awayCode, winner, pointsEach)
+        : null;
+    return {
+      matchId: m.matchId,
+      homeCode: m.homeCode,
+      awayCode: m.awayCode,
+      kickoffIso: m.kickoffIso,
+      locked,
+      winner,
+      myTeam: mine?.team ?? null,
+      myHc: mine?.highConviction ?? false,
+      everyone,
+    };
+  });
+  // Order by kickoff ascending — the intuitive chronological order.
+  cards.sort((a, b) => (a.kickoffIso ?? "").localeCompare(b.kickoffIso ?? ""));
+
+  return { loggedIn: !!me, show, round, roundLabel, pointsEach, livePickTotal, cards };
 }
