@@ -798,11 +798,14 @@ export async function getScorePicksView(
     };
   });
 
-  // Most relevant first: finished games (newest kickoff first), then everything
-  // still to come (soonest first).
+  // Most relevant first: games that have kicked off (newest kickoff first), then
+  // everything still to come (soonest first). Keyed on kickoff — not the final
+  // whistle — so a game jumps to the top the moment it starts, not when it ends.
   cards.sort((a, b) => {
-    if (a.final !== b.final) return a.final ? -1 : 1;
-    return a.final
+    const aStarted = a.state === "closed";
+    const bStarted = b.state === "closed";
+    if (aStarted !== bStarted) return aStarted ? -1 : 1;
+    return aStarted
       ? b.kickoffUtc.localeCompare(a.kickoffUtc)
       : a.kickoffUtc.localeCompare(b.kickoffUtc);
   });

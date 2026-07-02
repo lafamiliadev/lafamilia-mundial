@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { pointsReason, scoreLabel } from "@/lib/score-view";
+import { scoreLabel } from "@/lib/score-view";
 import type { ScorePickCard } from "@/lib/services";
 import { teamFlag } from "@/lib/teams";
 
@@ -40,45 +40,6 @@ function MatchHeader({ card }: { card: ScorePickCard }) {
         {card.teamA} <span className="text-[var(--color-muted)]">vs</span> {card.teamB}
       </h3>
       <StatusChip card={card} />
-    </div>
-  );
-}
-
-function MyCard({ card, token }: { card: ScorePickCard; token?: string }) {
-  const predicted = card.myScoreA != null && card.myScoreB != null;
-  return (
-    <div className="card p-4">
-      <MatchHeader card={card} />
-      <div className="mt-3 text-sm">
-        {predicted ? (
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-            <span className="text-[var(--color-muted)]">
-              Your pick:{" "}
-              <strong className="text-[var(--color-ink)]">{scoreLabel(card.myScoreA!, card.myScoreB!)}</strong>
-            </span>
-            {card.final ? (
-              <>
-                <span className="text-[var(--color-muted)]">
-                  Result: <strong className="text-[var(--color-ink)]">{scoreLabel(card.finalA ?? 0, card.finalB ?? 0)}</strong>
-                </span>
-                <PointsBadge points={card.myPoints} />
-              </>
-            ) : card.state === "closed" ? (
-              <span className="text-[var(--color-muted)]">🔒 Locked. Waiting for the final whistle.</span>
-            ) : (
-              <span className="text-[var(--color-muted)]">✅ Locked in. Kicks off {card.displayTimePt}.</span>
-            )}
-          </div>
-        ) : card.state === "closed" ? (
-          <p className="text-[var(--color-muted)]">You missed this one 😭 No points for this match.</p>
-        ) : card.state === "open" ? (
-          <Link href={`/picks/score${token ? `?me=${token}` : ""}`} className="font-bold text-[var(--color-pitch)] underline underline-offset-4">
-            Predict the score now → up to +3 pts
-          </Link>
-        ) : (
-          <p className="text-[var(--color-muted)]">Opens 24 hours before kickoff · {card.displayTimePt}</p>
-        )}
-      </div>
     </div>
   );
 }
@@ -180,40 +141,11 @@ function EveryoneCard({ card, open }: { card: ScorePickCard; open: boolean }) {
   );
 }
 
-function Toggle({ show, token }: { show: "mine" | "everyone"; token?: string }) {
-  const href = (s: "mine" | "everyone") =>
-    `/leaderboard?${new URLSearchParams({
-      ...(token ? { me: token } : {}),
-      view: "score",
-      ...(s === "everyone" ? { show: "everyone" } : {}),
-    }).toString()}`;
-  const tab = (s: "mine" | "everyone", label: string) => (
-    <Link
-      href={href(s)}
-      className={`flex-1 rounded-xl px-2 py-2 text-center text-sm font-bold transition ${
-        show === s ? "bg-white text-[var(--color-ink)] shadow-sm" : "text-[var(--color-muted)] hover:text-[var(--color-ink)]"
-      }`}
-    >
-      {label}
-    </Link>
-  );
-  return (
-    <div className="mb-4 flex gap-1 rounded-2xl bg-black/[0.04] p-1">
-      {tab("mine", "My predictions")}
-      {tab("everyone", "Everyone's")}
-    </div>
-  );
-}
-
 export function ScorePicksPanel({
-  show,
-  token,
   loggedIn,
   scorePickTotal,
   cards,
 }: {
-  show: "mine" | "everyone";
-  token?: string;
   loggedIn: boolean;
   scorePickTotal: number;
   cards: ScorePickCard[];
@@ -237,26 +169,13 @@ export function ScorePicksPanel({
         )}
       </div>
 
-      <Toggle show={show} token={token} />
-
-      {!loggedIn && show === "mine" ? (
-        <div className="card p-6 text-center">
-          <p className="font-semibold text-[var(--color-ink)]">Find your picks to see your scores</p>
-          <Link href="/edit" className="mt-2 inline-block font-bold text-[var(--color-pitch)] underline underline-offset-4">
-            Find my predictions →
-          </Link>
-        </div>
-      ) : cards.length === 0 ? (
+      {cards.length === 0 ? (
         <div className="card p-6 text-center text-[var(--color-muted)]">No score-prediction games yet.</div>
       ) : (
         <div className="space-y-3">
-          {cards.map((c) =>
-            show === "everyone" ? (
-              <EveryoneCard key={c.matchId} card={c} open={c.matchId === defaultOpenId} />
-            ) : (
-              <MyCard key={c.matchId} card={c} token={token} />
-            ),
-          )}
+          {cards.map((c) => (
+            <EveryoneCard key={c.matchId} card={c} open={c.matchId === defaultOpenId} />
+          ))}
         </div>
       )}
     </section>

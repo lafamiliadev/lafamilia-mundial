@@ -1,6 +1,5 @@
 import Link from "next/link";
 import type { KnockoutPickCard } from "@/lib/services";
-import { kickoffTimesDual } from "@/lib/format-time";
 import { teamFlag, teamName } from "@/lib/teams";
 
 // The Knockouts tab "what others picked" reveal — the twin of ScorePicksPanel.
@@ -36,48 +35,6 @@ function MatchHeader({ card }: { card: KnockoutPickCard }) {
         <span className="text-[var(--color-muted)]">vs</span> {teamFlag(card.awayCode)} {teamName(card.awayCode)}
       </h3>
       <StatusChip card={card} />
-    </div>
-  );
-}
-
-function MyCard({ card, token, pointsEach }: { card: KnockoutPickCard; token?: string; pointsEach: number }) {
-  const picked = card.myTeam != null;
-  const myCorrect = card.winner != null && card.myTeam === card.winner;
-  const myPoints = myCorrect ? pointsEach * (card.myHc ? 2 : 1) : 0;
-  return (
-    <div className="card p-4">
-      <MatchHeader card={card} />
-      <div className="mt-3 text-sm">
-        {picked ? (
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-            <span className="text-[var(--color-muted)]">
-              Your pick:{" "}
-              <strong className="text-[var(--color-ink)]">
-                {teamFlag(card.myTeam!)} {teamName(card.myTeam!)}
-              </strong>
-              {card.myHc && <span className="ml-1 font-bold text-[var(--color-gold)]">⚡ 2×</span>}
-            </span>
-            {card.winner ? (
-              <PointsBadge points={myPoints} />
-            ) : card.locked ? (
-              <span className="text-[var(--color-muted)]">🔒 Locked. Waiting for the result.</span>
-            ) : (
-              <span className="text-[var(--color-muted)]">
-                ✅ Locked in.{card.kickoffIso ? ` Kicks off ${kickoffTimesDual(card.kickoffIso)}.` : ""}
-              </span>
-            )}
-          </div>
-        ) : card.locked ? (
-          <p className="text-[var(--color-muted)]">You didn&apos;t pick this one 😭 No points for this match.</p>
-        ) : (
-          <Link
-            href={`/picks/live${token ? `?token=${token}` : ""}`}
-            className="font-bold text-[var(--color-pitch)] underline underline-offset-4"
-          >
-            Pick who advances →
-          </Link>
-        )}
-      </div>
     </div>
   );
 }
@@ -182,45 +139,14 @@ function EveryoneCard({ card, open }: { card: KnockoutPickCard; open: boolean })
   );
 }
 
-function Toggle({ show, token }: { show: "mine" | "everyone"; token?: string }) {
-  const href = (s: "mine" | "everyone") =>
-    `/leaderboard?${new URLSearchParams({
-      ...(token ? { me: token } : {}),
-      view: "live",
-      ...(s === "everyone" ? { show: "everyone" } : {}),
-    }).toString()}`;
-  const tab = (s: "mine" | "everyone", label: string) => (
-    <Link
-      href={href(s)}
-      className={`flex-1 rounded-xl px-2 py-2 text-center text-sm font-bold transition ${
-        show === s ? "bg-white text-[var(--color-ink)] shadow-sm" : "text-[var(--color-muted)] hover:text-[var(--color-ink)]"
-      }`}
-    >
-      {label}
-    </Link>
-  );
-  return (
-    <div className="mb-4 flex gap-1 rounded-2xl bg-black/[0.04] p-1">
-      {tab("mine", "My picks")}
-      {tab("everyone", "Everyone's")}
-    </div>
-  );
-}
-
 export function KnockoutPicksPanel({
-  show,
-  token,
   loggedIn,
   roundLabel,
-  pointsEach,
   livePickTotal,
   cards,
 }: {
-  show: "mine" | "everyone";
-  token?: string;
   loggedIn: boolean;
   roundLabel: string;
-  pointsEach: number;
   livePickTotal: number;
   cards: KnockoutPickCard[];
 }) {
@@ -241,26 +167,13 @@ export function KnockoutPicksPanel({
         )}
       </div>
 
-      <Toggle show={show} token={token} />
-
-      {!loggedIn && show === "mine" ? (
-        <div className="card p-6 text-center">
-          <p className="font-semibold text-[var(--color-ink)]">Find your picks to see your knockouts</p>
-          <Link href="/edit" className="mt-2 inline-block font-bold text-[var(--color-pitch)] underline underline-offset-4">
-            Find my predictions →
-          </Link>
-        </div>
-      ) : cards.length === 0 ? (
+      {cards.length === 0 ? (
         <div className="card p-6 text-center text-[var(--color-muted)]">Knockout matchups aren&apos;t set yet.</div>
       ) : (
         <div className="space-y-3">
-          {cards.map((c) =>
-            show === "everyone" ? (
-              <EveryoneCard key={c.matchId} card={c} open={c.matchId === defaultOpenId} />
-            ) : (
-              <MyCard key={c.matchId} card={c} token={token} pointsEach={pointsEach} />
-            ),
-          )}
+          {cards.map((c) => (
+            <EveryoneCard key={c.matchId} card={c} open={c.matchId === defaultOpenId} />
+          ))}
         </div>
       )}
     </section>

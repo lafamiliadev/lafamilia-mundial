@@ -198,7 +198,7 @@ export default async function LeaderboardPage({
 }: {
   searchParams: Promise<{ me?: string; view?: string; show?: string }>;
 }) {
-  const { me: meParam, view: rawView, show: rawShow } = await searchParams;
+  const { me: meParam, view: rawView } = await searchParams;
   // Highlight the viewer: an explicit ?me link wins, otherwise fall back to the
   // returning-member cookie so a recognized user is spotlighted automatically.
   const token = meParam ?? (await getSessionToken()) ?? undefined;
@@ -230,11 +230,13 @@ export default async function LeaderboardPage({
   // Scores-tab countdown: the soonest open game, counting down to the kickoff it
   // locks at. Every game is open until kickoff, so there's no "opens in" state.
   const openScoreNow = openScoreMatches(allScoreMatches, nowMs)[0] ?? null;
-  // Scores tab: per-game predictions (yours, or everyone's after kickoff). Only
-  // fetched on that tab so other views stay light.
-  const scoresShow: "mine" | "everyone" = rawShow === "everyone" ? "everyone" : "mine";
-  const scorePicks = view === "score" ? await getScorePicksView(token, scoresShow) : null;
-  const knockoutPicks = view === "live" ? await getKnockoutPicksView(token, scoresShow) : null;
+  // Scores + Knockouts tabs: everyone's per-game predictions (each person's pick
+  // reveals at that game's kickoff). Always the shared "everyone" view — the
+  // per-viewer "mine" toggle was removed since this view already surfaces your
+  // own pick and points alongside everyone else's. Only fetched on the active
+  // tab so other views stay light.
+  const scorePicks = view === "score" ? await getScorePicksView(token, "everyone") : null;
+  const knockoutPicks = view === "live" ? await getKnockoutPicksView(token, "everyone") : null;
   // The soonest knockout match still to be played — powers the Knockouts-tab
   // countdown, mirroring the next-pick / next-drop countdowns on the other tabs.
   const nextLive = knockoutPicks?.cards.find((c) => !c.locked && c.kickoffIso) ?? null;
@@ -510,8 +512,6 @@ export default async function LeaderboardPage({
         {view === "score" && scorePicks && (
           <div className="mt-4">
             <ScorePicksPanel
-              show={scorePicks.show}
-              token={token}
               loggedIn={scorePicks.loggedIn}
               scorePickTotal={scorePicks.scorePickTotal}
               cards={scorePicks.cards}
@@ -522,11 +522,8 @@ export default async function LeaderboardPage({
         {view === "live" && knockoutPicks && knockoutPicks.cards.length > 0 && (
           <div className="mt-4">
             <KnockoutPicksPanel
-              show={knockoutPicks.show}
-              token={token}
               loggedIn={knockoutPicks.loggedIn}
               roundLabel={knockoutPicks.roundLabel}
-              pointsEach={knockoutPicks.pointsEach}
               livePickTotal={knockoutPicks.livePickTotal}
               cards={knockoutPicks.cards}
             />
