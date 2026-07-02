@@ -61,7 +61,15 @@ function SplitBar({ card }: { card: KnockoutPickCard }) {
   );
 }
 
-function EveryoneSummary({ card }: { card: KnockoutPickCard }) {
+function EveryoneSummary({ card, pointsEach }: { card: KnockoutPickCard; pointsEach: number }) {
+  // Points your own pick earned — shown once the result is in, mirroring the
+  // Scores tab. High-conviction doubles it; a wrong pick is a plain 0.
+  const myPoints =
+    card.winner != null && card.myTeam != null
+      ? card.myTeam === card.winner
+        ? pointsEach * (card.myHc ? 2 : 1)
+        : 0
+      : null;
   return (
     <>
       <MatchHeader card={card} />
@@ -72,6 +80,7 @@ function EveryoneSummary({ card }: { card: KnockoutPickCard }) {
             {teamFlag(card.myTeam)} {teamName(card.myTeam)}
           </strong>
           {card.myHc && <span className="ml-1 font-bold text-[var(--color-gold)]">⚡ 2×</span>}
+          {card.winner && <> · <PointsBadge points={myPoints} /></>}
         </p>
       )}
       <SplitBar card={card} />
@@ -79,7 +88,7 @@ function EveryoneSummary({ card }: { card: KnockoutPickCard }) {
   );
 }
 
-function EveryoneCard({ card, open }: { card: KnockoutPickCard; open: boolean }) {
+function EveryoneCard({ card, open, pointsEach }: { card: KnockoutPickCard; open: boolean; pointsEach: number }) {
   // Not-yet-revealed: plain card, nothing to expand.
   if (!card.locked) {
     return (
@@ -102,7 +111,7 @@ function EveryoneCard({ card, open }: { card: KnockoutPickCard; open: boolean })
   return (
     <details open={open} className="card group p-4">
       <summary className="cursor-pointer list-none [&::-webkit-details-marker]:hidden">
-        <EveryoneSummary card={card} />
+        <EveryoneSummary card={card} pointsEach={pointsEach} />
         <span className="mt-3 flex items-center justify-between text-xs font-bold text-[var(--color-pitch)]">
           <span className="group-open:hidden">👥 See all {e.total} {e.total === 1 ? "pick" : "picks"}</span>
           <span className="hidden group-open:inline">Hide picks</span>
@@ -142,17 +151,23 @@ function EveryoneCard({ card, open }: { card: KnockoutPickCard; open: boolean })
 export function KnockoutPicksPanel({
   loggedIn,
   roundLabel,
+  pointsEach,
   livePickTotal,
   cards,
 }: {
   loggedIn: boolean;
   roundLabel: string;
+  pointsEach: number;
   livePickTotal: number;
   cards: KnockoutPickCard[];
 }) {
-  // Default-open the most recent locked match that has picks.
+  // Default-open match — same rule as the Scores tab: the most recent decided
+  // game where someone actually earned points (cards are sorted kicked-off
+  // newest-first), falling back to the most recent revealable match.
+  const accordion = cards.filter((c) => c.locked && c.everyone && c.everyone.total > 0);
   const defaultOpenId =
-    cards.filter((c) => c.locked && c.everyone && c.everyone.total > 0).slice(-1)[0]?.matchId ?? null;
+    (accordion.find((c) => c.winner && (c.everyone?.rows.some((r) => (r.points ?? 0) >= 1) ?? false)) ??
+      accordion[0])?.matchId ?? null;
 
   return (
     <section className="mt-6">
@@ -172,7 +187,7 @@ export function KnockoutPicksPanel({
       ) : (
         <div className="space-y-3">
           {cards.map((c) => (
-            <EveryoneCard key={c.matchId} card={c} open={c.matchId === defaultOpenId} />
+            <EveryoneCard key={c.matchId} card={c} open={c.matchId === defaultOpenId} pointsEach={pointsEach} />
           ))}
         </div>
       )}

@@ -925,8 +925,16 @@ export async function getKnockoutPicksView(
       everyone,
     };
   });
-  // Order by kickoff ascending — the intuitive chronological order.
-  cards.sort((a, b) => (a.kickoffIso ?? "").localeCompare(b.kickoffIso ?? ""));
+  // Same ordering as the Scores tab: games that have kicked off (locked) rise to
+  // the top, newest kickoff first, then everything still to come, soonest first.
+  // Keyed on kickoff (locked) — not the result — so a game jumps up the moment it
+  // starts, not when it's decided.
+  cards.sort((a, b) => {
+    if (a.locked !== b.locked) return a.locked ? -1 : 1;
+    const ak = a.kickoffIso ?? "";
+    const bk = b.kickoffIso ?? "";
+    return a.locked ? bk.localeCompare(ak) : ak.localeCompare(bk);
+  });
 
   return { loggedIn: !!me, show, round, roundLabel, pointsEach, livePickTotal, cards };
 }

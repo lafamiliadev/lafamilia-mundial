@@ -524,6 +524,7 @@ export default async function LeaderboardPage({
             <KnockoutPicksPanel
               loggedIn={knockoutPicks.loggedIn}
               roundLabel={knockoutPicks.roundLabel}
+              pointsEach={knockoutPicks.pointsEach}
               livePickTotal={knockoutPicks.livePickTotal}
               cards={knockoutPicks.cards}
             />
