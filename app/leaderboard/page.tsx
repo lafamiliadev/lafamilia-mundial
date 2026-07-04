@@ -239,7 +239,8 @@ export default async function LeaderboardPage({
   const knockoutPicks = view === "live" ? await getKnockoutPicksView(token, "everyone") : null;
   // The soonest knockout match still to be played — powers the Knockouts-tab
   // countdown, mirroring the next-pick / next-drop countdowns on the other tabs.
-  const nextLive = knockoutPicks?.cards.find((c) => !c.locked && c.kickoffIso) ?? null;
+  const nextLive =
+    knockoutPicks?.rounds.flatMap((r) => r.cards).find((c) => !c.locked && c.kickoffIso) ?? null;
 
   // Knockouts are "open" — and the standings render — once a round's matchups
   // are drawn (the per-game model). Previously this keyed off a fixed round lock
@@ -519,14 +520,12 @@ export default async function LeaderboardPage({
           </div>
         )}
 
-        {view === "live" && knockoutPicks && knockoutPicks.cards.length > 0 && (
+        {view === "live" && knockoutPicks && knockoutPicks.rounds.length > 0 && (
           <div className="mt-4">
             <KnockoutPicksPanel
               loggedIn={knockoutPicks.loggedIn}
-              roundLabel={knockoutPicks.roundLabel}
-              pointsEach={knockoutPicks.pointsEach}
               livePickTotal={knockoutPicks.livePickTotal}
-              cards={knockoutPicks.cards}
+              rounds={knockoutPicks.rounds}
             />
           </div>
         )}

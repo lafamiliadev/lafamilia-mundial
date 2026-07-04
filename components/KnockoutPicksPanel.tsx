@@ -1,5 +1,5 @@
 import Link from "next/link";
-import type { KnockoutPickCard } from "@/lib/services";
+import type { KnockoutPickCard, KnockoutRoundGroup } from "@/lib/services";
 import { teamFlag, teamName } from "@/lib/teams";
 
 // The Knockouts tab "what others picked" reveal — the twin of ScorePicksPanel.
@@ -148,32 +148,51 @@ function EveryoneCard({ card, open, pointsEach }: { card: KnockoutPickCard; open
   );
 }
 
+// Default-open match within a round — same rule as the Scores tab: the most
+// recent decided game where someone actually earned points (cards are sorted
+// kicked-off newest-first), falling back to the most recent revealable match.
+function roundDefaultOpenId(cards: KnockoutPickCard[]): string | null {
+  const accordion = cards.filter((c) => c.locked && c.everyone && c.everyone.total > 0);
+  return (
+    (accordion.find((c) => c.winner && (c.everyone?.rows.some((r) => (r.points ?? 0) >= 1) ?? false)) ??
+      accordion[0])?.matchId ?? null
+  );
+}
+
+// One round's list of match cards. Reused for the expanded current round and
+// the collapsed past rounds so both render identically inside.
+function RoundCards({ group }: { group: KnockoutRoundGroup }) {
+  const defaultOpenId = roundDefaultOpenId(group.cards);
+  return (
+    <div className="space-y-3">
+      {group.cards.map((c) => (
+        <EveryoneCard key={c.matchId} card={c} open={c.matchId === defaultOpenId} pointsEach={group.pointsEach} />
+      ))}
+    </div>
+  );
+}
+
+// Short status line for a collapsed past round's summary.
+function pastRoundBlurb(group: KnockoutRoundGroup): string {
+  const total = group.cards.length;
+  const decided = group.cards.filter((c) => c.winner).length;
+  return decided === total ? `${total} ${total === 1 ? "game" : "games"} · final` : `${decided}/${total} decided`;
+}
+
 export function KnockoutPicksPanel({
   loggedIn,
-  roundLabel,
-  pointsEach,
   livePickTotal,
-  cards,
+  rounds,
 }: {
   loggedIn: boolean;
-  roundLabel: string;
-  pointsEach: number;
   livePickTotal: number;
-  cards: KnockoutPickCard[];
+  rounds: KnockoutRoundGroup[];
 }) {
-  // Default-open match — same rule as the Scores tab: the most recent decided
-  // game where someone actually earned points (cards are sorted kicked-off
-  // newest-first), falling back to the most recent revealable match.
-  const accordion = cards.filter((c) => c.locked && c.everyone && c.everyone.total > 0);
-  const defaultOpenId =
-    (accordion.find((c) => c.winner && (c.everyone?.rows.some((r) => (r.points ?? 0) >= 1) ?? false)) ??
-      accordion[0])?.matchId ?? null;
-
   return (
     <section className="mt-6">
       <div className="mb-3 flex items-center justify-between">
         <h2 className="text-sm font-bold uppercase tracking-wider text-[var(--color-muted)]">
-          {roundLabel} · Who advances
+          Knockouts · Who advances
         </h2>
         {loggedIn && (
           <span className="text-sm font-bold text-[var(--color-ink)]">
@@ -182,13 +201,38 @@ export function KnockoutPicksPanel({
         )}
       </div>
 
-      {cards.length === 0 ? (
+      {rounds.length === 0 ? (
         <div className="card p-6 text-center text-[var(--color-muted)]">Knockout matchups aren&apos;t set yet.</div>
       ) : (
-        <div className="space-y-3">
-          {cards.map((c) => (
-            <EveryoneCard key={c.matchId} card={c} open={c.matchId === defaultOpenId} pointsEach={pointsEach} />
-          ))}
+        <div className="space-y-4">
+          {rounds.map((group) =>
+            group.current ? (
+              // Current round: always visible at the top, expanded.
+              <div key={group.round}>
+                <p className="mb-2 flex items-center gap-2 text-sm font-black text-[var(--color-ink)]">
+                  {group.roundLabel}
+                  <span className="rounded-full bg-[var(--color-pitch)] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white">
+                    Current
+                  </span>
+                </p>
+                <RoundCards group={group} />
+              </div>
+            ) : (
+              // Past rounds: stay on the page, collapsed, so results never vanish.
+              <details key={group.round} className="group rounded-2xl border border-[var(--color-line)]">
+                <summary className="flex cursor-pointer list-none items-center justify-between px-4 py-3 [&::-webkit-details-marker]:hidden">
+                  <span className="text-sm font-bold text-[var(--color-ink)]">
+                    {group.roundLabel}{" "}
+                    <span className="ml-1 text-xs font-normal text-[var(--color-muted)]">· {pastRoundBlurb(group)}</span>
+                  </span>
+                  <span aria-hidden className="text-[var(--color-muted)] transition group-open:rotate-180">▾</span>
+                </summary>
+                <div className="px-3 pb-3">
+                  <RoundCards group={group} />
+                </div>
+              </details>
+            ),
+          )}
         </div>
       )}
     </section>

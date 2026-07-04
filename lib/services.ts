@@ -9,11 +9,11 @@ import { now } from "./preview";
 import { rankParticipants, scorePredictions } from "./scoring";
 import { scorePickState } from "./score-picks";
 import { summarizeEveryone, type MatchEveryone } from "./score-view";
-import { currentLiveRoundView, liveMatchOpen, liveRound } from "./live";
+import { currentLiveRoundView, liveMatchOpen, liveRound, matchesForRound } from "./live";
 import { summarizeLiveEveryone, type LivePickInput, type MatchLiveEveryone } from "./live-view";
 import { resolveTeamCode, teamName } from "./teams";
-import { LIVE_ROUND_POINTS, type KnockoutRound } from "./types";
-import type { GroupMap, LeaderboardRow, Participant, Results, ScoreMatch } from "./types";
+import { KNOCKOUT_ROUNDS, LIVE_ROUND_POINTS, type KnockoutRound } from "./types";
+import type { GroupMap, LeaderboardRow, LiveMatch, Participant, Results, ScoreMatch } from "./types";
 
 // Merge admin-entered results over provider results. Admin override wins per
 // field, so a human can always correct an API edge case.
@@ -837,15 +837,29 @@ export type KnockoutPickCard = {
   everyone: MatchLiveEveryone | null;
 };
 
+/** One knockout round's worth of cards, grouped so past rounds stay on the page
+ * under the current one (the current round expanded, older rounds collapsible). */
+export type KnockoutRoundGroup = {
+  round: KnockoutRound;
+  roundLabel: string;
+  pointsEach: number;
+  /** The current/active round — rendered expanded at the top. Past rounds collapse. */
+  current: boolean;
+  cards: KnockoutPickCard[];
+};
+
 export type KnockoutPicksView = {
   loggedIn: boolean;
   show: "mine" | "everyone";
+  /** The current/active round — headline copy + the kickoff countdown key off this. */
   round: KnockoutRound | null;
   roundLabel: string;
   pointsEach: number;
   /** The viewer's running knockout-pick points (matches the leaderboard slice). */
   livePickTotal: number;
-  cards: KnockoutPickCard[];
+  /** Every drawn round: the current round first, then previous rounds
+   * most-recent-first, so past results never disappear when a new round opens. */
+  rounds: KnockoutRoundGroup[];
 };
 
 /**
@@ -872,18 +886,19 @@ export async function getKnockoutPicksView(
 
   const view = currentLiveRoundView(settings.liveMatches, nowMs);
   if (!view) {
-    return { loggedIn: !!me, show, round: null, roundLabel: "", pointsEach: 0, livePickTotal, cards: [] };
+    return { loggedIn: !!me, show, round: null, roundLabel: "", pointsEach: 0, livePickTotal, rounds: [] };
   }
-  const round = view.round;
-  const lr = liveRound(round);
-  const roundLabel = lr?.label ?? round.toUpperCase();
-  const pointsEach = settings.weights[LIVE_ROUND_POINTS[round]];
+  const currentRound = view.round;
+  const roundLabel = liveRound(currentRound)?.label ?? currentRound.toUpperCase();
+  const currentPointsEach = settings.weights[LIVE_ROUND_POINTS[currentRound]];
 
+  // My picks across ALL rounds, keyed by the globally-unique matchId (e.g. "r16-1").
   const myByMatch = new Map(
-    me ? (await repo.getLivePicks(me.id)).filter((p) => p.round === round).map((p) => [p.matchId, p]) : [],
+    me ? (await repo.getLivePicks(me.id)).map((p) => [p.matchId, p]) : [],
   );
 
-  // Bulk-load everyone's picks + display fields only when that view is active.
+  // Bulk-load everyone's picks + display fields (all rounds) only when that view
+  // is active. matchIds embed the round, so one map keyed by matchId is unambiguous.
   const everyoneByMatch = new Map<string, LivePickInput[]>();
   if (show === "everyone") {
     const [all, participants] = await Promise.all([repo.listLivePicks(), repo.listParticipants()]);
@@ -891,7 +906,6 @@ export async function getKnockoutPicksView(
     for (const [pid, picks] of Object.entries(all)) {
       const pt = pById.get(pid);
       for (const pick of picks) {
-        if (pick.round !== round) continue;
         const arr = everyoneByMatch.get(pick.matchId) ?? [];
         arr.push({
           name: pt?.name ?? "",
@@ -905,7 +919,7 @@ export async function getKnockoutPicksView(
     }
   }
 
-  const cards: KnockoutPickCard[] = view.matches.map((m) => {
+  const buildCard = (m: LiveMatch, pointsEach: number): KnockoutPickCard => {
     const locked = !liveMatchOpen(m, nowMs);
     const winner = results.matchWinners[m.matchId] ?? null;
     const mine = myByMatch.get(m.matchId);
@@ -924,17 +938,34 @@ export async function getKnockoutPicksView(
       myHc: mine?.highConviction ?? false,
       everyone,
     };
-  });
-  // Same ordering as the Scores tab: games that have kicked off (locked) rise to
-  // the top, newest kickoff first, then everything still to come, soonest first.
-  // Keyed on kickoff (locked) — not the result — so a game jumps up the moment it
-  // starts, not when it's decided.
-  cards.sort((a, b) => {
-    if (a.locked !== b.locked) return a.locked ? -1 : 1;
-    const ak = a.kickoffIso ?? "";
-    const bk = b.kickoffIso ?? "";
-    return a.locked ? bk.localeCompare(ak) : ak.localeCompare(bk);
+  };
+
+  // Same intra-round ordering as the Scores tab: games that have kicked off
+  // (locked) rise to the top, newest kickoff first, then upcoming, soonest first.
+  const sortCards = (cards: KnockoutPickCard[]) =>
+    cards.sort((a, b) => {
+      if (a.locked !== b.locked) return a.locked ? -1 : 1;
+      const ak = a.kickoffIso ?? "";
+      const bk = b.kickoffIso ?? "";
+      return a.locked ? bk.localeCompare(ak) : ak.localeCompare(bk);
+    });
+
+  // Every round with drawn matchups. Display the current round first, then the
+  // rest most-recent-first, so a finished round (e.g. Round of 32) stays visible
+  // — collapsible — beneath the active one instead of disappearing.
+  const drawn = KNOCKOUT_ROUNDS.filter((r) => matchesForRound(settings.liveMatches, r).length > 0);
+  const ordered = [currentRound, ...drawn.filter((r) => r !== currentRound).reverse()];
+
+  const rounds: KnockoutRoundGroup[] = ordered.map((r) => {
+    const pointsEach = settings.weights[LIVE_ROUND_POINTS[r]];
+    return {
+      round: r,
+      roundLabel: liveRound(r)?.label ?? r.toUpperCase(),
+      pointsEach,
+      current: r === currentRound,
+      cards: sortCards(matchesForRound(settings.liveMatches, r).map((m) => buildCard(m, pointsEach))),
+    };
   });
 
-  return { loggedIn: !!me, show, round, roundLabel, pointsEach, livePickTotal, cards };
+  return { loggedIn: !!me, show, round: currentRound, roundLabel, pointsEach: currentPointsEach, livePickTotal, rounds };
 }
