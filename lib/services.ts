@@ -9,25 +9,12 @@ import { now } from "./preview";
 import { rankParticipants, scorePredictions } from "./scoring";
 import { scorePickState } from "./score-picks";
 import { summarizeEveryone, type MatchEveryone } from "./score-view";
-import { currentLiveRoundView, liveMatchOpen, liveRound, matchesForRound } from "./live";
+import { currentLiveRoundView, liveMatchOpen, liveRound, matchesForRound, reconcileLiveMatches } from "./live";
+import { mergeResults } from "./merge-results";
 import { summarizeLiveEveryone, type LivePickInput, type MatchLiveEveryone } from "./live-view";
 import { resolveTeamCode, teamName } from "./teams";
 import { KNOCKOUT_ROUNDS, LIVE_ROUND_POINTS, type KnockoutRound } from "./types";
 import type { GroupMap, LeaderboardRow, LiveMatch, Participant, Results, ScoreMatch } from "./types";
-
-// Merge admin-entered results over provider results. Admin override wins per
-// field, so a human can always correct an API edge case.
-function mergeResults(provider: Results, stored: Results): Results {
-  return {
-    champion: stored.champion ?? provider.champion,
-    groupWinners: { ...provider.groupWinners, ...stored.groupWinners },
-    stageReached: { ...provider.stageReached, ...stored.stageReached },
-    goldenBall: stored.goldenBall ?? provider.goldenBall,
-    goldenBoot: stored.goldenBoot ?? provider.goldenBoot,
-    goldenGlove: stored.goldenGlove ?? provider.goldenGlove,
-    matchWinners: { ...provider.matchWinners, ...stored.matchWinners },
-  };
-}
 
 /**
  * Sync the official group composition from the active provider into settings
@@ -71,16 +58,39 @@ export async function getGroups(): Promise<GroupMap> {
 export async function syncLiveMatches(): Promise<{ count: number; provider: string }> {
   const repo = await db();
   const provider = getProvider();
-  const matches = await provider.fetchKnockoutMatches();
-  if (matches.length > 0) {
+  const fresh = await provider.fetchKnockoutMatches();
+  if (fresh.length > 0) {
     const settings = await repo.getSettings();
+    const { matches, renames } = reconcileLiveMatches(settings.liveMatches, fresh);
+    // A matchup that existed before the provider knew the game (admin manual
+    // entry, or a back-fill while the API was down) is re-keyed to the
+    // provider's id — carry saved picks and any recorded winner across.
+    if (Object.keys(renames).length > 0) {
+      const allPicks = await repo.listLivePicks();
+      for (const [participantId, picks] of Object.entries(allPicks)) {
+        if (!picks.some((p) => renames[p.matchId])) continue;
+        await repo.saveLivePicks(
+          participantId,
+          picks.map((p) => (renames[p.matchId] ? { ...p, matchId: renames[p.matchId] } : p)),
+        );
+      }
+      const stored = await repo.getResults();
+      if (Object.keys(stored.matchWinners).some((id) => renames[id])) {
+        await repo.saveResults({
+          ...stored,
+          matchWinners: Object.fromEntries(
+            Object.entries(stored.matchWinners).map(([id, w]) => [renames[id] ?? id, w]),
+          ),
+        });
+      }
+    }
     await repo.saveSettings({
       ...settings,
       liveMatches: matches,
       liveMatchesSyncedAt: new Date().toISOString(),
     });
   }
-  return { count: matches.length, provider: provider.name };
+  return { count: fresh.length, provider: provider.name };
 }
 
 /**
@@ -124,8 +134,6 @@ export async function recomputeScores(
   const provider = getProvider();
   const settings = await repo.getSettings();
 
-  const stored = await repo.getResults();
-  let merged = stored;
   let liveMatchesSynced = 0;
   let scorePickMatchesCreated = 0;
   if (opts.pullFromProvider) {
@@ -138,6 +146,14 @@ export async function recomputeScores(
     scorePickMatchesCreated = await syncScorePickMatches()
       .then((r) => r.created)
       .catch(() => 0);
+  }
+
+  // Read stored results AFTER the matchup sync — it may have migrated
+  // matchWinners to renamed match ids, and merging from a pre-sync snapshot
+  // would write the stale keys right back.
+  const stored = await repo.getResults();
+  let merged = stored;
+  if (opts.pullFromProvider) {
     const fresh = await provider.fetchResults();
     merged = mergeResults(fresh, stored);
     await repo.saveResults(merged);

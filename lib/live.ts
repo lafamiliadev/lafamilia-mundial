@@ -112,6 +112,45 @@ export function mergeRoundPicks(
   return { ok: true, picks: merged };
 }
 
+export type LiveMatchReconciliation = {
+  /** The list to store: provider entries (canonical ids + kickoffs) plus any
+   * stored matchups the provider doesn't return yet (manual/back-filled). */
+  matches: LiveMatch[];
+  /** stored matchId → provider matchId — the caller migrates saved picks and
+   * recorded winners across so nothing orphans on the id change. */
+  renames: Record<string, string>;
+};
+
+/** Same game = same round + same two teams, either orientation. */
+function pairKey(m: LiveMatch): string {
+  return `${m.round}:${[m.homeCode, m.awayCode].sort().join("-")}`;
+}
+
+/**
+ * Reconcile a fresh provider matchup list with the stored one. The provider is
+ * canonical for ids and kickoffs, but a blind replace has two failure modes
+ * this prevents: (1) a matchup entered before the provider knew the game
+ * (admin manual entry, or a back-fill while the API was down) would vanish —
+ * taking its pick cards with it; and (2) when the provider later returns that
+ * same game under its own id, every pick saved against the old id would stop
+ * counting. Games are paired by round + teams; stored-only entries are kept,
+ * and id changes are reported as renames.
+ */
+export function reconcileLiveMatches(
+  stored: LiveMatch[],
+  fresh: LiveMatch[],
+): LiveMatchReconciliation {
+  const freshByKey = new Map(fresh.map((m) => [pairKey(m), m]));
+  const renames: Record<string, string> = {};
+  const keep: LiveMatch[] = [];
+  for (const s of stored) {
+    const f = freshByKey.get(pairKey(s));
+    if (!f) keep.push(s);
+    else if (f.matchId !== s.matchId) renames[s.matchId] = f.matchId;
+  }
+  return { matches: [...fresh, ...keep], renames };
+}
+
 export type RawLivePick = { matchId: string; team: string; highConviction?: boolean };
 
 /**

@@ -7,6 +7,7 @@ import {
   matchImpact,
   matchesForRound,
   mergeRoundPicks,
+  reconcileLiveMatches,
   roundState,
   sanitizeLivePicks,
 } from "./live";
@@ -216,5 +217,61 @@ describe("mergeRoundPicks (partial save)", () => {
       { matchId: "r32-2", round: "r32", team: "BRA", highConviction: true },
     ]);
     expect(res.ok).toBe(true);
+  });
+});
+
+describe("reconcileLiveMatches", () => {
+  const fresh = (id: string, home: string, away: string, kick: string): LiveMatch => ({
+    matchId: id,
+    round: "qf" as KnockoutRound,
+    homeCode: home,
+    awayCode: away,
+    kickoffIso: kick,
+  });
+
+  it("replaces the list with provider matches when nothing was stored", () => {
+    const f = [fresh("af-1", "FRA", "MAR", "2026-07-09T20:00:00+00:00")];
+    const { matches, renames } = reconcileLiveMatches([], f);
+    expect(matches).toEqual(f);
+    expect(renames).toEqual({});
+  });
+
+  it("renames a back-filled matchup to the provider id (either orientation)", () => {
+    const stored = [
+      { matchId: "qf-3", round: "qf", homeCode: "ESP", awayCode: "BEL", kickoffIso: "2026-07-10T19:00:00+00:00" },
+      { matchId: "qf-4", round: "qf", homeCode: "SUI", awayCode: "ARG", kickoffIso: "2026-07-12T01:00:00+00:00" },
+    ] as LiveMatch[];
+    const f = [
+      fresh("af-9001", "ESP", "BEL", "2026-07-10T19:00:00+00:00"),
+      fresh("af-9002", "ARG", "SUI", "2026-07-12T01:00:00+00:00"),
+    ];
+    const { matches, renames } = reconcileLiveMatches(stored, f);
+    expect(renames).toEqual({ "qf-3": "af-9001", "qf-4": "af-9002" });
+    expect(matches).toEqual(f); // provider entry wins — no duplicate cards
+  });
+
+  it("keeps stored matchups the provider doesn't return yet", () => {
+    const stored = [
+      { matchId: "qf-3", round: "qf", homeCode: "ESP", awayCode: "BEL", kickoffIso: null },
+    ] as LiveMatch[];
+    const f = [fresh("af-1", "FRA", "MAR", "2026-07-09T20:00:00+00:00")];
+    const { matches, renames } = reconcileLiveMatches(stored, f);
+    expect(renames).toEqual({});
+    expect(matches).toHaveLength(2);
+    expect(matches.map((x) => x.matchId).sort()).toEqual(["af-1", "qf-3"]);
+  });
+
+  it("does not rename across rounds and reports no rename for identical ids", () => {
+    const stored = [
+      { matchId: "af-1", round: "r16", homeCode: "FRA", awayCode: "MAR", kickoffIso: null },
+      { matchId: "af-2", round: "qf", homeCode: "NOR", awayCode: "ENG", kickoffIso: null },
+    ] as LiveMatch[];
+    const f = [
+      fresh("af-3", "FRA", "MAR", "2026-07-09T20:00:00+00:00"), // qf — the r16 game is a different match
+      fresh("af-2", "NOR", "ENG", "2026-07-11T21:00:00+00:00"),
+    ];
+    const { matches, renames } = reconcileLiveMatches(stored, f);
+    expect(renames).toEqual({});
+    expect(matches.map((x) => x.matchId).sort()).toEqual(["af-1", "af-2", "af-3"]);
   });
 });
