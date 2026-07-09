@@ -25,7 +25,7 @@ export async function StatusBar() {
   const repo = await db();
   const settings = await repo.getSettings();
   const nowD = await now();
-  const status = pickStatus(nowD, settings.lockTime);
+  const status = pickStatus(nowD, settings.lockTime, settings.liveMatches);
   // Is there a Bonus Score Pick OPEN (within its 24h window) the viewer still
   // needs to make? That's the live, earn-today path — it takes priority over
   // "knockouts in N days". Skip matches they've predicted so the bar doesn't nag.

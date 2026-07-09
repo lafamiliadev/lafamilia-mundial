@@ -52,7 +52,7 @@ export function nextScoringMilestone(now: Date): ScoringMilestone | null {
 // Dates follow the official 2026 knockout calendar. Picks for a round open once
 // its matchups are confirmed and lock at the round's first kickoff. Base points
 // in play are equal each round (16): 16×1, 8×2, 4×4, 2×8, 1×16.
-import type { BonusPicks, KnockoutRound, ScoringWeights } from "./types";
+import type { BonusPicks, KnockoutRound, LiveMatch, ScoringWeights } from "./types";
 
 export type LiveRound = {
   round: KnockoutRound;
@@ -98,14 +98,33 @@ export type PickStatus =
   | { state: "round-soon"; round: LiveRound }
   | { state: "done" };
 
-/** What can a member do right now? Drives the status bar, hub, and home screen. */
-export function pickStatus(now: Date, lockTime: string): PickStatus {
+/**
+ * What can a member do right now? Drives the status bar, hub, and home screen.
+ * When the drawn matchups are supplied, a round counts as OPEN while any of its
+ * games hasn't kicked off (the per-game lock the pick screen and save action
+ * enforce) — a round spans several days, so the printed open/lock windows can't
+ * be trusted once its first game has started. The windows remain the fallback
+ * for rounds whose matchups aren't drawn yet.
+ */
+export function pickStatus(now: Date, lockTime: string, liveMatches: LiveMatch[] = []): PickStatus {
   const t = now.getTime();
   // Pre-kickoff: the Bonus Picks are the open action.
   if (t < new Date(lockTime).getTime()) {
     return { state: "bonus-open", pointsAvailable: BONUS_POINTS_AVAILABLE, closesIso: lockTime };
   }
-  // A knockout round currently open for picks?
+  // Per-game truth first: the earliest round with a game still open to pick.
+  // (Mirrors liveMatchOpen — a missing/invalid kickoff never counts as open.)
+  const gameOpen = (m: LiveMatch) => {
+    if (!m.kickoffIso) return false;
+    const k = new Date(m.kickoffIso).getTime();
+    return !Number.isNaN(k) && t < k;
+  };
+  for (const r of LIVE_ROUNDS) {
+    if (liveMatches.some((m) => m.round === r.round && gameOpen(m))) {
+      return { state: "round-open", round: r };
+    }
+  }
+  // A knockout round inside its scheduled window (matchups not drawn yet)?
   const open = LIVE_ROUNDS.find(
     (r) => new Date(r.opensIso).getTime() <= t && t < new Date(r.locksIso).getTime(),
   );

@@ -53,7 +53,7 @@ export default async function Home() {
       getRivalry(me.resumeToken),
     ]);
     const nowD = await now();
-    const status = pickStatus(nowD, settings.lockTime);
+    const status = pickStatus(nowD, settings.lockTime, settings.liveMatches);
     const bonusFilled = Object.values(me.predictions.bonus ?? EMPTY_BONUS).filter(Boolean).length;
     // Only Bonus Score Picks whose 24h window is OPEN and the member hasn't
     // predicted yet — the home nudge never points at a match that isn't
