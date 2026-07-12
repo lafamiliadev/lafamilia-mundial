@@ -299,6 +299,25 @@ export default async function LeaderboardPage({
         <ViewTabs active={view} token={token} />
         <p className="-mt-2 mb-5 text-xs text-[var(--color-muted)]">{viewBlurb[view]}</p>
 
+        {/* Whose picks are shown is invisible otherwise — and a missing or
+            switched cookie makes people's own predictions look lost. Say who
+            "you" is on the personal tabs, or how to sign in when nobody is. */}
+        {(view === "score" || view === "live") && (
+          <p className="mb-4 rounded-xl bg-black/[0.03] px-3 py-2 text-center text-xs text-[var(--color-muted)]">
+            {meParticipant ? (
+              <>
+                Showing <strong className="text-[var(--color-ink)]">{meParticipant.name}</strong>&apos;s picks as
+                &ldquo;you&rdquo;. Not you? Open your personal link from your invite email.
+              </>
+            ) : (
+              <>
+                You&apos;re not signed in, so your own picks aren&apos;t highlighted. Open your personal link
+                from your invite email to see them here.
+              </>
+            )}
+          </p>
+        )}
+
         {/* Next action, near the top: earn points RIGHT NOW by predicting a score.
             This is the live, do-it-today path during the group stage. */}
         {nextScoreMatch && view !== "live" && (
