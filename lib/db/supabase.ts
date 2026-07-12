@@ -94,6 +94,24 @@ function toScorePrediction(r: Record<string, unknown>): ScorePrediction {
   };
 }
 
+// PostgREST (the Supabase REST API) caps every select at 1000 rows by default
+// and truncates SILENTLY. score_predictions outgrew that cap mid-tournament,
+// which made the newest matches' predictions vanish from "everyone" views and
+// drop out of the leaderboard totals. Any read of a table that can exceed
+// 1000 rows must page through with .range() in a stable order.
+const PG_PAGE = 1000;
+async function fetchAllRows<Row>(
+  page: (from: number, to: number) => PromiseLike<{ data: Row[] | null }>,
+): Promise<Row[]> {
+  const all: Row[] = [];
+  for (let from = 0; ; from += PG_PAGE) {
+    const { data } = await page(from, from + PG_PAGE - 1);
+    const rows = data ?? [];
+    all.push(...rows);
+    if (rows.length < PG_PAGE) return all;
+  }
+}
+
 function predictionColumns(participantId: string, p: Predictions): PredictionRow {
   return {
     participant_id: participantId,
@@ -493,16 +511,19 @@ export const supabaseRepo: Repo = {
 
   async getAllScorePredictions() {
     const db = supabaseAdmin();
-    const { data } = await db
-      .from("score_predictions")
-      .select("match_id, participant_id, score_a, score_b, points_awarded");
-    const rows = (data ?? []) as {
+    const rows = await fetchAllRows<{
       match_id: string;
       participant_id: string;
       score_a: number;
       score_b: number;
       points_awarded: number | null;
-    }[];
+    }>((from, to) =>
+      db
+        .from("score_predictions")
+        .select("match_id, participant_id, score_a, score_b, points_awarded")
+        .order("id")
+        .range(from, to),
+    );
     if (rows.length === 0) return [];
     const { data: people } = await db
       .from("participants")
@@ -530,13 +551,17 @@ export const supabaseRepo: Repo = {
 
   async getScorePredictionTotals() {
     const db = supabaseAdmin();
-    const { data } = await db
-      .from("score_predictions")
-      .select("participant_id, points_awarded")
-      .not("points_awarded", "is", null);
+    const rows = await fetchAllRows<{ participant_id: string; points_awarded: number }>(
+      (from, to) =>
+        db
+          .from("score_predictions")
+          .select("participant_id, points_awarded")
+          .not("points_awarded", "is", null)
+          .order("id")
+          .range(from, to),
+    );
     const totals: Record<string, number> = {};
-    for (const r of data ?? []) {
-      const row = r as { participant_id: string; points_awarded: number };
+    for (const row of rows) {
       totals[row.participant_id] = (totals[row.participant_id] ?? 0) + (row.points_awarded ?? 0);
     }
     return totals;
@@ -544,10 +569,11 @@ export const supabaseRepo: Repo = {
 
   async getScorePredictionCounts() {
     const db = supabaseAdmin();
-    const { data } = await db.from("score_predictions").select("match_id");
+    const rows = await fetchAllRows<{ match_id: string }>((from, to) =>
+      db.from("score_predictions").select("match_id").order("id").range(from, to),
+    );
     const counts: Record<string, number> = {};
-    for (const r of data ?? []) {
-      const row = r as { match_id: string };
+    for (const row of rows) {
       counts[row.match_id] = (counts[row.match_id] ?? 0) + 1;
     }
     return counts;
