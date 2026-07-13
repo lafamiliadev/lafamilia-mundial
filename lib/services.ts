@@ -9,12 +9,19 @@ import { now } from "./preview";
 import { rankParticipants, scorePredictions } from "./scoring";
 import { scorePickState } from "./score-picks";
 import { summarizeEveryone, type MatchEveryone } from "./score-view";
-import { currentLiveRoundView, liveMatchOpen, liveRound, matchesForRound, reconcileLiveMatches } from "./live";
+import {
+  currentLiveRoundView,
+  liveMatchOpen,
+  liveRound,
+  matchesForRound,
+  reconcileLiveMatches,
+  stageReachedFromBracket,
+} from "./live";
 import { mergeResults } from "./merge-results";
 import { summarizeLiveEveryone, type LivePickInput, type MatchLiveEveryone } from "./live-view";
 import { resolveTeamCode, teamName } from "./teams";
 import { KNOCKOUT_ROUNDS, LIVE_ROUND_POINTS, type KnockoutRound } from "./types";
-import type { GroupMap, LeaderboardRow, LiveMatch, Participant, Results, ScoreMatch } from "./types";
+import type { GroupMap, LeaderboardRow, LiveMatch, Participant, ScoreMatch, Stage } from "./types";
 
 /**
  * Sync the official group composition from the active provider into settings
@@ -132,7 +139,6 @@ export async function recomputeScores(
 ): Promise<RecomputeReport> {
   const repo = await db();
   const provider = getProvider();
-  const settings = await repo.getSettings();
 
   let liveMatchesSynced = 0;
   let scorePickMatchesCreated = 0;
@@ -148,16 +154,32 @@ export async function recomputeScores(
       .catch(() => 0);
   }
 
-  // Read stored results AFTER the matchup sync — it may have migrated
-  // matchWinners to renamed match ids, and merging from a pre-sync snapshot
-  // would write the stale keys right back.
+  // Read settings and stored results AFTER the matchup sync — it may have added
+  // or re-keyed matchups and migrated matchWinners to renamed match ids, and
+  // merging from a pre-sync snapshot would write the stale keys right back.
+  const settings = await repo.getSettings();
   const stored = await repo.getResults();
   let merged = stored;
   if (opts.pullFromProvider) {
     const fresh = await provider.fetchResults();
     merged = mergeResults(fresh, stored);
-    await repo.saveResults(merged);
   }
+
+  // Keep bracket advancement in lockstep with the recorded knockout results.
+  // Recording match winners is the only manual step; stageReached (which drives
+  // Final Four semifinalist points AND Dark Horse bonus points) is DERIVED here
+  // from the drawn matchups + winners, so those points can never lag behind the
+  // winners an admin has already entered. Union so a provider/manual stage we
+  // can't see from the bracket is never dropped. Persisted because the per-player
+  // ledger and the awards both read stored results — not just the leaderboard.
+  const bracketAdvance = stageReachedFromBracket(settings.liveMatches, merged.matchWinners ?? {});
+  const stageReached: Partial<Record<Stage, string[]>> = { ...merged.stageReached };
+  for (const [stage, codes] of Object.entries(bracketAdvance.stageReached)) {
+    const s = stage as Stage;
+    stageReached[s] = Array.from(new Set([...(stageReached[s] ?? []), ...codes]));
+  }
+  merged = { ...merged, stageReached, champion: merged.champion ?? bracketAdvance.champion };
+  await repo.saveResults(merged);
 
   const participants = await repo.listParticipants();
   const actualFinalGoals = null; // could be derived from results in future

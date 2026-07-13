@@ -10,6 +10,7 @@ import {
   reconcileLiveMatches,
   roundState,
   sanitizeLivePicks,
+  stageReachedFromBracket,
 } from "./live";
 import { LIVE_ROUNDS } from "./schedule";
 import { DEFAULT_WEIGHTS, type KnockoutRound, type LiveMatch, type LivePick } from "./types";
@@ -273,5 +274,54 @@ describe("reconcileLiveMatches", () => {
     const { matches, renames } = reconcileLiveMatches(stored, f);
     expect(renames).toEqual({});
     expect(matches.map((x) => x.matchId).sort()).toEqual(["af-1", "af-2", "af-3"]);
+  });
+});
+
+describe("stageReachedFromBracket", () => {
+  const km = (id: string, round: KnockoutRound, home: string, away: string): LiveMatch => ({
+    matchId: id,
+    round,
+    homeCode: home,
+    awayCode: away,
+    kickoffIso: null,
+  });
+
+  it("credits both teams of a drawn match with reaching that stage", () => {
+    const matches = [km("qf-1", "qf", "FRA", "MAR"), km("qf-2", "qf", "NOR", "ENG")];
+    const { stageReached } = stageReachedFromBracket(matches, {});
+    expect([...(stageReached.qf ?? [])].sort()).toEqual(["ENG", "FRA", "MAR", "NOR"]);
+  });
+
+  it("credits a match winner with reaching the NEXT stage immediately", () => {
+    // A finished QF whose SF matchup isn't drawn yet: the winner must still be
+    // credited with reaching the semifinal (this is exactly the production bug).
+    const matches = [km("qf-4", "qf", "ARG", "SUI")];
+    const { stageReached } = stageReachedFromBracket(matches, { "qf-4": "ARG" });
+    expect(stageReached.qf?.sort()).toEqual(["ARG", "SUI"]);
+    expect(stageReached.sf).toEqual(["ARG"]); // ARG advanced by winning, no SF matchup needed
+  });
+
+  it("names the Final winner as champion and reaches the final stage", () => {
+    const matches = [km("final-1", "final", "ARG", "FRA")];
+    const { stageReached, champion } = stageReachedFromBracket(matches, { "final-1": "ARG" });
+    expect(champion).toBe("ARG");
+    expect(stageReached.final?.sort()).toEqual(["ARG", "FRA"]);
+    expect(stageReached.champion).toEqual(["ARG"]);
+  });
+
+  it("ignores R32 as a bracket stage but still advances its winners to R16", () => {
+    const matches = [km("r32-1", "r32", "RSA", "CAN")];
+    const { stageReached } = stageReachedFromBracket(matches, { "r32-1": "CAN" });
+    expect("r32" in stageReached).toBe(false); // r32 is not a scored bracket stage
+    expect(stageReached.r16).toEqual(["CAN"]);
+  });
+
+  it("does not double-list a team reached via both matchup and a win", () => {
+    const matches = [
+      km("r16-1", "r16", "FRA", "PAR"), // FRA plays R16 → reached r16
+      km("qf-1", "qf", "FRA", "MAR"), // FRA's QF matchup drawn → reached qf
+    ];
+    const { stageReached } = stageReachedFromBracket(matches, { "r16-1": "FRA" });
+    expect(stageReached.qf?.filter((c) => c === "FRA")).toEqual(["FRA"]);
   });
 });

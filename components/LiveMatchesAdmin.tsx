@@ -44,6 +44,15 @@ function TeamSelect({
   );
 }
 
+/** ISO → the browser-local "YYYY-MM-DDTHH:mm" a datetime-local input wants. */
+function isoToLocalInput(iso: string | null): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
 /** Per-round matchup editor — remounted (via key) when the round changes so
  * state always reflects the saved matchups for that round. */
 function RoundEditor({
@@ -59,14 +68,20 @@ function RoundEditor({
   const [rows, setRows] = useState(() =>
     Array.from({ length: count }, (_, i) => {
       const m = byId.get(matchId(round, i));
-      return { home: m?.homeCode ?? "", away: m?.awayCode ?? "" };
+      return {
+        home: m?.homeCode ?? "",
+        away: m?.awayCode ?? "",
+        // Browser-local conversion — differs between the server render and the
+        // client, so the input carries suppressHydrationWarning below.
+        kickoff: isoToLocalInput(m?.kickoffIso ?? null),
+      };
     }),
   );
   const [pending, start] = useTransition();
   const [msg, setMsg] = useState<string | null>(null);
 
-  function setRow(i: number, side: "home" | "away", v: string) {
-    setRows((rs) => rs.map((r, j) => (j === i ? { ...r, [side]: v } : r)));
+  function setRow(i: number, field: "home" | "away" | "kickoff", v: string) {
+    setRows((rs) => rs.map((r, j) => (j === i ? { ...r, [field]: v } : r)));
   }
 
   function saveMatchups() {
@@ -75,7 +90,10 @@ function RoundEditor({
       round,
       homeCode: r.home,
       awayCode: r.away,
-      kickoffIso: null,
+      // Without a kickoff a match counts as LOCKED (never pickable), so the
+      // admin's local-time entry is converted to ISO here. Left blank, the
+      // save action keeps whatever kickoff the matchup already had.
+      kickoffIso: r.kickoff ? new Date(r.kickoff).toISOString() : null,
     }));
     start(async () => {
       const res = await saveLiveMatchesAction(round, matches);
@@ -89,6 +107,10 @@ function RoundEditor({
       <p className="text-xs font-bold uppercase tracking-wider text-[var(--color-muted)]">
         Matchups — {count} {count === 1 ? "match" : "matches"}
       </p>
+      <p className="mt-1 text-xs text-[var(--color-muted)]">
+        Kickoff is in YOUR local time. Picks for a game stay open until its kickoff — a matchup
+        without one can&apos;t be picked at all.
+      </p>
       <div className="mt-2 space-y-2">
         {rows.map((r, i) => (
           <div key={i} className="flex items-center gap-2">
@@ -98,6 +120,14 @@ function RoundEditor({
             <TeamSelect value={r.home} onChange={(v) => setRow(i, "home", v)} placeholder="Home —" />
             <span className="shrink-0 text-xs font-bold text-[var(--color-muted)]">vs</span>
             <TeamSelect value={r.away} onChange={(v) => setRow(i, "away", v)} placeholder="Away —" />
+            <input
+              type="datetime-local"
+              value={r.kickoff}
+              onChange={(e) => setRow(i, "kickoff", e.target.value)}
+              className={`${selectCls} max-w-[180px] shrink-0`}
+              aria-label={`Match ${i + 1} kickoff (local time)`}
+              suppressHydrationWarning
+            />
           </div>
         ))}
       </div>

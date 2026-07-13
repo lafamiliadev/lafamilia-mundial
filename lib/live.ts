@@ -10,6 +10,7 @@ import {
   type LiveMatch,
   type LivePick,
   type ScoringWeights,
+  type Stage,
 } from "./types";
 
 /** How many matches each knockout round has — drives the admin entry grid. */
@@ -238,4 +239,60 @@ export function matchImpact(
     away,
     totalPickers: home.players + away.players,
   };
+}
+
+// A knockout match's bracket stage: both teams that PLAY in it have reached this
+// stage. r32 is the entry round and isn't a scored bracket stage, so it's absent.
+const CURRENT_STAGE: Partial<Record<KnockoutRound, Stage>> = {
+  r16: "r16",
+  qf: "qf",
+  sf: "sf",
+  final: "final",
+};
+// The stage a match's WINNER advances into (so we credit advancement the moment
+// a winner is recorded, without waiting for the next matchup to be drawn).
+const NEXT_STAGE: Partial<Record<KnockoutRound, Stage>> = {
+  r32: "r16",
+  r16: "qf",
+  qf: "sf",
+  sf: "final",
+};
+
+/**
+ * Which teams have reached each bracket stage, derived straight from the drawn
+ * knockout matchups + the recorded match winners. Both teams of a drawn match
+ * have reached that match's stage; a match's winner has reached the next stage;
+ * the Final's winner is champion. This is the twin of parseKnockoutFixtures'
+ * stageReached logic, but sourced from our own bracket (settings.liveMatches +
+ * results.matchWinners) so Final Four (semifinalist) and Dark Horse scoring stay
+ * in lockstep with the winners an admin enters — no separate manual step. Pure.
+ */
+export function stageReachedFromBracket(
+  matches: LiveMatch[],
+  matchWinners: Record<string, string>,
+): { stageReached: Partial<Record<Stage, string[]>>; champion: string | null } {
+  const stageReached: Partial<Record<Stage, string[]>> = {};
+  const add = (stage: Stage, code: string | null | undefined) => {
+    if (!code) return;
+    const arr = (stageReached[stage] ??= []);
+    if (!arr.includes(code)) arr.push(code);
+  };
+  let champion: string | null = null;
+  for (const m of matches) {
+    const current = CURRENT_STAGE[m.round];
+    if (current) {
+      add(current, m.homeCode);
+      add(current, m.awayCode);
+    }
+    const winner = matchWinners[m.matchId];
+    if (winner) {
+      const next = NEXT_STAGE[m.round];
+      if (next) add(next, winner);
+      if (m.round === "final") {
+        champion = winner;
+        add("champion", winner);
+      }
+    }
+  }
+  return { stageReached, champion };
 }
