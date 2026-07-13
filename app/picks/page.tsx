@@ -6,6 +6,7 @@ import { db } from "@/lib/db";
 import { LIVE_PICKS_ENABLED } from "@/lib/flags";
 import { currentLiveRoundView, liveMatchOpen, liveRound, matchesForRound } from "@/lib/live";
 import { getSessionParticipant } from "@/lib/session";
+import { teamName } from "@/lib/teams";
 import { now, PREVIEW_ENABLED } from "@/lib/preview";
 import { openScoreMatches, scorePickState } from "@/lib/score-picks";
 import { BONUS_POINTS_AVAILABLE, LIVE_ROUNDS, pickStatus } from "@/lib/schedule";
@@ -113,9 +114,12 @@ export default async function PicksHubPage({
           Open now
         </p>
 
-        {openScoreNow.length > 0 && (
+        {/* One card PER open score game (not just the soonest), so a newly added
+            match — e.g. a semifinal — is never hidden behind another one. */}
+        {openScoreNow.slice(0, 3).map((m) => (
           <Link
-            href="/picks/score"
+            key={m.matchId}
+            href={`/picks/score?me=${me.resumeToken}#m-${m.matchId}`}
             className="card mb-3 block overflow-hidden border-2 border-[var(--color-gold)] shadow-sm transition hover:shadow-md"
           >
             <div className="flex items-center gap-4 p-4">
@@ -133,16 +137,16 @@ export default async function PicksHubPage({
                   </span>
                 </div>
                 <p className="mt-0.5 text-sm text-[var(--color-muted)]">
-                  {openScoreNow[0].teamA} vs {openScoreNow[0].teamB} · {openScoreNow[0].displayTimePt}
+                  {m.teamA} vs {m.teamB} · {m.displayTimePt}
                 </p>
               </div>
               <span className="shrink-0 text-lg text-[var(--color-gold)]">›</span>
             </div>
             <div className="bg-[var(--color-gold)] px-4 py-2.5 text-center text-sm font-bold text-[#3a2b00]">
-              Lock my score →
+              Lock my score — {m.teamA} vs {m.teamB} →
             </div>
           </Link>
-        )}
+        ))}
 
         {bonusOpen ? (
           <Link
@@ -190,7 +194,12 @@ export default async function PicksHubPage({
               <div className="min-w-0 flex-1">
                 <p className="font-bold">{liveLabel} — pick who advances</p>
                 <p className="mt-0.5 text-sm text-[var(--color-muted)]">
-                  {liveOpenGames.length} {liveOpenGames.length === 1 ? "game" : "games"} open · each locks at kickoff
+                  {/* Name every open game — "2 games open" alone hides a late-added
+                      matchup from anyone who thinks they're already done. */}
+                  {liveOpenGames
+                    .map((g) => `${teamName(g.homeCode)} vs ${teamName(g.awayCode)}`)
+                    .join(" · ")}{" "}
+                  · each locks at kickoff
                 </p>
               </div>
               <span className="shrink-0 text-right">

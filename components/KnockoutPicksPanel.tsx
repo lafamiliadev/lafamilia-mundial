@@ -88,13 +88,40 @@ function EveryoneSummary({ card, pointsEach }: { card: KnockoutPickCard; pointsE
   );
 }
 
-function EveryoneCard({ card, open, pointsEach }: { card: KnockoutPickCard; open: boolean; pointsEach: number }) {
-  // Not-yet-revealed: plain card, nothing to expand.
+function EveryoneCard({
+  card,
+  open,
+  pointsEach,
+  pickHref,
+}: {
+  card: KnockoutPickCard;
+  open: boolean;
+  pointsEach: number;
+  pickHref: string;
+}) {
+  // Still open: the pick is the action, so the card leads with it — a live
+  // button to the pick screen, your current pick if you've made one.
   if (!card.locked) {
     return (
       <div className="card p-4">
         <MatchHeader card={card} />
-        <p className="mt-3 text-sm text-[var(--color-muted)]">🔒 Everyone&apos;s picks reveal at kickoff.</p>
+        {card.myTeam && (
+          <p className="mt-2 text-xs text-[var(--color-muted)]">
+            You picked{" "}
+            <strong className="text-[var(--color-ink)]">
+              {teamFlag(card.myTeam)} {teamName(card.myTeam)}
+            </strong>
+            {card.myHc && <span className="ml-1 font-bold text-[var(--color-gold)]">⚡ 2×</span>}
+            {" "}· you can change it until kickoff.
+          </p>
+        )}
+        <Link
+          href={pickHref}
+          className="mt-3 block rounded-xl bg-[var(--color-pitch)] px-4 py-2.5 text-center text-sm font-bold text-white transition hover:opacity-90"
+        >
+          {card.myTeam ? "Change my pick →" : `Make my pick — +${pointsEach} pts →`}
+        </Link>
+        <p className="mt-2 text-xs text-[var(--color-muted)]">🔒 Everyone&apos;s picks reveal at kickoff.</p>
       </div>
     );
   }
@@ -161,12 +188,18 @@ function roundDefaultOpenId(cards: KnockoutPickCard[]): string | null {
 
 // One round's list of match cards. Reused for the expanded current round and
 // the collapsed past rounds so both render identically inside.
-function RoundCards({ group }: { group: KnockoutRoundGroup }) {
+function RoundCards({ group, pickHref }: { group: KnockoutRoundGroup; pickHref: string }) {
   const defaultOpenId = roundDefaultOpenId(group.cards);
   return (
     <div className="space-y-3">
       {group.cards.map((c) => (
-        <EveryoneCard key={c.matchId} card={c} open={c.matchId === defaultOpenId} pointsEach={group.pointsEach} />
+        <EveryoneCard
+          key={c.matchId}
+          card={c}
+          open={c.matchId === defaultOpenId}
+          pointsEach={group.pointsEach}
+          pickHref={pickHref}
+        />
       ))}
     </div>
   );
@@ -183,11 +216,14 @@ export function KnockoutPicksPanel({
   loggedIn,
   livePickTotal,
   rounds,
+  token,
 }: {
   loggedIn: boolean;
   livePickTotal: number;
   rounds: KnockoutRoundGroup[];
+  token?: string | null;
 }) {
+  const pickHref = `/picks/live${token ? `?token=${token}` : ""}`;
   return (
     <section className="mt-6">
       <div className="mb-3 flex items-center justify-between">
@@ -215,7 +251,7 @@ export function KnockoutPicksPanel({
                     Current
                   </span>
                 </p>
-                <RoundCards group={group} />
+                <RoundCards group={group} pickHref={pickHref} />
               </div>
             ) : (
               // Past rounds: stay on the page, collapsed, so results never vanish.
@@ -228,7 +264,7 @@ export function KnockoutPicksPanel({
                   <span aria-hidden className="text-[var(--color-muted)] transition group-open:rotate-180">▾</span>
                 </summary>
                 <div className="px-3 pb-3">
-                  <RoundCards group={group} />
+                  <RoundCards group={group} pickHref={pickHref} />
                 </div>
               </details>
             ),
