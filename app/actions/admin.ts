@@ -124,9 +124,16 @@ export async function saveLiveMatchesAction(
   await requireAdmin();
   const repo = await db();
   const current = await repo.getSettings();
-  const complete = matches.filter(
-    (m) => m.round === round && m.homeCode && m.awayCode && m.homeCode !== m.awayCode,
-  );
+  // A row submitted without a kickoff keeps the kickoff the matchup already
+  // had (e.g. one set by the provider sync) — a null kickoff means the game
+  // can never be picked, so it must never be possible to lose one by accident.
+  const existingById = new Map(current.liveMatches.map((m) => [m.matchId, m]));
+  const complete = matches
+    .filter((m) => m.round === round && m.homeCode && m.awayCode && m.homeCode !== m.awayCode)
+    .map((m) => ({
+      ...m,
+      kickoffIso: m.kickoffIso ?? existingById.get(m.matchId)?.kickoffIso ?? null,
+    }));
   const others = current.liveMatches.filter((m) => m.round !== round);
   await repo.saveSettings({ ...current, liveMatches: [...others, ...complete] });
   revalidatePath("/admin");
