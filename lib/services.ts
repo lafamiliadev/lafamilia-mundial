@@ -111,7 +111,7 @@ export async function syncLiveMatches(): Promise<{ count: number; provider: stri
 export async function syncScorePickMatches(): Promise<{ created: number }> {
   const repo = await db();
   const provider = getProvider();
-  const fixtures = await provider.fetchScores().catch(() => [] as ProviderScore[]);
+  const fixtures = await provider.fetchScores();
   if (fixtures.length === 0) return { created: 0 };
   const fresh = selectNewScoreMatches(fixtures, await repo.getScoreMatches());
   const created = fresh.length > 0 ? await repo.createScoreMatches(fresh) : 0;
@@ -127,6 +127,10 @@ export type RecomputeReport = {
   liveMatches: number;
   /** New LatAm + Spain score-pick matches auto-created from the provider. */
   scorePickMatches: number;
+  /** Why a sync came back empty (auth/quota/transport) — empty when clean.
+   * Surfaced in the cron JSON and the admin recalc message so a dead feed is
+   * visible instead of reading as "0 new matches". */
+  providerErrors: string[];
 };
 
 /**
@@ -142,16 +146,24 @@ export async function recomputeScores(
 
   let liveMatchesSynced = 0;
   let scorePickMatchesCreated = 0;
+  const providerErrors: string[] = [];
   if (opts.pullFromProvider) {
     // Keep the knockout matchups fresh too (auto-populates the pick cards), and
     // auto-create any new LatAm + Spain score-pick games (knockouts included),
-    // then pull results. Neither sync hiccup may ever block scoring.
+    // then pull results. Neither sync hiccup may ever block scoring — but the
+    // failure reason is kept and reported, so a dead feed can't hide as "0".
     liveMatchesSynced = await syncLiveMatches()
       .then((r) => r.count)
-      .catch(() => 0);
+      .catch((e) => {
+        providerErrors.push(`knockout sync: ${(e as Error).message}`);
+        return 0;
+      });
     scorePickMatchesCreated = await syncScorePickMatches()
       .then((r) => r.created)
-      .catch(() => 0);
+      .catch((e) => {
+        providerErrors.push(`score-pick sync: ${(e as Error).message}`);
+        return 0;
+      });
   }
 
   // Read settings and stored results AFTER the matchup sync — it may have added
@@ -241,6 +253,7 @@ export async function recomputeScores(
     provider: provider.name,
     liveMatches: liveMatchesSynced,
     scorePickMatches: scorePickMatchesCreated,
+    providerErrors,
   };
 }
 

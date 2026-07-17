@@ -129,32 +129,42 @@ export class ApiFootballProvider implements FootballProvider {
     return results;
   }
 
-  /** Raw knockout + group fixtures for the tournament. */
+  /** Raw knockout + group fixtures for the tournament. Throws a readable error
+   * on transport/auth/quota failures so callers can surface WHY the feed is
+   * empty instead of silently syncing nothing. */
   private async fetchFixtures(): Promise<RawFixture[]> {
     const res = await fetch(
       `${BASE}/fixtures?league=${WORLD_CUP_LEAGUE_ID}&season=${SEASON}`,
       { headers: this.headers(), signal: AbortSignal.timeout(8000) },
     );
-    const json = (await res.json()) as { response?: RawFixture[] };
+    if (!res.ok) throw new Error(`API-Football /fixtures returned HTTP ${res.status}.`);
+    const json = (await res.json()) as {
+      response?: RawFixture[];
+      errors?: Record<string, string> | string[];
+    };
+    // API-Football reports auth/quota/param problems as HTTP 200 with an
+    // `errors` payload and an empty response — treat those as failures, not
+    // as "no games today".
+    const errs = json.errors;
+    const errText = Array.isArray(errs)
+      ? errs.join("; ")
+      : errs
+        ? Object.entries(errs)
+            .map(([k, v]) => `${k}: ${v}`)
+            .join("; ")
+        : "";
+    if (errText) throw new Error(`API-Football /fixtures error — ${errText}`);
     return json.response ?? [];
   }
 
   /** Knockout matchups (who plays whom) for the Live Picks pick cards. */
   async fetchKnockoutMatches(): Promise<LiveMatch[]> {
-    try {
-      return parseKnockoutFixtures(await this.fetchFixtures()).matches;
-    } catch {
-      return [];
-    }
+    return parseKnockoutFixtures(await this.fetchFixtures()).matches;
   }
 
   /** Final scores + status for every fixture (group stage included), for the
    * bonus score-prediction matches. Same /fixtures call as the other readers. */
   async fetchScores(): Promise<ProviderScore[]> {
-    try {
-      return parseFixtureScores(await this.fetchFixtures());
-    } catch {
-      return [];
-    }
+    return parseFixtureScores(await this.fetchFixtures());
   }
 }
