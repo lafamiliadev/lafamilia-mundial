@@ -49,11 +49,12 @@ function etDateStamp(iso: string): string {
   return `${get("year")}_${get("month")}_${get("day")}`;
 }
 
-/** Build a fresh, pre-linked score match from a provider fixture. Pre-linking
- * the provider fixture id means the existing auto-scoring flow scores it with
- * no extra step. */
+/** Build a fresh score match. Pass the provider fixture id when there is one —
+ * pre-linking means the existing auto-scoring flow scores it with no extra
+ * step. Bracket-derived matches (no provider) pass null and are scored by the
+ * admin, exactly like a manual entry. */
 export function buildScoreMatch(f: {
-  fixtureId: string;
+  fixtureId: string | null;
   kickoffIso: string;
   homeCode: string;
   awayCode: string;
