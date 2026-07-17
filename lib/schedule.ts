@@ -70,14 +70,10 @@ export const LIVE_ROUNDS: LiveRound[] = [
   { round: "r16", label: "Round of 16", plain: "the last 16 teams", opensIso: "2026-07-04T09:00:00-04:00", locksIso: "2026-07-04T12:00:00-04:00", pointsInPlay: 16 },
   { round: "qf", label: "Quarterfinals", plain: "the last 8 teams", opensIso: "2026-07-09T09:00:00-04:00", locksIso: "2026-07-09T12:00:00-04:00", pointsInPlay: 16 },
   { round: "sf", label: "Semifinals", plain: "the last 4 teams", opensIso: "2026-07-14T09:00:00-04:00", locksIso: "2026-07-14T12:00:00-04:00", pointsInPlay: 16 },
+  // 5:00pm ET kickoff at Hard Rock Stadium, Miami — the consolation game.
+  { round: "third", label: "Third place", plain: "the 3rd-place game", opensIso: "2026-07-16T09:00:00-04:00", locksIso: "2026-07-18T17:00:00-04:00", pointsInPlay: 8 },
   { round: "final", label: "The Final", plain: "the last match", opensIso: "2026-07-17T09:00:00-04:00", locksIso: "2026-07-19T15:00:00-04:00", pointsInPlay: 16 },
 ];
-
-/** 3rd-place playoff kickoff — 5:00pm ET, Hard Rock Stadium, Miami. Edition
- * config like LIVE_ROUNDS (a bracket can't tell us this time). Drives the
- * auto-created marquee score match; the 3rd-place game is NOT a Live Picks
- * round. */
-export const THIRD_PLACE_KICKOFF_ISO = "2026-07-18T21:00:00Z";
 
 /** Total points available in the Bonus Picks (Golden Ball 12 + Boot 12 + Glove 8 + Dark Horse 12). */
 export const BONUS_POINTS_AVAILABLE = 44;

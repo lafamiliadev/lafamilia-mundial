@@ -15,6 +15,7 @@ const ROUND_LABEL: Record<KnockoutRound, string> = {
   r16: "Round of 16",
   qf: "Quarterfinals",
   sf: "Semifinals",
+  third: "Third place",
   final: "Final",
 };
 
