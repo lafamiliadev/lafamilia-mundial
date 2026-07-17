@@ -2,6 +2,7 @@ import { playerName } from "./players";
 import { TEAM_BY_CODE } from "./teams";
 import {
   LIVE_ROUND_POINTS,
+  sectionRounds,
   type LivePick,
   type Predictions,
   type Results,
@@ -110,7 +111,8 @@ export function scorePredictions(
   // ─── Live Knockout Picks ───
   // Engine-level invariants, independent of how the picks were written: score
   // each match at most once, and double at most ONE correct High Conviction
-  // pick per round (so a duplicate or a second ⚡ can never over-award).
+  // pick per SECTION — the Final & 3rd Place share a single ⚡, every earlier
+  // round is its own section (so a duplicate or a second ⚡ can never over-award).
   const scoredMatches = new Set<string>();
   const convictionUsed = new Set<string>();
   for (const lp of livePicks) {
@@ -119,8 +121,9 @@ export function scorePredictions(
     const winner = results.matchWinners[lp.matchId];
     if (!winner || winner !== lp.team) continue;
     const base = w[LIVE_ROUND_POINTS[lp.round]] ?? 0; // guard a missing weight → never NaN
-    const doubles = lp.highConviction && !convictionUsed.has(lp.round);
-    if (doubles) convictionUsed.add(lp.round);
+    const sectionKey = sectionRounds(lp.round)[0];
+    const doubles = lp.highConviction && !convictionUsed.has(sectionKey);
+    if (doubles) convictionUsed.add(sectionKey);
     lines.push({
       label: `${lp.round.toUpperCase()}: ${teamLabel(lp.team)}${doubles ? " ⚡" : ""}`,
       points: doubles ? base * 2 : base,

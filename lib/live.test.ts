@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  ONE_DOUBLE_DOWN_ERROR,
   ROUND_MATCH_COUNT,
   currentLiveRoundView,
   liveMatchOpen,
@@ -49,7 +50,7 @@ describe("matchesForRound", () => {
 
 describe("sanitizeLivePicks", () => {
   it("accepts valid picks with one high-conviction", () => {
-    const res = sanitizeLivePicks("r32", MATCHES, [
+    const res = sanitizeLivePicks(MATCHES, [
       { matchId: "r32-1", team: "ARG", highConviction: true },
       { matchId: "r32-2", team: "USA" },
     ]);
@@ -62,29 +63,80 @@ describe("sanitizeLivePicks", () => {
   });
 
   it("rejects a team not in the match", () => {
-    const res = sanitizeLivePicks("r32", MATCHES, [{ matchId: "r32-1", team: "FRA" }]);
+    const res = sanitizeLivePicks(MATCHES, [{ matchId: "r32-1", team: "FRA" }]);
     expect(res).toEqual({ ok: false, error: "Pick one of the two teams in the match." });
   });
 
   it("rejects an unknown match", () => {
-    const res = sanitizeLivePicks("r32", MATCHES, [{ matchId: "r32-99", team: "ARG" }]);
+    const res = sanitizeLivePicks(MATCHES, [{ matchId: "r32-99", team: "ARG" }]);
     expect(res.ok).toBe(false);
   });
 
   it("rejects more than one high-conviction", () => {
-    const res = sanitizeLivePicks("r32", MATCHES, [
+    const res = sanitizeLivePicks(MATCHES, [
       { matchId: "r32-1", team: "ARG", highConviction: true },
       { matchId: "r32-2", team: "BRA", highConviction: true },
     ]);
-    expect(res).toEqual({ ok: false, error: "Only one ⚡ Double Down per round." });
+    expect(res).toEqual({ ok: false, error: ONE_DOUBLE_DOWN_ERROR });
   });
 
   it("rejects duplicate picks for one match", () => {
-    const res = sanitizeLivePicks("r32", MATCHES, [
+    const res = sanitizeLivePicks(MATCHES, [
       { matchId: "r32-1", team: "ARG" },
       { matchId: "r32-1", team: "MEX" },
     ]);
     expect(res.ok).toBe(false);
+  });
+});
+
+describe("Final & 3rd Place — ONE ⚡ across the whole section", () => {
+  const CLOSING: LiveMatch[] = [
+    { matchId: "derived-third-1", round: "third", homeCode: "FRA", awayCode: "ENG", kickoffIso: "2026-07-18T21:00:00Z" },
+    { matchId: "final-1", round: "final", homeCode: "ESP", awayCode: "ARG", kickoffIso: "2026-07-19T19:00:00Z" },
+  ];
+
+  it("stamps each pick with its own match's round (weights differ per game)", () => {
+    const res = sanitizeLivePicks(CLOSING, [
+      { matchId: "derived-third-1", team: "FRA" },
+      { matchId: "final-1", team: "ARG", highConviction: true },
+    ]);
+    expect(res.ok).toBe(true);
+    if (res.ok) {
+      expect(res.picks[0].round).toBe("third");
+      expect(res.picks[1].round).toBe("final");
+    }
+  });
+
+  it("rejects ⚡ on both the Final and the 3rd-place game in one submission", () => {
+    const res = sanitizeLivePicks(CLOSING, [
+      { matchId: "derived-third-1", team: "FRA", highConviction: true },
+      { matchId: "final-1", team: "ARG", highConviction: true },
+    ]);
+    expect(res).toEqual({ ok: false, error: ONE_DOUBLE_DOWN_ERROR });
+  });
+
+  it("merge rejects a ⚡ joining one already saved on the other game", () => {
+    const existing: LivePick[] = [
+      { matchId: "derived-third-1", round: "third", team: "FRA", highConviction: true },
+    ];
+    const res = mergeRoundPicks(existing, [
+      { matchId: "final-1", round: "final", team: "ARG", highConviction: true },
+    ]);
+    expect(res).toEqual({ ok: false, error: ONE_DOUBLE_DOWN_ERROR });
+  });
+
+  it("merge allows MOVING the ⚡ between the two games (radio behavior)", () => {
+    const existing: LivePick[] = [
+      { matchId: "derived-third-1", round: "third", team: "FRA", highConviction: true },
+    ];
+    const res = mergeRoundPicks(existing, [
+      { matchId: "derived-third-1", round: "third", team: "FRA", highConviction: false },
+      { matchId: "final-1", round: "final", team: "ARG", highConviction: true },
+    ]);
+    expect(res.ok).toBe(true);
+    if (res.ok) {
+      expect(res.picks.filter((p) => p.highConviction).map((p) => p.matchId)).toEqual(["final-1"]);
+    }
   });
 });
 
