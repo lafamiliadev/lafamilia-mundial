@@ -1,6 +1,8 @@
 import "server-only";
 import { db } from "./db";
 import { computeAwards, isTeamMember, type AwardsResult } from "./awards";
+import { deriveNextRoundMatchups, marqueeScoreMatches } from "./bracket-derive";
+import { THIRD_PLACE_KICKOFF_ISO } from "./schedule";
 import { getProvider, type ProviderMatchStatus, type ProviderScore } from "./football";
 import { buildLedgerLines, type LedgerLine } from "./ledger";
 import { orientApiScore, scoreMatchKey } from "./score-match-link";
@@ -127,6 +129,10 @@ export type RecomputeReport = {
   liveMatches: number;
   /** New LatAm + Spain score-pick matches auto-created from the provider. */
   scorePickMatches: number;
+  /** Next-round matchups drawn from our own confirmed winners (provider-free). */
+  derivedMatchups: number;
+  /** Marquee (Final / 3rd-place) score matches auto-created from the bracket. */
+  marqueeScoreMatches: number;
   /** Why a sync came back empty (auth/quota/transport) — empty when clean.
    * Surfaced in the cron JSON and the admin recalc message so a dead feed is
    * visible instead of reading as "0 new matches". */
@@ -169,13 +175,31 @@ export async function recomputeScores(
   // Read settings and stored results AFTER the matchup sync — it may have added
   // or re-keyed matchups and migrated matchWinners to renamed match ids, and
   // merging from a pre-sync snapshot would write the stale keys right back.
-  const settings = await repo.getSettings();
+  let settings = await repo.getSettings();
   const stored = await repo.getResults();
   let merged = stored;
   if (opts.pullFromProvider) {
     const fresh = await provider.fetchResults();
     merged = mergeResults(fresh, stored);
   }
+
+  // Draw the bracket forward from the recorded winners — no provider needed:
+  // next-round matchups once a round is fully decided, and the marquee (Final +
+  // 3rd-place) score matches everyone predicts. Runs on EVERY recompute, so an
+  // admin confirming the last result of a round is enough to open the next one.
+  // Idempotent: nothing already drawn or tracked is touched.
+  const derivedMatchups = deriveNextRoundMatchups(settings.liveMatches, merged.matchWinners ?? {});
+  if (derivedMatchups.length > 0) {
+    settings = { ...settings, liveMatches: [...settings.liveMatches, ...derivedMatchups] };
+    await repo.saveSettings(settings);
+  }
+  const marquee = marqueeScoreMatches(
+    settings.liveMatches,
+    merged.matchWinners ?? {},
+    await repo.getScoreMatches(),
+    THIRD_PLACE_KICKOFF_ISO,
+  );
+  if (marquee.length > 0) await repo.createScoreMatches(marquee);
 
   // Keep bracket advancement in lockstep with the recorded knockout results.
   // Recording match winners is the only manual step; stageReached (which drives
@@ -253,6 +277,8 @@ export async function recomputeScores(
     provider: provider.name,
     liveMatches: liveMatchesSynced,
     scorePickMatches: scorePickMatchesCreated,
+    derivedMatchups: derivedMatchups.length,
+    marqueeScoreMatches: marquee.length,
     providerErrors,
   };
 }

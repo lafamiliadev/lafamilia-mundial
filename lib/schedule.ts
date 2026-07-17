@@ -73,6 +73,12 @@ export const LIVE_ROUNDS: LiveRound[] = [
   { round: "final", label: "The Final", plain: "the last match", opensIso: "2026-07-17T09:00:00-04:00", locksIso: "2026-07-19T15:00:00-04:00", pointsInPlay: 16 },
 ];
 
+/** 3rd-place playoff kickoff — 5:00pm ET, Hard Rock Stadium, Miami. Edition
+ * config like LIVE_ROUNDS (a bracket can't tell us this time). Drives the
+ * auto-created marquee score match; the 3rd-place game is NOT a Live Picks
+ * round. */
+export const THIRD_PLACE_KICKOFF_ISO = "2026-07-18T21:00:00Z";
+
 /** Total points available in the Bonus Picks (Golden Ball 12 + Boot 12 + Glove 8 + Dark Horse 12). */
 export const BONUS_POINTS_AVAILABLE = 44;
 

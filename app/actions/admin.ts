@@ -58,11 +58,15 @@ export async function triggerRecalc(): Promise<{ ok: boolean; message: string }>
     revalidatePath("/picks/live");
     const synced =
       report.liveMatches > 0 ? `Synced ${report.liveMatches} knockout matchups · ` : "";
+    const drawn =
+      report.derivedMatchups > 0
+        ? `Drew ${report.derivedMatchups} matchup(s) from confirmed results · `
+        : "";
     const feedTrouble =
       report.providerErrors.length > 0 ? ` ⚠️ Feed: ${report.providerErrors.join(" · ")}` : "";
     return {
       ok: true,
-      message: `${synced}recalculated ${report.participants} entries via ${report.provider}.${feedTrouble}`,
+      message: `${synced}${drawn}recalculated ${report.participants} entries via ${report.provider}.${feedTrouble}`,
     };
   } catch (e) {
     return { ok: false, message: (e as Error).message };
