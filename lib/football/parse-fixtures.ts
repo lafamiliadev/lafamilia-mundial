@@ -76,11 +76,11 @@ export function parseFixtureScores(fixtures: RawFixture[]): ProviderScore[] {
   return out;
 }
 
-/** Map an API round label to our knockout round (3rd-place game excluded). */
+/** Map an API round label to our knockout round. */
 export function roundToKnockout(round: string | undefined): KnockoutRound | null {
   if (!round) return null;
   const r = round.toLowerCase();
-  if (r.includes("3rd") || r.includes("third")) return null; // 3rd-place playoff
+  if (r.includes("3rd") || r.includes("third")) return "third"; // 3rd-place playoff
   if (r.includes("32") || r.includes("1/16")) return "r32";
   if (r.includes("16") || r.includes("1/8")) return "r16";
   if (r.includes("quarter")) return "qf"; // before "final" — "quarter-finals" contains "final"
@@ -95,6 +95,7 @@ const KO_TO_STAGE: Record<KnockoutRound, Stage | null> = {
   r16: "r16",
   qf: "qf",
   sf: "sf",
+  third: null, // consolation game — playing it doesn't advance anyone's bracket
   final: "final",
 };
 

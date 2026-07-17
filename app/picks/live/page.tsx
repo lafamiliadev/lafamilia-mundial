@@ -3,7 +3,7 @@ import { LinkButton, PageShell, TopNav } from "@/components/ui";
 import { LivePicksWizard } from "@/components/LivePicksWizard";
 import { db } from "@/lib/db";
 import { LIVE_PICKS_ENABLED } from "@/lib/flags";
-import { currentLiveRoundView, liveMatchOpen, liveRound } from "@/lib/live";
+import { currentLiveRoundView, liveMatchOpen, liveRound, openLiveRoundViews } from "@/lib/live";
 import { now, PREVIEW_ENABLED } from "@/lib/preview";
 import { getSessionParticipant } from "@/lib/session";
 import { kickoffLabelDual } from "@/lib/format-time";
@@ -89,10 +89,15 @@ export default async function LivePicksPage({
 
   const settings = await repo.getSettings();
   const nowMs = (await now()).getTime();
-  // Per-game model: show the current knockout round, each game open until its
-  // own kickoff. null = no knockout matchups drawn yet.
-  const view = currentLiveRoundView(settings.liveMatches, nowMs);
-  if (!view) {
+  // Per-game model: EVERY round with a game still open gets its own section —
+  // over the closing weekend the 3rd-place game (Saturday) and the Final
+  // (Sunday) are pickable at the same time. When nothing is open, fall back to
+  // the latest drawn round as a locked recap. Empty = no matchups drawn yet.
+  const openViews = openLiveRoundViews(settings.liveMatches, nowMs);
+  const fallbackView =
+    openViews.length === 0 ? currentLiveRoundView(settings.liveMatches, nowMs) : null;
+  const views = openViews.length > 0 ? openViews : fallbackView ? [fallbackView] : [];
+  if (views.length === 0) {
     return (
       <Shell>
         <Notice
@@ -109,40 +114,46 @@ export default async function LivePicksPage({
     );
   }
 
-  const lr = liveRound(view.round);
-  const roundLabel = lr?.label ?? view.round.toUpperCase();
-  const plain = lr?.plain ?? "the matchups";
-  const pointsEach = settings.weights[LIVE_ROUND_POINTS[view.round]];
+  const allPicks = await repo.getLivePicks(me.id);
+  const sections = views.map((view) => {
+    const lr = liveRound(view.round);
+    const roundLabel = lr?.label ?? view.round.toUpperCase();
+    const plain = lr?.plain ?? "the matchups";
+    const pointsEach = settings.weights[LIVE_ROUND_POINTS[view.round]];
 
-  const roundPicks = (await repo.getLivePicks(me.id)).filter((p) => p.round === view.round);
-  const savedByMatch = new Map(roundPicks.map((p) => [p.matchId, p] as const));
+    const savedByMatch = new Map(
+      allPicks.filter((p) => p.round === view.round).map((p) => [p.matchId, p] as const),
+    );
 
-  // Order the games chronologically by kickoff — match ids are provider fixture
-  // ids, so their natural order is meaningless to a player.
-  const orderedMatches = [...view.matches].sort((a, b) =>
-    (a.kickoffIso ?? "").localeCompare(b.kickoffIso ?? ""),
-  );
+    // Order the games chronologically by kickoff — match ids are provider fixture
+    // ids, so their natural order is meaningless to a player.
+    const orderedMatches = [...view.matches].sort((a, b) =>
+      (a.kickoffIso ?? "").localeCompare(b.kickoffIso ?? ""),
+    );
 
-  // One row per game, with its own lock state + the member's saved pick. The
-  // server computes `locked` so the UI never relies on the browser clock.
-  const games = orderedMatches.map((m) => {
-    const saved = savedByMatch.get(m.matchId);
-    return {
-      matchId: m.matchId,
-      homeCode: m.homeCode,
-      awayCode: m.awayCode,
-      locked: !liveMatchOpen(m, nowMs),
-      kickoffLabel: m.kickoffIso ? kickoffLabelDual(m.kickoffIso) : null,
-      savedTeam: saved?.team ?? null,
-      savedHc: saved?.highConviction ?? false,
-    };
+    // One row per game, with its own lock state + the member's saved pick. The
+    // server computes `locked` so the UI never relies on the browser clock.
+    const games = orderedMatches.map((m) => {
+      const saved = savedByMatch.get(m.matchId);
+      return {
+        matchId: m.matchId,
+        homeCode: m.homeCode,
+        awayCode: m.awayCode,
+        locked: !liveMatchOpen(m, nowMs),
+        kickoffLabel: m.kickoffIso ? kickoffLabelDual(m.kickoffIso) : null,
+        savedTeam: saved?.team ?? null,
+        savedHc: saved?.highConviction ?? false,
+      };
+    });
+
+    // The soonest game still open in this round — drives the section countdown.
+    const nextOpen = orderedMatches.find((m) => liveMatchOpen(m, nowMs)) ?? null;
+    const nextUp = nextOpen
+      ? { kickoffIso: nextOpen.kickoffIso, homeCode: nextOpen.homeCode, awayCode: nextOpen.awayCode }
+      : null;
+
+    return { round: view.round, roundLabel, plain, pointsEach, games, nextUp };
   });
-
-  // The soonest game still open for picks — drives the countdown in the header.
-  const nextOpen = orderedMatches.find((m) => liveMatchOpen(m, nowMs)) ?? null;
-  const nextUp = nextOpen
-    ? { kickoffIso: nextOpen.kickoffIso, homeCode: nextOpen.homeCode, awayCode: nextOpen.awayCode }
-    : null;
 
   return (
     <main className="flex flex-1 flex-col">
@@ -155,16 +166,19 @@ export default async function LivePicksPage({
           >
             ← My picks
           </Link>
-          <div className="mt-4">
-            <LivePicksWizard
-              token={me.resumeToken}
-              round={view.round}
-              roundLabel={roundLabel}
-              plain={plain}
-              pointsEach={pointsEach}
-              games={games}
-              nextUp={nextUp}
-            />
+          <div className="mt-4 space-y-8">
+            {sections.map((s) => (
+              <LivePicksWizard
+                key={s.round}
+                token={me.resumeToken}
+                round={s.round}
+                roundLabel={s.roundLabel}
+                plain={s.plain}
+                pointsEach={s.pointsEach}
+                games={s.games}
+                nextUp={s.nextUp}
+              />
+            ))}
           </div>
         </div>
       </PageShell>

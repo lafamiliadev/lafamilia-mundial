@@ -32,8 +32,9 @@ describe("roundToKnockout", () => {
     expect(roundToKnockout("Semi-finals")).toBe("sf");
     expect(roundToKnockout("Final")).toBe("final");
   });
-  it("excludes the 3rd-place playoff and non-knockout rounds", () => {
-    expect(roundToKnockout("3rd Place Final")).toBeNull();
+  it("maps the 3rd-place playoff to its own round; excludes non-knockout rounds", () => {
+    expect(roundToKnockout("3rd Place Final")).toBe("third");
+    expect(roundToKnockout("Third place play-off")).toBe("third");
     expect(roundToKnockout("Group Stage - 1")).toBeNull();
     expect(roundToKnockout(undefined)).toBeNull();
   });
@@ -80,10 +81,14 @@ describe("parseKnockoutFixtures", () => {
     expect(out.matches).toHaveLength(2);
   });
 
-  it("excludes the 3rd-place game entirely", () => {
+  it("keeps the 3rd-place game as a pickable matchup without bracket-stage credit", () => {
     const out = parseKnockoutFixtures([fx(8, "3rd Place Final", "Brazil", "Spain", { status: "FT", homeWin: true })]);
-    expect(out.matches).toHaveLength(0);
-    expect(out.matchWinners).toEqual({});
+    expect(out.matches).toHaveLength(1);
+    expect(out.matches[0].round).toBe("third");
+    expect(out.matchWinners).toEqual({ "af-8": "BRA" });
+    // The consolation game advances no one: no stage credit, no champion.
+    expect(out.stageReached).toEqual({});
+    expect(out.champion).toBeNull();
   });
 
   it("sets champion + stageReached from the Final", () => {

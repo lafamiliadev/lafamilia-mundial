@@ -13,7 +13,7 @@ export type GroupLetter = (typeof GROUP_LETTERS)[number];
 export type GroupMap = Record<string, string[]>;
 
 /** Knockout rounds for the Live Picks competition (note: includes r32). */
-export const KNOCKOUT_ROUNDS = ["r32", "r16", "qf", "sf", "final"] as const;
+export const KNOCKOUT_ROUNDS = ["r32", "r16", "qf", "sf", "third", "final"] as const;
 export type KnockoutRound = (typeof KNOCKOUT_ROUNDS)[number];
 
 export type ScoringWeights = {
@@ -33,6 +33,7 @@ export type ScoringWeights = {
   liveR16: number;
   liveQf: number;
   liveSf: number;
+  liveThird: number;
   liveFinal: number;
 };
 
@@ -50,6 +51,7 @@ export const DEFAULT_WEIGHTS: ScoringWeights = {
   liveR16: 2,
   liveQf: 4,
   liveSf: 8,
+  liveThird: 8, // consolation game — weighted like a semifinal pick
   liveFinal: 16,
 };
 
@@ -59,6 +61,7 @@ export const LIVE_ROUND_POINTS: Record<KnockoutRound, keyof ScoringWeights> = {
   r16: "liveR16",
   qf: "liveQf",
   sf: "liveSf",
+  third: "liveThird",
   final: "liveFinal",
 };
 

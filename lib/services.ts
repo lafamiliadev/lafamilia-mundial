@@ -2,7 +2,6 @@ import "server-only";
 import { db } from "./db";
 import { computeAwards, isTeamMember, type AwardsResult } from "./awards";
 import { deriveNextRoundMatchups, marqueeScoreMatches } from "./bracket-derive";
-import { THIRD_PLACE_KICKOFF_ISO } from "./schedule";
 import { getProvider, type ProviderMatchStatus, type ProviderScore } from "./football";
 import { buildLedgerLines, type LedgerLine } from "./ledger";
 import { orientApiScore, scoreMatchKey } from "./score-match-link";
@@ -193,12 +192,7 @@ export async function recomputeScores(
     settings = { ...settings, liveMatches: [...settings.liveMatches, ...derivedMatchups] };
     await repo.saveSettings(settings);
   }
-  const marquee = marqueeScoreMatches(
-    settings.liveMatches,
-    merged.matchWinners ?? {},
-    await repo.getScoreMatches(),
-    THIRD_PLACE_KICKOFF_ISO,
-  );
+  const marquee = marqueeScoreMatches(settings.liveMatches, await repo.getScoreMatches());
   if (marquee.length > 0) await repo.createScoreMatches(marquee);
 
   // Keep bracket advancement in lockstep with the recorded knockout results.

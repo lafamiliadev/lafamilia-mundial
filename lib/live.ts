@@ -19,6 +19,7 @@ export const ROUND_MATCH_COUNT: Record<KnockoutRound, number> = {
   r16: 8,
   qf: 4,
   sf: 2,
+  third: 1,
   final: 1,
 };
 
@@ -82,6 +83,18 @@ export type LiveRoundView = {
  * still review their locked picks and results. Returns null when no knockout
  * matchups have been drawn yet.
  */
+/** Every drawn round with at least one game still open to pick, in bracket
+ * order. Multiple rounds can be open at once — over the closing weekend the
+ * 3rd-place game (Saturday) and the Final (Sunday) are both pickable. */
+export function openLiveRoundViews(matches: LiveMatch[], nowMs: number): LiveRoundView[] {
+  return KNOCKOUT_ROUNDS.map((round) => ({
+    round,
+    matches: matchesForRound(matches, round),
+  }))
+    .filter((r) => r.matches.some((m) => liveMatchOpen(m, nowMs)))
+    .map((r) => ({ round: r.round, matches: r.matches, hasOpenGames: true }));
+}
+
 export function currentLiveRoundView(matches: LiveMatch[], nowMs: number): LiveRoundView | null {
   const drawn = KNOCKOUT_ROUNDS.map((round) => ({
     round,

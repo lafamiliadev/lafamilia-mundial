@@ -175,7 +175,7 @@ function HowPointsWork({ w }: { w: ScoringWeights }) {
           <div className="space-y-1 text-white/90">
             <PtRow
               label="Per correct winner"
-              value={`${w.liveR32} / ${w.liveR16} / ${w.liveQf} / ${w.liveSf} / ${w.liveFinal}`}
+              value={`${w.liveR32} / ${w.liveR16} / ${w.liveQf} / ${w.liveSf} / ${w.liveThird} / ${w.liveFinal}`}
             />
           </div>
           <p className="mt-1 text-xs text-white/75">

@@ -33,7 +33,7 @@ describe("matchId / counts", () => {
     expect(matchId("final", 0)).toBe("final-1");
   });
   it("has the right match count per round", () => {
-    expect(ROUND_MATCH_COUNT).toEqual({ r32: 16, r16: 8, qf: 4, sf: 2, final: 1 });
+    expect(ROUND_MATCH_COUNT).toEqual({ r32: 16, r16: 8, qf: 4, sf: 2, third: 1, final: 1 });
   });
 });
 

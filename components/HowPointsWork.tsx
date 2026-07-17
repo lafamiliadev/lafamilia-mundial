@@ -78,8 +78,8 @@ export function HowPointsWork({ w }: { w: ScoringWeights }) {
           </div>
           <div className="space-y-1">
             <PtRow
-              label="Per correct winner (R32 / R16 / QF / SF / Final)"
-              value={`${w.liveR32} / ${w.liveR16} / ${w.liveQf} / ${w.liveSf} / ${w.liveFinal}`}
+              label="Per correct winner (R32 / R16 / QF / SF / 3rd place / Final)"
+              value={`${w.liveR32} / ${w.liveR16} / ${w.liveQf} / ${w.liveSf} / ${w.liveThird} / ${w.liveFinal}`}
             />
           </div>
           <p className="mt-1 text-xs text-[var(--color-muted)]">
