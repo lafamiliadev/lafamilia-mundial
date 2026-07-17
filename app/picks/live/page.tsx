@@ -3,11 +3,17 @@ import { LinkButton, PageShell, TopNav } from "@/components/ui";
 import { LivePicksWizard } from "@/components/LivePicksWizard";
 import { db } from "@/lib/db";
 import { LIVE_PICKS_ENABLED } from "@/lib/flags";
-import { currentLiveRoundView, liveMatchOpen, liveRound, openLiveRoundViews } from "@/lib/live";
+import {
+  currentLiveRoundView,
+  liveMatchOpen,
+  liveRound,
+  matchesForRound,
+  openLiveRoundViews,
+} from "@/lib/live";
 import { now, PREVIEW_ENABLED } from "@/lib/preview";
 import { getSessionParticipant } from "@/lib/session";
 import { kickoffLabelDual } from "@/lib/format-time";
-import { LIVE_ROUND_POINTS } from "@/lib/types";
+import { LIVE_ROUND_POINTS, sectionRounds, type KnockoutRound } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Live Picks · La Copa de LaFamilia 2026" };
@@ -114,31 +120,46 @@ export default async function LivePicksPage({
     );
   }
 
-  const allPicks = await repo.getLivePicks(me.id);
-  const sections = views.map((view) => {
-    const lr = liveRound(view.round);
-    const roundLabel = lr?.label ?? view.round.toUpperCase();
-    const plain = lr?.plain ?? "the matchups";
-    const pointsEach = settings.weights[LIVE_ROUND_POINTS[view.round]];
+  // Group rounds into pick-SECTIONS: the 3rd-place game and the Final pick
+  // together as one "Final & 3rd Place" section sharing a single ⚡ Double
+  // Down; every earlier round is its own section. A section shows ALL of its
+  // games (a locked one stays visible read-only while the other is open).
+  const sectionGroups: (readonly KnockoutRound[])[] = [];
+  for (const v of views) {
+    const rounds = sectionRounds(v.round);
+    if (!sectionGroups.some((g) => g[0] === rounds[0])) sectionGroups.push(rounds);
+  }
 
+  const allPicks = await repo.getLivePicks(me.id);
+  const sections = sectionGroups.map((rounds) => {
+    const isMerged = rounds.length > 1;
+    const lr = liveRound(rounds[0]);
+    const roundLabel = isMerged ? "Final & 3rd Place" : lr?.label ?? rounds[0].toUpperCase();
+    const plain = isMerged ? "the closing games" : lr?.plain ?? "the matchups";
+
+    const inSection = new Set<string>(rounds);
+    const sectionMatches = rounds.flatMap((x) => matchesForRound(settings.liveMatches, x));
     const savedByMatch = new Map(
-      allPicks.filter((p) => p.round === view.round).map((p) => [p.matchId, p] as const),
+      allPicks.filter((p) => inSection.has(p.round)).map((p) => [p.matchId, p] as const),
     );
 
     // Order the games chronologically by kickoff — match ids are provider fixture
     // ids, so their natural order is meaningless to a player.
-    const orderedMatches = [...view.matches].sort((a, b) =>
+    const orderedMatches = [...sectionMatches].sort((a, b) =>
       (a.kickoffIso ?? "").localeCompare(b.kickoffIso ?? ""),
     );
 
-    // One row per game, with its own lock state + the member's saved pick. The
-    // server computes `locked` so the UI never relies on the browser clock.
+    // One row per game, with its own lock state, points and the member's saved
+    // pick. The server computes `locked` so the UI never relies on the browser
+    // clock.
     const games = orderedMatches.map((m) => {
       const saved = savedByMatch.get(m.matchId);
       return {
         matchId: m.matchId,
         homeCode: m.homeCode,
         awayCode: m.awayCode,
+        points: settings.weights[LIVE_ROUND_POINTS[m.round]],
+        tag: isMerged ? (m.round === "final" ? "Final" : "3rd Place") : null,
         locked: !liveMatchOpen(m, nowMs),
         kickoffLabel: m.kickoffIso ? kickoffLabelDual(m.kickoffIso) : null,
         savedTeam: saved?.team ?? null,
@@ -146,13 +167,19 @@ export default async function LivePicksPage({
       };
     });
 
-    // The soonest game still open in this round — drives the section countdown.
+    const pts = games.map((g) => g.points);
+    const pointsLabel =
+      Math.min(...pts) === Math.max(...pts)
+        ? String(pts[0])
+        : `${Math.min(...pts)}–${Math.max(...pts)}`;
+
+    // The soonest game still open in this section — drives the countdown.
     const nextOpen = orderedMatches.find((m) => liveMatchOpen(m, nowMs)) ?? null;
     const nextUp = nextOpen
       ? { kickoffIso: nextOpen.kickoffIso, homeCode: nextOpen.homeCode, awayCode: nextOpen.awayCode }
       : null;
 
-    return { round: view.round, roundLabel, plain, pointsEach, games, nextUp };
+    return { round: rounds[0], roundLabel, plain, pointsLabel, sharedDd: isMerged, games, nextUp };
   });
 
   return (
@@ -174,7 +201,8 @@ export default async function LivePicksPage({
                 round={s.round}
                 roundLabel={s.roundLabel}
                 plain={s.plain}
-                pointsEach={s.pointsEach}
+                pointsLabel={s.pointsLabel}
+                sharedDd={s.sharedDd}
                 games={s.games}
                 nextUp={s.nextUp}
               />

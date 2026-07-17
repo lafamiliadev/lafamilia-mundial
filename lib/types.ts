@@ -16,6 +16,15 @@ export type GroupMap = Record<string, string[]>;
 export const KNOCKOUT_ROUNDS = ["r32", "r16", "qf", "sf", "third", "final"] as const;
 export type KnockoutRound = (typeof KNOCKOUT_ROUNDS)[number];
 
+/** The rounds that pick together as ONE section sharing a SINGLE ⚡ Double
+ * Down. The closing weekend — the 3rd-place game + the Final — is one
+ * prediction category ("Final & 3rd Place"): a member may pick both winners
+ * but may Double Down on only one of the two games. Every earlier round
+ * stands alone. */
+export function sectionRounds(round: KnockoutRound): readonly KnockoutRound[] {
+  return round === "third" || round === "final" ? (["third", "final"] as const) : [round];
+}
+
 export type ScoringWeights = {
   // ── Original bracket ──
   groupWinner: number; // per group winner (12 groups)

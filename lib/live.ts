@@ -114,14 +114,19 @@ export function currentLiveRoundView(matches: LiveMatch[], nowMs: number): LiveR
  * the single ⚡ Double Down across the whole round. Pure — the per-game lock is
  * enforced in the action before this runs, so only unlocked games reach here.
  */
+/** One ⚡ per SECTION — for the closing weekend that's the Final AND the
+ * 3rd-place game together, never both. */
+export const ONE_DOUBLE_DOWN_ERROR =
+  "Only one ⚡ Double Down here — it covers this whole section.";
+
 export function mergeRoundPicks(
-  existingRound: LivePick[],
+  existingSection: LivePick[],
   submitted: LivePick[],
 ): { ok: true; picks: LivePick[] } | { ok: false; error: string } {
   const submittedIds = new Set(submitted.map((p) => p.matchId));
-  const merged = [...existingRound.filter((p) => !submittedIds.has(p.matchId)), ...submitted];
+  const merged = [...existingSection.filter((p) => !submittedIds.has(p.matchId)), ...submitted];
   if (merged.filter((p) => p.highConviction).length > 1) {
-    return { ok: false, error: "Only one ⚡ Double Down per round." };
+    return { ok: false, error: ONE_DOUBLE_DOWN_ERROR };
   }
   return { ok: true, picks: merged };
 }
@@ -174,11 +179,10 @@ export type RawLivePick = { matchId: string; team: string; highConviction?: bool
  * Returns clean `LivePick[]` or a human-readable error.
  */
 export function sanitizeLivePicks(
-  round: KnockoutRound,
-  roundMatches: LiveMatch[],
+  sectionMatches: LiveMatch[],
   rawPicks: RawLivePick[],
 ): { ok: true; picks: LivePick[] } | { ok: false; error: string } {
-  const byId = new Map(roundMatches.map((m) => [m.matchId, m]));
+  const byId = new Map(sectionMatches.map((m) => [m.matchId, m]));
   const seen = new Set<string>();
   const picks: LivePick[] = [];
   let hc = 0;
@@ -192,9 +196,11 @@ export function sanitizeLivePicks(
     }
     const high = Boolean(rp.highConviction);
     if (high) hc += 1;
-    picks.push({ matchId: rp.matchId, round, team: rp.team, highConviction: high });
+    // Each pick carries its own match's round — a section can span rounds
+    // (Final & 3rd Place) and the scoring weight is per round.
+    picks.push({ matchId: rp.matchId, round: m.round, team: rp.team, highConviction: high });
   }
-  if (hc > 1) return { ok: false, error: "Only one ⚡ Double Down per round." };
+  if (hc > 1) return { ok: false, error: ONE_DOUBLE_DOWN_ERROR };
   return { ok: true, picks };
 }
 

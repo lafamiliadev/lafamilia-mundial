@@ -12,6 +12,10 @@ export type LiveGame = {
   matchId: string;
   homeCode: string;
   awayCode: string;
+  /** Points for a correct pick on THIS game (rounds in a merged section differ). */
+  points: number;
+  /** Display name for the game ("Final", "3rd Place") — null shows "Match N". */
+  tag: string | null;
   /** Server-computed: the game has kicked off and can no longer be edited. */
   locked: boolean;
   /** Human kickoff time (ET), or null if unknown. */
@@ -36,15 +40,18 @@ type CardStatus = "idle" | "saving" | "saved" | "error";
  * Saves are serialized (one request in flight at a time, re-run if more changes
  * land while saving) and each flush submits the full open-pick snapshot, so
  * rapid taps can't race and clobber an earlier game. The single ⚡ Double Down
- * is one-per-round: moving it submits both the old and new game together, since
- * the server rejects a save that would leave two Double Downs standing.
+ * is one-per-SECTION (for "Final & 3rd Place" that's ONE ⚡ across both games,
+ * behaving as a radio group): tapping it on another game moves it, and each
+ * flush submits both the old and new game together, since the server rejects a
+ * save that would leave two Double Downs standing.
  */
 export function LivePicksWizard({
   token,
   round,
   roundLabel,
   plain,
-  pointsEach,
+  pointsLabel,
+  sharedDd = false,
   games,
   nextUp,
 }: {
@@ -52,7 +59,10 @@ export function LivePicksWizard({
   round: KnockoutRound;
   roundLabel: string;
   plain: string;
-  pointsEach: number;
+  /** Human points-per-correct-pick — "8", or a range like "8–16" for a merged section. */
+  pointsLabel: string;
+  /** True when this section spans two games sharing ONE ⚡ (Final & 3rd Place). */
+  sharedDd?: boolean;
   games: LiveGame[];
   /** The soonest still-open match — powers the header countdown. null if none. */
   nextUp: { kickoffIso: string | null; homeCode: string; awayCode: string } | null;
@@ -164,8 +174,17 @@ export function LivePicksWizard({
           ⚡ {roundLabel} · Live Picks
         </p>
         <p className="mt-1 text-sm text-white/85">
-          Pick who advances in each of {plain}. {pointsEach}{" "}
-          {pointsEach === 1 ? "point" : "points"} per correct pick — each game locks at its own kickoff.
+          Pick who advances in each of {plain}. {pointsLabel}{" "}
+          {pointsLabel === "1" ? "point" : "points"} per correct pick — each game locks at its own kickoff.
+          {sharedDd && (
+            <>
+              {" "}
+              <span className="font-semibold text-[var(--color-gold-soft)]">
+                One ⚡ Double Down covers both games
+              </span>{" "}
+              — play it on the Final or the 3rd-place game, not both.
+            </>
+          )}
         </p>
         {nextUp?.kickoffIso && (
           <div className="mt-3 flex flex-col items-center gap-2">
@@ -182,7 +201,7 @@ export function LivePicksWizard({
           </p>
         ) : (
           <p className="mt-2 inline-block rounded-full bg-white/15 px-3 py-1 text-xs font-semibold">
-            🔒 Every game this round has kicked off — picks are locked
+            🔒 Every game here has kicked off — picks are locked
           </p>
         )}
       </div>
@@ -195,7 +214,9 @@ export function LivePicksWizard({
           return (
             <div key={g.matchId} className={cn("card p-3", g.locked && "opacity-90")}>
               <div className="mb-2 flex items-center justify-between">
-                <span className="text-xs font-bold text-[var(--color-muted)]">Match {i + 1}</span>
+                <span className="text-xs font-bold text-[var(--color-muted)]">
+                  {g.tag ?? `Match ${i + 1}`} · {g.points} pts
+                </span>
                 <span className="flex items-center gap-1.5">
                   {isHc && (
                     <span className="rounded-full bg-[var(--color-gold)] px-2 py-0.5 text-[10px] font-black text-[#3a2b00]">

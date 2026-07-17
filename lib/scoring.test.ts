@@ -165,6 +165,34 @@ describe("scorePredictions — Live Knockout Picks", () => {
     expect(scorePredictions(blankPrediction, results, DEFAULT_SETTINGS, picks).live).toBe(0);
   });
 
+  it("doubles at most ONE pick across the Final & 3rd Place section", () => {
+    // Belt-and-suspenders: the save path forbids this state, but even if two
+    // ⚡ picks reached the engine, only the first in the section may double.
+    const closing: Results = {
+      ...EMPTY_RESULTS,
+      matchWinners: { "derived-third-1": "FRA", "final-1": "ESP" },
+    };
+    const picks: LivePick[] = [
+      { matchId: "derived-third-1", round: "third", team: "FRA", highConviction: true },
+      { matchId: "final-1", round: "final", team: "ESP", highConviction: true },
+    ];
+    const r = scorePredictions(blankPrediction, closing, DEFAULT_SETTINGS, picks);
+    expect(r.live).toBe(W.liveThird * 2 + W.liveFinal); // second ⚡ ignored
+  });
+
+  it("still allows one ⚡ in an earlier round AND one in the closing section", () => {
+    const mixed: Results = {
+      ...EMPTY_RESULTS,
+      matchWinners: { "m1": "BRA", "final-1": "ESP" },
+    };
+    const picks: LivePick[] = [
+      { matchId: "m1", round: "sf", team: "BRA", highConviction: true },
+      { matchId: "final-1", round: "final", team: "ESP", highConviction: true },
+    ];
+    const r = scorePredictions(blankPrediction, mixed, DEFAULT_SETTINGS, picks);
+    expect(r.live).toBe(W.liveSf * 2 + W.liveFinal * 2);
+  });
+
   it("weights each round correctly and accumulates across rounds", () => {
     const r: Results = {
       ...EMPTY_RESULTS,
