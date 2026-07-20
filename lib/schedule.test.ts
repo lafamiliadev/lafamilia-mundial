@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { pickStatus } from "./schedule";
-import type { LiveMatch } from "./types";
+import { nextScoringMilestone, pickStatus } from "./schedule";
+import { EMPTY_RESULTS } from "./types";
+import type { LiveMatch, Results } from "./types";
 
 const LOCK = "2026-06-11T20:00:00Z";
 
@@ -10,6 +11,37 @@ const qfMatches: LiveMatch[] = [
   { matchId: "qf-3", round: "qf", homeCode: "ESP", awayCode: "BEL", kickoffIso: "2026-07-10T19:00:00+00:00" },
   { matchId: "qf-4", round: "qf", homeCode: "ARG", awayCode: "SUI", kickoffIso: "2026-07-12T01:00:00+00:00" },
 ];
+
+describe("nextScoringMilestone (results-aware)", () => {
+  // The final ends ~7pm ET but the milestone date is 23:59 ET — the recorded
+  // results, not the calendar, decide when the countdown stops.
+  const AFTER_FINAL_WHISTLE = new Date("2026-07-19T23:30:00Z"); // ~7:30pm ET Jul 19
+
+  it("counts down to the final while no champion is recorded", () => {
+    const m = nextScoringMilestone(AFTER_FINAL_WHISTLE, EMPTY_RESULTS);
+    expect(m?.label).toBe("The Final");
+  });
+
+  it("stops the countdown the moment the champion is recorded", () => {
+    const results: Results = { ...EMPTY_RESULTS, champion: "ESP" };
+    expect(nextScoringMilestone(AFTER_FINAL_WHISTLE, results)).toBeNull();
+  });
+
+  it("skips the group-stage milestone once all 12 group winners are in", () => {
+    const groupWinners = Object.fromEntries(
+      "ABCDEFGHIJKL".split("").map((g) => [g, "ESP"]),
+    );
+    const results: Results = { ...EMPTY_RESULTS, groupWinners };
+    // Mid-group-stage by date, but the groups are decided → next is Final Four.
+    const m = nextScoringMilestone(new Date("2026-06-20T00:00:00Z"), results);
+    expect(m?.label).toBe("Final Four is set");
+  });
+
+  it("keeps future milestones while their football is genuinely unplayed", () => {
+    const m = nextScoringMilestone(new Date("2026-06-20T00:00:00Z"), EMPTY_RESULTS);
+    expect(m?.label).toBe("Group stage finishes");
+  });
+});
 
 describe("pickStatus (per-game aware)", () => {
   it("is bonus-open before the tournament lock", () => {

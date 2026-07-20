@@ -14,18 +14,25 @@ export type ScoringMilestone = {
   dateIso: string;
   /** How many points are in play at this milestone (across all 12 groups, etc.). */
   pointsInPlay: number;
+  /** True once this milestone's points have ACTUALLY resolved in the recorded
+   * results. The dateIso entries are end-of-day estimates, so without this a
+   * countdown keeps ticking for hours after the football is decided (the final
+   * ends ~7pm ET; the milestone date is 23:59 ET). */
+  resolved: (results: Results) => boolean;
 };
 
 export const SCORING_MILESTONES: ScoringMilestone[] = [
   // Group winners are decided when the group stage finishes.
-  { label: "Group stage finishes", whenLabel: "When the group stage ends", fromPicks: "your group-winner picks", dateIso: "2026-06-27T23:59:00-04:00", pointsInPlay: 36 },
+  { label: "Group stage finishes", whenLabel: "When the group stage ends", fromPicks: "your group-winner picks", dateIso: "2026-06-27T23:59:00-04:00", pointsInPlay: 36,
+    resolved: (r) => Object.values(r.groupWinners ?? {}).filter(Boolean).length >= 12 },
   // Your Final Four is locked once the quarterfinals are played.
-  { label: "Final Four is set", whenLabel: "When the quarterfinals finish", fromPicks: "your Final Four picks", dateIso: "2026-07-11T23:59:00-04:00", pointsInPlay: 40 },
+  { label: "Final Four is set", whenLabel: "When the quarterfinals finish", fromPicks: "your Final Four picks", dateIso: "2026-07-11T23:59:00-04:00", pointsInPlay: 40,
+    resolved: (r) => (r.stageReached?.sf?.length ?? 0) >= 4 },
   // Champion (and the goals tiebreaker) resolves at the final.
-  { label: "The Final", whenLabel: "When the final is played", fromPicks: "your champion pick", dateIso: "2026-07-19T23:59:00-04:00", pointsInPlay: 20 },
+  { label: "The Final", whenLabel: "When the final is played", fromPicks: "your champion pick", dateIso: "2026-07-19T23:59:00-04:00", pointsInPlay: 20,
+    resolved: (r) => Boolean(r.champion) },
 ];
 
-/** The next milestone strictly after `now`, or null if the tournament is done. */
 /**
  * Friendly relative phrase for when predictions lock — "in 4 days", "tomorrow",
  * "today", "in under an hour". Built for awareness, not a ticking clock: used on
@@ -41,8 +48,11 @@ export function relativeLockLabel(msUntilLock: number): string {
   return `in ${Math.ceil(msUntilLock / DAY)} days`;
 }
 
-export function nextScoringMilestone(now: Date): ScoringMilestone | null {
+/** The next UNRESOLVED milestone strictly after `now`, or null when the
+ * tournament is done (every milestone resolved or past its date). */
+export function nextScoringMilestone(now: Date, results: Results): ScoringMilestone | null {
   for (const m of SCORING_MILESTONES) {
+    if (m.resolved(results)) continue; // decided on the pitch — stop counting down
     if (new Date(m.dateIso).getTime() > now.getTime()) return m;
   }
   return null;
@@ -52,7 +62,7 @@ export function nextScoringMilestone(now: Date): ScoringMilestone | null {
 // Dates follow the official 2026 knockout calendar. Picks for a round open once
 // its matchups are confirmed and lock at the round's first kickoff. Base points
 // in play are equal each round (16): 16×1, 8×2, 4×4, 2×8, 1×16.
-import type { BonusPicks, KnockoutRound, LiveMatch, ScoringWeights } from "./types";
+import type { BonusPicks, KnockoutRound, LiveMatch, Results, ScoringWeights } from "./types";
 
 export type LiveRound = {
   round: KnockoutRound;

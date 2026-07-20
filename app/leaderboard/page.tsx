@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
+import { ChampionCelebration } from "@/components/ChampionCelebration";
 import { Countdown } from "@/components/Countdown";
 import { FamiliaInvitersBoard } from "@/components/FamiliaInvitersBoard";
 import { Lane, LeaderboardList } from "@/components/LeaderboardList";
@@ -208,8 +209,12 @@ export default async function LeaderboardPage({
     await getLeaderboardData(token, 10, view);
   const inviters = await getFamiliaInviters(10, token);
   const nowMs = (await now()).getTime();
-  const nextDrop = nextScoringMilestone(new Date(nowMs));
   const repo = await db();
+  const results = await repo.getResults();
+  // Results-aware: a milestone that has already resolved on the pitch (e.g. the
+  // champion is crowned) never keeps counting down to its end-of-day estimate.
+  const nextDrop = nextScoringMilestone(new Date(nowMs), results);
+  const champion = results.champion;
   const settings = await repo.getSettings();
   const honorsLive = settings.awardsRevealed ?? false;
   // Once the game locks, no new signups are possible, so the invite challenge is
@@ -288,12 +293,23 @@ export default async function LeaderboardPage({
 
   return (
     <main className="flex flex-1 flex-col">
+      {/* Once the champion is crowned, opening the leaderboard gets a one-time
+          confetti fiesta (per browser session; skipped for reduced motion). */}
+      {champion && <ChampionCelebration flag={teamFlag(champion)} name={teamName(champion)} />}
       <TopNav active="leaderboard" />
       <PageShell>
         <div className="py-6">
-          <SectionTitle emoji="🏆">The Race</SectionTitle>
+          <SectionTitle emoji="🏆">{champion ? "Final Standings" : "The Race"}</SectionTitle>
           <p className="mt-1 text-sm text-[var(--color-muted)]">
-            {total} predicting. <strong>Top 3 take home prizes</strong> 🏅
+            {champion ? (
+              <>
+                {total} predicted. <strong>La Copa is decided</strong> — ¡felicidades! 🎉
+              </>
+            ) : (
+              <>
+                {total} predicting. <strong>Top 3 take home prizes</strong> 🏅
+              </>
+            )}
           </p>
         </div>
 
@@ -409,6 +425,19 @@ export default async function LeaderboardPage({
                 Up to {nextDrop.pointsInPlay} points from {nextDrop.fromPicks}
               </p>
             </>
+          ) : champion ? (
+            <>
+              <p className="text-xs font-bold uppercase tracking-wider text-[var(--color-gold-soft)]">
+                🏆 Tournament complete
+              </p>
+              <p className="mt-3 text-2xl">{teamFlag(champion)}</p>
+              <p className="mt-1 text-sm font-semibold">
+                {teamName(champion)} are the 2026 World Champions
+              </p>
+              <p className="mt-1 text-xs text-white/75">
+                Every point is in — these standings are the final word. Gracias, Familia. 💛
+              </p>
+            </>
           ) : null}
 
           {/* How points work — under the counter, on every tab. Divider only when
@@ -417,7 +446,8 @@ export default async function LeaderboardPage({
             className={
               (view === "live" && nextLive?.kickoffIso) ||
               (view === "score" && openScoreNow) ||
-              (nextDrop && view !== "live")
+              (nextDrop && view !== "live") ||
+              champion
                 ? "mt-4 border-t border-white/15 pt-4"
                 : ""
             }
@@ -467,10 +497,17 @@ export default async function LeaderboardPage({
           // ── Live race ──
           <>
             {podiumRows.length >= 1 && (
-              <div className="card p-4">
+              <div className={`card p-4 ${champion ? "ring-2 ring-[#f5b301]" : ""}`}>
+                {champion && (
+                  <p className="mb-3 text-center text-xs font-black uppercase tracking-wider text-[#b8860b]">
+                    🏆 Campeones de La Copa de LaFamilia 🏆
+                  </p>
+                )}
                 <Podium rows={podiumRows} />
                 <p className="mt-3 text-center text-xs font-semibold text-[var(--color-muted)]">
-                  Top 3 win. The whole board&apos;s still in play.
+                  {champion
+                    ? "Final standings — ¡felicidades a los ganadores! 🎉"
+                    : "Top 3 win. The whole board's still in play."}
                 </p>
               </div>
             )}
