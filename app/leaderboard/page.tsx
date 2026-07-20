@@ -5,6 +5,7 @@ import { Countdown } from "@/components/Countdown";
 import { FamiliaInvitersBoard } from "@/components/FamiliaInvitersBoard";
 import { Lane, LeaderboardList } from "@/components/LeaderboardList";
 import { LedgerDrawer } from "@/components/LedgerDrawer";
+import { Podium } from "@/components/Podium";
 import { ScorePicksPanel } from "@/components/ScorePicksPanel";
 import { KnockoutPicksPanel } from "@/components/KnockoutPicksPanel";
 import { SiembraBanner } from "@/components/Siembra";
@@ -27,7 +28,7 @@ import {
 } from "@/lib/score-picks";
 import { nextScoringMilestone } from "@/lib/schedule";
 import { teamFlag, teamName } from "@/lib/teams";
-import { DEFAULT_WEIGHTS, type LeaderboardRow, type ScoringWeights } from "@/lib/types";
+import { DEFAULT_WEIGHTS, type ScoringWeights } from "@/lib/types";
 
 const VIEWS: { key: LeaderboardView; label: string }[] = [
   { key: "overall", label: "Overall" },
@@ -61,49 +62,6 @@ function ViewTabs({ active, token }: { active: LeaderboardView; token?: string }
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Leaderboard · La Copa de LaFamilia 2026" };
 
-const PODIUM = [
-  { medal: "🥇", color: "#f5b301", bar: "h-24", ring: "ring-[#f5b301]" },
-  { medal: "🥈", color: "#c2c7d0", bar: "h-16", ring: "ring-[#c2c7d0]" },
-  { medal: "🥉", color: "#cd7f32", bar: "h-12", ring: "ring-[#cd7f32]" },
-];
-
-function Podium({ rows }: { rows: LeaderboardRow[] }) {
-  // Visual order places #1 in the center: [2nd, 1st, 3rd].
-  const order = [rows[1], rows[0], rows[2]];
-  const placeFor = (r: LeaderboardRow) => rows.indexOf(r); // 0,1,2
-  return (
-    <div className="grid grid-cols-3 items-end gap-2">
-      {order.map((r, i) => {
-        if (!r) return <div key={i} />;
-        const place = placeFor(r);
-        const p = PODIUM[place];
-        return (
-          <Link key={r.name + i} href={`/copa/${r.slug}`} className="flex flex-col items-center">
-            {place === 0 && <div className="text-xl leading-none">👑</div>}
-            <div
-              className={`mb-1 flex h-12 w-12 items-center justify-center rounded-full bg-white text-xl ring-2 ${p.ring}`}
-            >
-              {p.medal}
-            </div>
-            <p className="max-w-full truncate text-center text-sm font-bold underline-offset-4 hover:underline">
-              {r.name}
-            </p>
-            <p className="text-xs text-[var(--color-muted)]" title="Pick to win">
-              🏆 {teamFlag(r.champion)}
-            </p>
-            <p className="text-sm font-black tabular-nums">{r.total} pts</p>
-            <div
-              className={`mt-2 flex w-full ${p.bar} items-start justify-center rounded-t-xl pt-2 text-lg font-black text-white`}
-              style={{ background: p.color }}
-            >
-              {place + 1}
-            </div>
-          </Link>
-        );
-      })}
-    </div>
-  );
-}
 
 function PtRow({ label, value }: { label: ReactNode; value: ReactNode }) {
   return (
@@ -508,6 +466,9 @@ export default async function LeaderboardPage({
                   {champion
                     ? "Final standings — ¡felicidades a los ganadores! 🎉"
                     : "Top 3 win. The whole board's still in play."}
+                </p>
+                <p className="mt-1 text-center text-xs text-[var(--color-muted)]">
+                  Tap anyone to see every point, line by line.
                 </p>
               </div>
             )}
