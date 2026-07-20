@@ -13,13 +13,12 @@ export function openLedger(detail: OpenLedgerDetail) {
   window.dispatchEvent(new CustomEvent("open-ledger", { detail }));
 }
 
-/** Display order + plain-language headers for the grouped ledger. */
-const SECTIONS: { key: string; label: string; blurb: string }[] = [
-  { key: "bracket", label: "🏆 The Bracket", blurb: "group winners, Final Four & champion" },
-  { key: "bonus", label: "⭐ Bonus Picks", blurb: "Golden Ball / Boot / Glove & Dark Horse" },
-  { key: "live", label: "⚡ Knockout Picks", blurb: "who-advances picks, round by round" },
-  { key: "score", label: "🎯 Score Predictions", blurb: "exact scores & correct winners" },
-];
+const GROUP_TINT: Record<string, string> = {
+  score: "text-[var(--color-pitch)]",
+  bracket: "text-[var(--color-pitch)]",
+  bonus: "text-[var(--color-pitch)]",
+  live: "text-[var(--color-pitch)]",
+};
 
 /**
  * One shared bottom sheet, mounted once on the leaderboard. Listens for the
@@ -94,36 +93,18 @@ export function LedgerDrawer() {
             </div>
 
             {data.lines.length > 0 ? (
-              <div className="mt-4 space-y-4">
-                {SECTIONS.map((s) => {
-                  const lines = data.lines.filter((l) => l.group === s.key);
-                  if (lines.length === 0) return null;
-                  const subtotal = lines.reduce((sum, l) => sum + l.points, 0);
-                  return (
-                    <div key={s.key} className="rounded-2xl bg-black/[0.03] px-3 py-2">
-                      <div className="flex items-baseline justify-between gap-2 py-1">
-                        <div>
-                          <p className="text-sm font-bold">{s.label}</p>
-                          <p className="text-[11px] text-[var(--color-muted)]">{s.blurb}</p>
-                        </div>
-                        <span className="shrink-0 text-sm font-black tabular-nums text-[var(--color-pitch)]">
-                          +{subtotal}
-                        </span>
-                      </div>
-                      <ul className="divide-y divide-[var(--color-line)]">
-                        {lines.map((l, i) => (
-                          <li key={i} className="flex items-start gap-3 py-2">
-                            <span className="w-9 shrink-0 text-right text-sm font-black tabular-nums text-[var(--color-pitch)]">
-                              +{l.points}
-                            </span>
-                            <span className="text-sm leading-snug">{l.text}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  );
-                })}
-              </div>
+              <ul className="mt-4 divide-y divide-[var(--color-line)]">
+                {data.lines.map((l, i) => (
+                  <li key={i} className="flex items-start gap-3 py-2.5">
+                    <span
+                      className={`w-9 shrink-0 text-right text-base font-black tabular-nums ${GROUP_TINT[l.group] ?? ""}`}
+                    >
+                      +{l.points}
+                    </span>
+                    <span className="text-sm leading-snug">{l.text}</span>
+                  </li>
+                ))}
+              </ul>
             ) : (
               <div className="mt-4 rounded-2xl bg-[var(--color-gold-soft)]/40 p-4 text-sm">
                 <p className="font-semibold">No points yet — and that&apos;s OK.</p>
